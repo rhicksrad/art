@@ -1,3 +1,3 @@
 window.__CONFIG__ = {
-  WORKER_BASE: "https://art.hicksrch.workers.dev"
+  WORKER_BASE: 'https://art.hicksrch.workers.dev',
 };

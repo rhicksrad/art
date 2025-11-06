@@ -1,8 +1,8 @@
-import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
-import { createPager } from "../components/Pager";
-import { setSiteStatus } from "../components/SiteHeader";
-import { fetchJSON } from "../lib/http";
+import { createAlert } from '../components/Alert';
+import { createCard, CardProps } from '../components/Card';
+import { createPager } from '../components/Pager';
+import { setSiteStatus } from '../components/SiteHeader';
+import { fetchJSON } from '../lib/http';
 
 type DiagResponse = {
   ok: boolean;
@@ -12,49 +12,49 @@ type DiagResponse = {
 };
 
 const renderStatus = (container: HTMLElement, data: DiagResponse): void => {
-  container.innerHTML = "";
+  container.innerHTML = '';
 
-  const okRow = document.createElement("p");
+  const okRow = document.createElement('p');
   okRow.innerHTML = `<strong>ok:</strong> ${String(data.ok)}`;
 
-  const nowRow = document.createElement("p");
-  nowRow.innerHTML = `<strong>now:</strong> ${data.now ?? "unknown"}`;
+  const nowRow = document.createElement('p');
+  nowRow.innerHTML = `<strong>now:</strong> ${data.now ?? 'unknown'}`;
 
-  const endpointsList = document.createElement("ul");
-  endpointsList.className = "status-list";
+  const endpointsList = document.createElement('ul');
+  endpointsList.className = 'status-list';
   (data.endpoints ?? []).forEach((endpoint) => {
-    const item = document.createElement("li");
+    const item = document.createElement('li');
     item.textContent = endpoint;
     endpointsList.appendChild(item);
   });
 
-  const endpointsWrapper = document.createElement("div");
-  const endpointsTitle = document.createElement("strong");
-  endpointsTitle.textContent = "endpoints:";
+  const endpointsWrapper = document.createElement('div');
+  const endpointsTitle = document.createElement('strong');
+  endpointsTitle.textContent = 'endpoints:';
   endpointsWrapper.append(endpointsTitle);
   if (endpointsList.childElementCount > 0) {
     endpointsWrapper.appendChild(endpointsList);
   } else {
-    const none = document.createElement("p");
-    none.textContent = "No endpoints reported.";
+    const none = document.createElement('p');
+    none.textContent = 'No endpoints reported.';
     endpointsWrapper.appendChild(none);
   }
 
-  const keysWrapper = document.createElement("div");
-  const keysTitle = document.createElement("strong");
-  keysTitle.textContent = "keys:";
+  const keysWrapper = document.createElement('div');
+  const keysTitle = document.createElement('strong');
+  keysTitle.textContent = 'keys:';
   keysWrapper.appendChild(keysTitle);
 
-  const keysList = document.createElement("ul");
-  keysList.className = "status-list";
+  const keysList = document.createElement('ul');
+  keysList.className = 'status-list';
   const keysEntries = Object.entries(data.keys ?? {});
   if (keysEntries.length === 0) {
-    const none = document.createElement("p");
-    none.textContent = "No key information.";
+    const none = document.createElement('p');
+    none.textContent = 'No key information.';
     keysWrapper.appendChild(none);
   } else {
     keysEntries.forEach(([key, value]) => {
-      const item = document.createElement("li");
+      const item = document.createElement('li');
       item.textContent = `keys.${key}: ${String(value)}`;
       keysList.appendChild(item);
     });
@@ -65,29 +65,29 @@ const renderStatus = (container: HTMLElement, data: DiagResponse): void => {
 };
 
 const mount = (el: HTMLElement): void => {
-  el.innerHTML = "";
+  el.innerHTML = '';
 
-  const section = document.createElement("section");
-  section.className = "home-status";
+  const section = document.createElement('section');
+  section.className = 'home-status';
 
-  const heading = document.createElement("h2");
-  heading.textContent = "Service diagnostics";
+  const heading = document.createElement('h2');
+  heading.textContent = 'Service diagnostics';
   section.appendChild(heading);
 
-  const statusContainer = document.createElement("div");
-  statusContainer.className = "status-container";
-  statusContainer.textContent = "Loading status check…";
+  const statusContainer = document.createElement('div');
+  statusContainer.className = 'status-container';
+  statusContainer.textContent = 'Loading status check…';
   section.appendChild(statusContainer);
 
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
+  const resultsSection = document.createElement('section');
+  resultsSection.className = 'results';
 
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
+  const resultsHeading = document.createElement('h3');
+  resultsHeading.textContent = 'Results';
   resultsSection.appendChild(resultsHeading);
 
-  const resultsList = document.createElement("div");
-  resultsList.className = "results-list";
+  const resultsList = document.createElement('div');
+  resultsList.className = 'results-list';
   resultsSection.appendChild(resultsList);
 
   const pager = createPager({
@@ -100,11 +100,11 @@ const mount = (el: HTMLElement): void => {
   resultsSection.appendChild(pager);
 
   const updateResults = (items: CardProps[]): void => {
-    resultsList.innerHTML = "";
+    resultsList.innerHTML = '';
     if (items.length === 0) {
-      const placeholder = document.createElement("p");
-      placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      const placeholder = document.createElement('p');
+      placeholder.className = 'results-placeholder';
+      placeholder.textContent = 'No results yet.';
       resultsList.appendChild(placeholder);
       return;
     }
@@ -119,46 +119,41 @@ const mount = (el: HTMLElement): void => {
   el.appendChild(section);
   el.appendChild(resultsSection);
 
-  setSiteStatus("loading");
+  setSiteStatus('loading');
 
-  fetchJSON<DiagResponse>("/diag")
+  fetchJSON<DiagResponse>('/diag')
     .then((data) => {
       renderStatus(statusContainer, data);
-      setSiteStatus(data.ok ? "ok" : "error", data.ok ? "Online" : "Check service");
+      setSiteStatus(data.ok ? 'ok' : 'error', data.ok ? 'Online' : 'Check service');
 
-      const endpointSummary = (data.endpoints ?? []).slice(0, 2).join(", ");
+      const endpointSummary = (data.endpoints ?? []).slice(0, 2).join(', ');
       const keyEntries = Object.entries(data.keys ?? {}).slice(0, 2);
 
       const results: CardProps[] = [
         {
-          title: data.ok ? "Service online" : "Service issue detected",
+          title: data.ok ? 'Service online' : 'Service issue detected',
           sub: data.now ? `Reported ${data.now}` : undefined,
-          meta:
-            endpointSummary.length > 0
-              ? `Endpoints: ${endpointSummary}`
-              : undefined,
+          meta: endpointSummary.length > 0 ? `Endpoints: ${endpointSummary}` : undefined,
         },
       ];
 
       if (endpointSummary.length === 0 && (data.endpoints ?? []).length > 0) {
         const [firstEndpoint] = data.endpoints ?? [];
-        if (typeof firstEndpoint === "string" && firstEndpoint.length > 0) {
+        if (typeof firstEndpoint === 'string' && firstEndpoint.length > 0) {
           results.push({
             title: firstEndpoint,
-            sub: "Endpoint",
-            meta: data.ok ? "Reachable" : "Check status",
+            sub: 'Endpoint',
+            meta: data.ok ? 'Reachable' : 'Check status',
           });
         }
       }
 
       if (keyEntries.length > 0) {
         const [firstKey] = keyEntries[0];
-        const keyMeta = keyEntries
-          .map(([key, value]) => `${key}: ${String(value)}`)
-          .join(", ");
+        const keyMeta = keyEntries.map(([key, value]) => `${key}: ${String(value)}`).join(', ');
         results.push({
           title: `Key ${firstKey}`,
-          sub: `${keyEntries.length} key${keyEntries.length === 1 ? "" : "s"}`,
+          sub: `${keyEntries.length} key${keyEntries.length === 1 ? '' : 's'}`,
           meta: keyMeta,
         });
       }
@@ -166,14 +161,11 @@ const mount = (el: HTMLElement): void => {
       updateResults(results.slice(0, 3));
     })
     .catch((error: Error) => {
-      statusContainer.innerHTML = "";
-      const alert = createAlert(
-        `Unable to load status diagnostics: ${error.message}`,
-        "error"
-      );
+      statusContainer.innerHTML = '';
+      const alert = createAlert(`Unable to load status diagnostics: ${error.message}`, 'error');
       section.insertBefore(alert, statusContainer);
-      statusContainer.textContent = "Status information is unavailable.";
-      setSiteStatus("error", "Unavailable");
+      statusContainer.textContent = 'Status information is unavailable.';
+      setSiteStatus('error', 'Unavailable');
       updateResults([]);
     });
 };

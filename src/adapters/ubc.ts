@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { ItemCard } from "../lib/types";
+import { z } from 'zod';
+import type { ItemCard } from '../lib/types';
 
 const StringLikeSchema = z.union([z.string(), z.array(z.string())]);
 
@@ -20,7 +20,7 @@ const UbcThumbnailSchema = z
 const UbcIiifSchema = z
   .object({
     id: z.string().optional(),
-    "@id": z.string().optional(),
+    '@id': z.string().optional(),
     service: z.string().optional(),
     manifest: z.string().optional(),
     tileSource: z.string().optional(),
@@ -65,12 +65,12 @@ type UbcHit = z.infer<typeof UbcHitSchema>;
 type UbcResponse = z.infer<typeof UbcResponseSchema>;
 
 const extractFirstString = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
 
-  if (typeof value === "number" || typeof value === "bigint") {
+  if (typeof value === 'number' || typeof value === 'bigint') {
     return String(value);
   }
 
@@ -81,7 +81,7 @@ const extractFirstString = (value: unknown): string | undefined => {
         return result;
       }
     }
-  } else if (value && typeof value === "object") {
+  } else if (value && typeof value === 'object') {
     for (const entry of Object.values(value as Record<string, unknown>)) {
       const result = extractFirstString(entry);
       if (result) {
@@ -106,7 +106,7 @@ const getImage = (hit: UbcHit): string | undefined => {
 
   const iiif = hit.iiif;
   if (iiif) {
-    const candidate = extractFirstString(iiif.id ?? iiif["@id"] ?? iiif.service ?? iiif.manifest);
+    const candidate = extractFirstString(iiif.id ?? iiif['@id'] ?? iiif.service ?? iiif.manifest);
     if (candidate) {
       return candidate;
     }
@@ -155,13 +155,14 @@ const toItemCard = (hit: UbcHit): ItemCard => {
     tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
     img,
     href,
-    source: "UBC",
+    source: 'UBC',
     raw: hit,
   };
 };
 
 export const toItemCards = (resp: unknown): ItemCard[] => {
   const data: UbcResponse = UbcResponseSchema.parse(resp);
-  const hits = Array.isArray(data.results) && data.results.length > 0 ? data.results : data.items ?? [];
+  const hits =
+    Array.isArray(data.results) && data.results.length > 0 ? data.results : (data.items ?? []);
   return hits.map((hit) => toItemCard(hit));
 };

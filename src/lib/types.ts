@@ -6,6 +6,6 @@ export type ItemCard = {
   tags?: string[];
   img?: string;
   href?: string;
-  source: "Harvard" | "Princeton" | "Yale" | "UBC" | "Dataverse" | "arXiv";
+  source: 'Harvard' | 'Princeton' | 'Yale' | 'UBC' | 'Dataverse' | 'arXiv';
   raw: unknown;
 };

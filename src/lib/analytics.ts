@@ -21,11 +21,11 @@ const normalizeNumber = (value: number): number | undefined => {
 };
 
 export const extractYear = (value: unknown): number | undefined => {
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return normalizeNumber(value);
   }
 
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const matches = value.match(YEAR_REGEX);
     if (!matches) {
       return undefined;
@@ -33,7 +33,7 @@ export const extractYear = (value: unknown): number | undefined => {
     for (const match of matches) {
       const parsed = Number.parseInt(match, 10);
       const year = normalizeNumber(parsed);
-      if (typeof year === "number") {
+      if (typeof year === 'number') {
         return year;
       }
     }
@@ -48,7 +48,7 @@ const toDecade = (year: number): number => {
 };
 
 const limitSeries = <T>(entries: Array<[T, number]>, limit?: number): Array<[T, number]> => {
-  if (typeof limit !== "number" || limit <= 0 || entries.length <= limit) {
+  if (typeof limit !== 'number' || limit <= 0 || entries.length <= limit) {
     return entries;
   }
   return entries.slice(entries.length - limit);
@@ -90,20 +90,19 @@ export const countStrings = (values: string[], limit = 12): ChartDatum[] => {
     }
     return b[1] - a[1];
   });
-  const limited =
-    typeof limit === "number" && limit > 0 ? sorted.slice(0, limit) : sorted;
+  const limited = typeof limit === 'number' && limit > 0 ? sorted.slice(0, limit) : sorted;
   return limited.map(([label, value]) => ({ label, value }));
 };
 
 export const parseNumericValue = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
   }
-  if (typeof value === "bigint") {
+  if (typeof value === 'bigint') {
     return Number(value);
   }
-  if (typeof value === "string") {
-    const match = value.replace(/,/g, "").match(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/);
+  if (typeof value === 'string') {
+    const match = value.replace(/,/g, '').match(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/);
     if (match) {
       const parsed = Number.parseFloat(match[0]);
       return Number.isFinite(parsed) ? parsed : undefined;
@@ -112,7 +111,7 @@ export const parseNumericValue = (value: unknown): number | undefined => {
   if (Array.isArray(value)) {
     for (const entry of value) {
       const parsed = parseNumericValue(entry);
-      if (typeof parsed === "number") {
+      if (typeof parsed === 'number') {
         return parsed;
       }
     }
@@ -120,11 +119,8 @@ export const parseNumericValue = (value: unknown): number | undefined => {
   return undefined;
 };
 
-export const findNumericByKey = (
-  source: unknown,
-  keywords: string[]
-): number | undefined => {
-  if (!source || typeof source !== "object") {
+export const findNumericByKey = (source: unknown, keywords: string[]): number | undefined => {
+  if (!source || typeof source !== 'object') {
     return undefined;
   }
   const lowered = keywords.map((keyword) => keyword.toLowerCase());
@@ -133,7 +129,7 @@ export const findNumericByKey = (
 
   while (stack.length > 0) {
     const current = stack.pop();
-    if (!current || typeof current !== "object") {
+    if (!current || typeof current !== 'object') {
       continue;
     }
     if (visited.has(current as object)) {
@@ -153,11 +149,11 @@ export const findNumericByKey = (
       const lowerKey = key.toLowerCase();
       if (lowered.some((keyword) => lowerKey.includes(keyword))) {
         const parsed = parseNumericValue(value);
-        if (typeof parsed === "number") {
+        if (typeof parsed === 'number') {
           return parsed;
         }
       }
-      if (value && typeof value === "object") {
+      if (value && typeof value === 'object') {
         stack.push(value);
       }
     }

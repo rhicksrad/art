@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { ItemCard } from "../lib/types";
+import { z } from 'zod';
+import type { ItemCard } from '../lib/types';
 
 const HarvardImageSchema = z
   .object({
@@ -45,14 +45,14 @@ type HarvardResponse = z.infer<typeof HarvardResponseSchema>;
 
 const getPrimaryImage = (record: HarvardRecord): string | undefined => {
   const iiifImage = record.images?.find((image) => {
-    return typeof image.iiifbaseuri === "string" && image.iiifbaseuri.length > 0;
+    return typeof image.iiifbaseuri === 'string' && image.iiifbaseuri.length > 0;
   });
 
   if (iiifImage?.iiifbaseuri) {
     return iiifImage.iiifbaseuri;
   }
 
-  if (typeof record.primaryimageurl === "string" && record.primaryimageurl.length > 0) {
+  if (typeof record.primaryimageurl === 'string' && record.primaryimageurl.length > 0) {
     return record.primaryimageurl;
   }
 
@@ -76,7 +76,7 @@ const getPrimaryPerson = (record: HarvardRecord): string | undefined => {
 
 const buildTags = (record: HarvardRecord): string[] | undefined => {
   const tags = [record.classification, record.technique, record.culture]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     .map((value) => value.trim());
 
   return tags.length > 0 ? Array.from(new Set(tags)) : undefined;
@@ -98,7 +98,7 @@ const toItemCard = (record: HarvardRecord): ItemCard => {
     tags,
     img,
     href,
-    source: "Harvard",
+    source: 'Harvard',
     raw: record,
   };
 };
