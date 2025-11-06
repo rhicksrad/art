@@ -136,8 +136,9 @@ const mount = (el: HTMLElement): void => {
 
     try {
       const start = (currentPage - 1) * PAGE_SIZE;
+      const query = currentQuery.q.trim().length > 0 ? currentQuery.q : '*';
       const response = await fetchJSON<DataverseResponse>('/dataverse/search', {
-        q: currentQuery.q,
+        q: query,
         type: currentQuery.type || 'dataset',
         per_page: PAGE_SIZE,
         start,
