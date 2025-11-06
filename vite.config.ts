@@ -1,10 +1,7 @@
-import { defineConfig } from "vite";
+import { defineConfig } from 'vite';
 
-const repository = process.env.GITHUB_REPOSITORY;
-const basePath = process.env.CI && repository
-  ? `/${repository.split("/")[1]}/`
-  : "/";
-
+const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
+const isCI = !!process.env.CI;
 export default defineConfig({
-  base: basePath
+  base: isCI && repo ? `/${repo}/` : '/',
 });
