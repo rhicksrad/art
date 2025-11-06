@@ -628,6 +628,72 @@ body {
   stroke-width: 2;
 }
 
+.timeline-legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.timeline-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.timeline-legend__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.home-saved__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.saved-search {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.saved-search__meta {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.saved-search__query {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.saved-search__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.home-timeline__totals {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 @media (prefers-color-scheme: dark) {
   .chart {
     background: rgba(255, 255, 255, 0.05);
@@ -644,5 +710,14 @@ body {
 
   .chart__line {
     stroke: #90c2ff;
+  }
+
+  .timeline-legend__swatch {
+    background: currentColor;
+  }
+
+  .saved-search {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
