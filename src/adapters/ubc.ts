@@ -1,4 +1,5 @@
 import type { ItemCard } from '../lib/types';
+import { getUbcTotal } from '../lib/ubc';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -52,26 +53,122 @@ const collectStrings = (value: unknown): string[] => {
   return [];
 };
 
-const deriveImage = (hit: UnknownRecord): string | undefined => {
-  const direct = extractFirstString(hit.thumbnail ?? hit.thumb ?? hit.image ?? hit.img);
-  if (direct) {
-    return direct;
-  }
+const isIiifCandidate = (value: string): boolean => {
+  const lowered = value.toLowerCase();
+  return (
+    lowered.includes('/iiif') ||
+    /\/info\.json$/i.test(value) ||
+    /\/full\//i.test(value) ||
+    lowered.includes('/image/')
+  );
+};
 
-  const iiif = asRecord(hit.iiif ?? hit.image_service ?? hit.media);
-  if (iiif) {
-    const candidate =
-      extractFirstString(iiif.id) ??
-      extractFirstString(iiif['@id']) ??
-      extractFirstString(iiif.service) ??
-      extractFirstString(iiif.manifest) ??
-      extractFirstString(iiif.tileSource);
-    if (candidate) {
-      return candidate;
+const sanitiseIiifBase = (value: string): string => {
+  return value.replace(/\/info\.json$/i, '').replace(/\/$/, '');
+};
+
+const toIiifImage = (base: string, size = '!600,600'): string => {
+  const trimmed = sanitiseIiifBase(base);
+  if (/\/full\//.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}/full/${size}/0/default.jpg`;
+};
+
+const resolveIiifBase = (value: unknown): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    if (/^https?:/i.test(trimmed) && isIiifCandidate(trimmed)) {
+      return sanitiseIiifBase(trimmed);
+    }
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const resolved = resolveIiifBase(entry);
+      if (resolved) {
+        return resolved;
+      }
+    }
+    return undefined;
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  const candidates: unknown[] = [
+    record.service,
+    record['@id'],
+    record.id,
+    record.url,
+    record.uri,
+    record.thumbnail,
+    record.tileSource,
+    record.tilesource,
+    record.image,
+  ];
+  for (const candidate of candidates) {
+    const result = resolveIiifBase(candidate);
+    if (result) {
+      return result;
     }
   }
-
   return undefined;
+};
+
+const getSource = (hit: UnknownRecord): UnknownRecord => {
+  return asRecord(hit['_source']) ?? hit;
+};
+
+export const deriveIiifService = (hit: unknown): string | undefined => {
+  const record = asRecord(hit);
+  if (!record) {
+    return undefined;
+  }
+  const source = getSource(record);
+  const candidates: unknown[] = [
+    source.iiif,
+    source.iiifService,
+    source.iiif_service,
+    source.image_service,
+    source.imageService,
+    source.service,
+    source.media,
+    source.tileSource,
+    source.thumbnail,
+  ];
+  for (const candidate of candidates) {
+    const resolved = resolveIiifBase(candidate);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  return undefined;
+};
+
+const deriveImage = (hit: UnknownRecord): string | undefined => {
+  const source = getSource(hit);
+  const direct = extractFirstString(
+    source.thumbnail ?? source.thumb ?? source.image ?? source.img ?? source.preview ?? source.cover,
+  );
+  if (direct) {
+    const iiif = resolveIiifBase(direct);
+    return iiif ? toIiifImage(iiif) : direct;
+  }
+
+  const service = deriveIiifService(source);
+  if (service) {
+    return toIiifImage(service);
+  }
+
+  const fallback = extractFirstString(source.previewUrl ?? source.preview_url ?? source.primary_image);
+  return fallback ?? undefined;
 };
 
 const deriveIdentifier = (hit: UnknownRecord): string => {
@@ -86,7 +183,7 @@ const deriveIdentifier = (hit: UnknownRecord): string => {
 };
 
 const toCard = (hit: UnknownRecord): ItemCard => {
-  const source = asRecord(hit['_source']) ?? hit;
+  const source = getSource(hit);
   const identifier = deriveIdentifier(source);
   const title =
     extractFirstString(source.title) ??
@@ -157,4 +254,26 @@ const extractHits = (resp: unknown): UnknownRecord[] => {
 export const toItemCards = (resp: unknown): ItemCard[] => {
   const hits = extractHits(resp);
   return hits.map((hit) => toCard(hit));
+};
+
+export const extractTotal = (resp: unknown): number | undefined => {
+  return getUbcTotal(resp);
+};
+
+export const deriveIiifManifest = (hit: unknown): string | undefined => {
+  const record = asRecord(hit);
+  if (!record) {
+    return undefined;
+  }
+  const source = getSource(record);
+  const candidate =
+    extractFirstString(source.manifest) ??
+    extractFirstString(source.manifestUrl ?? source.manifest_url) ??
+    extractFirstString(source.iiif_manifest ?? source.iiifManifest) ??
+    extractFirstString(source.manifestUri ?? source.manifest_uri) ??
+    extractFirstString(record.manifest ?? record.iiif_manifest);
+  if (candidate && /^https?:/i.test(candidate)) {
+    return candidate;
+  }
+  return undefined;
 };
