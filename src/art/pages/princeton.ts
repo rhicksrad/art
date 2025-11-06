@@ -44,10 +44,11 @@ const stateKey = (state: SearchState): string => {
 };
 
 const createToolbar = (
-  state: SearchState,
+  initialState: SearchState,
   onSubmit: (next: SearchState) => void,
   onImmediateChange: (next: SearchState) => void,
 ) => {
+  let state = initialState;
   const form = document.createElement('form');
   form.className = 'art-toolbar form-row';
 
@@ -86,6 +87,7 @@ const createToolbar = (
   });
   sortSelect.addEventListener('change', () => {
     const next: SearchState = { ...state, sort: sortSelect.value as SearchState['sort'], page: 1 };
+    state = next;
     onImmediateChange(next);
   });
   sortField.append(sortSpan, sortSelect);
@@ -112,6 +114,7 @@ const createToolbar = (
   }
   sizeSelect.addEventListener('change', () => {
     const next: SearchState = { ...state, size: Number(sizeSelect.value), page: 1 };
+    state = next;
     onImmediateChange(next);
   });
   sizeField.append(sizeSpan, sizeSelect);
@@ -125,6 +128,7 @@ const createToolbar = (
   imageCheckbox.checked = state.hasImage !== false;
   imageCheckbox.addEventListener('change', () => {
     const next: SearchState = { ...state, hasImage: imageCheckbox.checked, page: 1 };
+    state = next;
     onImmediateChange(next);
   });
   imageToggle.append(imageCheckbox, imageSpan);
@@ -142,10 +146,15 @@ const createToolbar = (
       q: searchInput.value.trim() || undefined,
       page: 1,
     };
+    state = next;
     onSubmit(next);
   });
 
-  return { form, fields: { searchInput, sortSelect, sizeSelect, imageCheckbox } };
+  const setState = (next: SearchState) => {
+    state = next;
+  };
+
+  return { form, fields: { searchInput, sortSelect, sizeSelect, imageCheckbox }, setState };
 };
 
 const createPagination = (onSelect: (page: number) => void) => {
@@ -221,7 +230,7 @@ export const mount = (root: HTMLElement): void => {
   });
   paginationHost.appendChild(pagination.element);
 
-  const { form, fields } = createToolbar(
+  const { form, fields, setState } = createToolbar(
     currentState,
     (next) => writeState(next),
     (next) => writeState(next),
@@ -281,6 +290,7 @@ export const mount = (root: HTMLElement): void => {
     fields.sortSelect.value = state.sort ?? 'relevance';
     fields.sizeSelect.value = String(state.size ?? 30);
     fields.imageCheckbox.checked = state.hasImage !== false;
+    setState(state);
 
     const key = stateKey(state);
     const cached = cache.get(key);
