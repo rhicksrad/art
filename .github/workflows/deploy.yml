@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: corepack enable
+      - run: pnpm install
+      - name: Write runtime config
+        run: |
+          mkdir -p public
+          echo 'window.__CONFIG__ = { WORKER_BASE: "https://art.hicksrch.workers.dev" };' > public/config.js
+      - name: Build
+        env:
+          CI: "true"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm build
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
