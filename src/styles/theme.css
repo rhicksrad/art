@@ -506,6 +506,22 @@ section {
   color: var(--muted);
 }
 
+.facet__more {
+  margin-top: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  padding: 0.25rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.facet__more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .result-card__footer {
   margin-top: 1rem;
   display: flex;
@@ -529,6 +545,228 @@ section {
   width: 100%;
   display: block;
   object-fit: cover;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(48, 86, 211, 0.2);
+  background: rgba(48, 86, 211, 0.08);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.chip--kind {
+  background: rgba(48, 86, 211, 0.15);
+}
+
+.chip--filetype {
+  border-color: rgba(38, 136, 204, 0.3);
+  color: #2b80c9;
+}
+
+.chip--subject {
+  border-color: rgba(120, 120, 120, 0.3);
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
+}
+
+.chip--author {
+  border-color: rgba(86, 67, 162, 0.3);
+  color: #4f3db0;
+  background: rgba(86, 67, 162, 0.1);
+}
+
+.chip--date {
+  border-color: rgba(64, 153, 70, 0.3);
+  color: #2f7a33;
+  background: rgba(64, 153, 70, 0.1);
+}
+
+.dataverse-intro {
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.dataverse-toolbar {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.dataverse-toolbar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.dataverse-toolbar__field > input,
+.dataverse-toolbar__field > select {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dataverse-toolbar__fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.dataverse-toolbar__fieldset legend {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.dataverse-toolbar__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.dataverse-toolbar__range {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.dataverse-toolbar__range input {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dataverse-toolbar__submit {
+  justify-self: flex-start;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dataverse-toolbar__submit:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+@media (min-width: 960px) {
+  .dataverse-toolbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .dataverse-toolbar__field:first-of-type {
+    grid-column: span 2;
+  }
+
+  .dataverse-toolbar__fieldset {
+    grid-column: span 2;
+  }
+
+  .dataverse-toolbar__range {
+    grid-column: span 2;
+  }
+}
+
+.dataverse-layout {
+  gap: 1.5rem;
+}
+
+.dataverse-card__media {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.dataverse-card__thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
+.dataverse-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dataverse-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dataverse-card__dataverse {
+  margin: 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.dataverse-card__subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dataverse-card__description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.dataverse-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.dataverse-card__action {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.dataverse-card__action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dataverse-empty {
+  padding: 2rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.infinite-scroll-sentinel {
+  width: 100%;
+  height: 1px;
 }
 
 @media (max-width: 960px) {
