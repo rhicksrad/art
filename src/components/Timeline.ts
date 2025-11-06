@@ -8,6 +8,7 @@ import {
   scaleOrdinal,
   select,
 } from 'd3';
+import { getChartPalette } from '../lib/chartPalette';
 
 export type TimelinePoint = { x: number; y: number };
 
@@ -28,8 +29,6 @@ export type TimelineHandle = {
 const WIDTH = 640;
 const HEIGHT = 320;
 const MARGIN = { top: 16, right: 24, bottom: 48, left: 48 };
-
-const COLORS = ['#2F80ED', '#27AE60', '#F2994A', '#9B51E0', '#EB5757', '#56CCF2'];
 
 const formatDecade = (value: number): string => {
   if (!Number.isFinite(value)) {
@@ -95,7 +94,7 @@ export const createTimeline = ({ series }: TimelineProps): TimelineHandle => {
     .attr('transform', `translate(${MARGIN.left}, 0)`);
   const linesGroup = root.append('g').attr('class', 'timeline-lines');
 
-  const colorScale = scaleOrdinal<string, string>().range(COLORS);
+  const colorScale = scaleOrdinal<string, string>().range(getChartPalette());
 
   const render = (seriesData: TimelineSeries[]): void => {
     const filtered = seriesData
@@ -152,7 +151,7 @@ export const createTimeline = ({ series }: TimelineProps): TimelineHandle => {
       .y((point: TimelinePoint) => yScale(point.y))
       .curve(curveMonotoneX);
 
-    colorScale.domain(filtered.map((entry) => entry.name));
+    colorScale.range(getChartPalette()).domain(filtered.map((entry) => entry.name));
 
     const selection = linesGroup
       .selectAll<SVGPathElement, TimelineSeries>('path')

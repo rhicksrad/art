@@ -226,10 +226,10 @@ const createToolbar = (
 ) => {
   let localState = state;
   const form = document.createElement('form');
-  form.className = 'dataverse-toolbar';
+  form.className = 'art-toolbar dataverse-toolbar form-row';
 
   const searchField = document.createElement('label');
-  searchField.className = 'dataverse-toolbar__field';
+  searchField.className = 'art-toolbar__field';
   const searchLabel = document.createElement('span');
   searchLabel.textContent = 'Search';
   const searchInput = document.createElement('input');
@@ -277,7 +277,7 @@ const createToolbar = (
   });
 
   const sortField = document.createElement('label');
-  sortField.className = 'dataverse-toolbar__field';
+  sortField.className = 'art-toolbar__field';
   const sortLabel = document.createElement('span');
   sortLabel.textContent = 'Sort by';
   const sortSelect = document.createElement('select');
@@ -301,7 +301,7 @@ const createToolbar = (
   sortField.append(sortLabel, sortSelect);
 
   const orderField = document.createElement('label');
-  orderField.className = 'dataverse-toolbar__field';
+  orderField.className = 'art-toolbar__field';
   const orderLabel = document.createElement('span');
   orderLabel.textContent = 'Order';
   const orderSelect = document.createElement('select');
@@ -323,7 +323,7 @@ const createToolbar = (
   orderField.append(orderLabel, orderSelect);
 
   const sizeField = document.createElement('label');
-  sizeField.className = 'dataverse-toolbar__field';
+  sizeField.className = 'art-toolbar__field';
   const sizeLabel = document.createElement('span');
   sizeLabel.textContent = 'Page size';
   const sizeSelect = document.createElement('select');
@@ -341,7 +341,7 @@ const createToolbar = (
   sizeField.append(sizeLabel, sizeSelect);
 
   const yearField = document.createElement('div');
-  yearField.className = 'dataverse-toolbar__range';
+  yearField.className = 'art-toolbar__field dataverse-toolbar__range';
   const yearLabel = document.createElement('span');
   yearLabel.textContent = 'Publication year';
   const yearStartInput = document.createElement('input');
@@ -453,7 +453,7 @@ export const mount = (root: HTMLElement): void => {
   facetsRoot.className = 'art-layout__facets';
 
   const resultsRoot = document.createElement('div');
-  resultsRoot.className = 'art-layout__results card-grid';
+  resultsRoot.className = 'art-layout__results grid cards';
 
   const sentinel = document.createElement('div');
   sentinel.className = 'infinite-scroll-sentinel';

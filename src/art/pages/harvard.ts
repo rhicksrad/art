@@ -81,7 +81,7 @@ const createToolbar = (
   let current = { ...initialState };
 
   const form = document.createElement('form');
-  form.className = 'art-toolbar';
+  form.className = 'art-toolbar form-row';
   form.setAttribute('aria-label', 'Search Harvard collection');
 
   const searchField = document.createElement('label');
@@ -286,7 +286,7 @@ export const mount = (root: HTMLElement): void => {
   facetsRoot.className = 'art-layout__facets';
 
   const resultsRoot = document.createElement('div');
-  resultsRoot.className = 'art-layout__results card-grid';
+  resultsRoot.className = 'art-layout__results grid cards';
 
   const sentinel = document.createElement('div');
   sentinel.className = 'art-scroll-sentinel';

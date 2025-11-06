@@ -35,7 +35,7 @@ const mount = (el: HTMLElement): void => {
   resultsContainer.className = 'page__results';
 
   const cardsList = document.createElement('div');
-  cardsList.className = 'card-grid';
+  cardsList.className = 'grid cards';
 
   const alertContainer = document.createElement('div');
 

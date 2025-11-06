@@ -11,7 +11,7 @@ A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker 
 - **HTTP helpers** – `src/lib/http.ts` centralises fetch logic: JSON/text helpers, strong `Accept` headers, query-string building, and typed `HttpError` instances with response samples.
 - **Routing** – `src/main.ts` maps each HTML shell (e.g. `harvard.html`) to a page module. Pages build UI with vanilla DOM components.
 - **Adapters** – `src/adapters/*` normalise each API into a shared `ItemCard` shape so the UI can render cards consistently.
-- **Styling** – One global stylesheet (`src/styles/theme.css`) defines light/dark themes, layouts, and component styling.
+- **Styling** – A layered design system lives in `src/styles/`, with tokens, base, components, charts, and utility layers imported through `src/styles/index.ts`.
 - **Debugging** – `debug.html` runs smoke tests against the Worker and logs PASS/FAIL with short samples. Append `?debug=1` to any request for upstream traces.
 
 ## UBC index discovery
