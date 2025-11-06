@@ -94,33 +94,112 @@ const extractResumptionToken = (data: unknown): string | undefined => {
   return undefined;
 };
 
+const gatherContainers = (root: Record<string, unknown>): Record<string, unknown>[] => {
+  const containers: Record<string, unknown>[] = [];
+  const queue: Record<string, unknown>[] = [root];
+  const seen = new Set<Record<string, unknown>>([root]);
+
+  const keysToExplore = ['OAI_PMH', 'ListRecords', 'listRecords', 'records', 'result', 'results'];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    containers.push(current);
+
+    for (const key of keysToExplore) {
+      const candidate = current[key];
+      if (isRecord(candidate) && !seen.has(candidate)) {
+        seen.add(candidate);
+        queue.push(candidate);
+      }
+    }
+  }
+
+  return containers;
+};
+
+type RecordExtraction = {
+  items: unknown[];
+  source?: Record<string, unknown>;
+};
+
+const extractRecordsFromContainer = (
+  container: Record<string, unknown>,
+  visited: Set<Record<string, unknown>>,
+): RecordExtraction => {
+  if (visited.has(container)) {
+    return { items: [] };
+  }
+  visited.add(container);
+
+  const candidateKeys = ['record', 'records', 'ListRecords', 'listRecords', 'items', 'entry'];
+
+  for (const key of candidateKeys) {
+    const candidate = container[key];
+
+    if (Array.isArray(candidate)) {
+      return { items: candidate, source: container };
+    }
+
+    if (isRecord(candidate)) {
+      const nested = extractRecordsFromContainer(candidate, visited);
+      if (nested.items.length > 0) {
+        return nested.source ? nested : { items: nested.items, source: candidate };
+      }
+    }
+  }
+
+  const direct = container.record ?? container.records;
+  if (isRecord(direct)) {
+    return { items: [direct], source: container };
+  }
+
+  return { items: [] };
+};
+
 const parseListRecords = (payload: unknown): ListRecordsResult => {
   if (!isRecord(payload)) {
     return { records: [] };
   }
 
-  const listRecords = payload.ListRecords ?? payload.listRecords ?? payload.records;
-  const container = isRecord(listRecords) ? listRecords : payload;
+  const containers = gatherContainers(payload);
+  const visited = new Set<Record<string, unknown>>();
 
-  const rawRecords: unknown[] = Array.isArray(container.records)
-    ? (container.records as unknown[])
-    : Array.isArray(container.ListRecords)
-    ? (container.ListRecords as unknown[])
-    : [];
+  let recordItems: unknown[] = [];
+  let recordSource: Record<string, unknown> | undefined;
 
-  const records: OaiRecord[] = rawRecords.map((raw, index) => {
-    const header = isRecord(raw) && isRecord(raw.header) ? raw.header : (raw as Record<string, unknown>);
+  for (const container of containers) {
+    const extracted = extractRecordsFromContainer(container, visited);
+    if (extracted.items.length > 0) {
+      recordItems = extracted.items;
+      recordSource = extracted.source ?? container;
+      break;
+    }
+  }
+
+  const records: OaiRecord[] = recordItems.map((raw, index) => {
+    const fallback = isRecord(raw) ? (raw as Record<string, unknown>) : {};
+    const header = isRecord(raw) && isRecord(raw.header) ? (raw.header as Record<string, unknown>) : fallback;
     const identifier =
       toStringValue(header.identifier) ?? toStringValue(header.id) ?? `Record ${index + 1}`;
-    const datestamp = toStringValue(header.datestamp ?? (raw as Record<string, unknown>).datestamp);
-    const setSpecs = collectStrings(header.setSpec ?? (raw as Record<string, unknown>).setSpec);
+    const datestamp = toStringValue(header.datestamp ?? fallback.datestamp);
+    const setSpecs = collectStrings(header.setSpec ?? fallback.setSpec);
     return { identifier, datestamp, setSpecs };
   });
 
-  const resumptionSource =
-    (isRecord(listRecords) ? extractResumptionToken(listRecords) : undefined) ?? extractResumptionToken(payload);
+  const tokenCandidates: Array<Record<string, unknown> | undefined> = [recordSource, ...containers];
+  let resumptionToken: string | undefined;
+  for (const candidate of tokenCandidates) {
+    if (!candidate) {
+      continue;
+    }
+    const token = extractResumptionToken(candidate);
+    if (token) {
+      resumptionToken = token;
+      break;
+    }
+  }
 
-  return { records, resumptionToken: resumptionSource };
+  return { records, resumptionToken };
 };
 
 const extractErrorMessage = (value: unknown): string | null => {
