@@ -1,39 +1,65 @@
-name: Deploy
+# .github/workflows/deploy.yml
+name: deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: pages-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-      - uses: pnpm/action-setup@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 9
-      - run: corepack enable
-      - run: pnpm install
+
+      - name: Verify pnpm
+        run: pnpm -v
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Improve cache hit rate
+        run: pnpm config set store-dir ~/.pnpm-store
+
+      - name: Install
+        run: pnpm install --frozen-lockfile=false
+
       - name: Write runtime config
         run: |
           mkdir -p public
           echo 'window.__CONFIG__ = { WORKER_BASE: "https://art.hicksrch.workers.dev" };' > public/config.js
+
       - name: Build
         env:
           CI: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm build
-      - name: Deploy
+
+      - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          force_orphan: true
+
