@@ -8,7 +8,7 @@ import { toItemCards, extractTotal, deriveIiifManifest, deriveIiifService } from
 import { getUbcIndex, refreshUbcIndex, searchUbc, setUbcIndex } from '../lib/ubc';
 
 const DEFAULT_PAGE_SIZE = 24;
-const FALLBACK_INDEX = 'aaah';
+const FALLBACK_INDEX = 'calendars';
 
 type SearchState = {
   q: string;
@@ -33,10 +33,9 @@ const parsePage = (value: string | null): number => {
 };
 
 const buildRequestUrl = (
-  index: string,
   params: Record<string, string | number | boolean | null | undefined>,
 ): string => {
-  const url = new URL(`/ubc/search/8.5/${index}`, WORKER_BASE);
+  const url = new URL('/ubc/search/8.5', WORKER_BASE);
   const searchParams = toQuery(params);
   if (!searchParams.has('ttl')) {
     searchParams.set('ttl', '3600');
@@ -399,7 +398,8 @@ const mount = (el: HTMLElement): void => {
       }
 
       const from = (state.page - 1) * state.size;
-      const requestUrl = buildRequestUrl(index, {
+      const requestUrl = buildRequestUrl({
+        index,
         q: state.q.trim() || null,
         size: state.size,
         from,

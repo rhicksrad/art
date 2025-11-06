@@ -16,10 +16,10 @@ A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker 
 
 ## UBC index discovery
 
-UBC Open Collections exposes multiple Elasticsearch indices. The active slug is discovered at runtime via `/ubc/collections`. The frontend caches the first slug that starts with a letter in `localStorage` and falls back to `aaah` if discovery fails. All searches use the legacy GET endpoint:
+UBC Open Collections exposes multiple Elasticsearch indices. The active slug is discovered at runtime via `/ubc/collections`. The frontend caches the first slug that starts with a letter in `localStorage` and falls back to `calendars` if discovery fails. All searches use the Worker proxy for the GET endpoint with an `index` query parameter:
 
 ```
-GET /ubc/search/8.5/<index>?q=term&size=12
+GET /ubc/search/8.5?index=<index>&q=term&size=12
 ```
 
 No POST requests or query-string API keys are sent from the browser.
