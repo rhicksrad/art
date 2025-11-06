@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: deploy
 
 on:
@@ -26,18 +25,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Verify pnpm
-        run: pnpm -v
-
-      - name: Enable Corepack
-        run: corepack enable
+      # Ensure pnpm exists even if cache/actions are flaky
+      - name: Ensure pnpm is installed
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if ! command -v pnpm >/dev/null 2>&1; then
+            corepack enable || true
+            corepack prepare pnpm@9 --activate || true
+          fi
+          if ! command -v pnpm >/dev/null 2>&1; then
+            npm i -g pnpm@9
+          fi
+          pnpm -v
 
       - name: Improve cache hit rate
         run: pnpm config set store-dir ~/.pnpm-store
