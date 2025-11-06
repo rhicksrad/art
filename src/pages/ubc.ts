@@ -1,266 +1,207 @@
-import { toItemCards as toUbcItemCards } from '../adapters/ubc';
 import { createAlert } from '../components/Alert';
 import { renderItemCard } from '../components/Card';
-import { createFacetBar } from '../components/FacetBar';
 import { createPager } from '../components/Pager';
 import { createSearchForm } from '../components/SearchForm';
-import { createVirtualList } from '../components/VirtualList';
-import { createBar } from '../components/Bar';
-import { createChartBlock } from '../components/ChartBlock';
-import { fetchJSON, clearCache as clearHttpCache } from '../lib/http';
-import { int, pageFromUrl, toQuery } from '../lib/params';
-import { countYears, extractYear } from '../lib/analytics';
+import { fetchJSON } from '../lib/http';
+import { toItemCards } from '../adapters/ubc';
+import { getUbcIndex, searchUbc } from '../lib/ubc';
 
 const PAGE_SIZE = 12;
-const CARD_ROW_HEIGHT = 280;
 
-const getTotalResults = (resp: unknown): number | undefined => {
-  if (!resp || typeof resp !== 'object') {
-    return undefined;
-  }
-
-  const data = resp as { total?: number; resultCount?: number };
-  if (typeof data.total === 'number') {
-    return data.total;
-  }
-  if (typeof data.resultCount === 'number') {
-    return data.resultCount;
-  }
-  return undefined;
+type CollectionsResponse = {
+  data?: Record<string, unknown>;
 };
 
-const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
-  q: query.q ?? '',
-  page: query.page ?? '1',
-});
-
-const collectYearData = (
-  cards: ReturnType<typeof toUbcItemCards>,
-): ReturnType<typeof countYears> => {
-  const years: number[] = [];
-  for (const card of cards) {
-    const year = extractYear(card.date);
-    if (typeof year === 'number') {
-      years.push(year);
-    }
-  }
-  return countYears(years);
+const parsePage = (value: string | null): number => {
+  const num = Number(value);
+  return Number.isInteger(num) && num > 0 ? num : 1;
 };
 
 const mount = (el: HTMLElement): void => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const initialQuery = sanitizeQuery({
-    q: searchParams.get('q') ?? '',
-    page: String(pageFromUrl()),
-  });
-
-  let currentQuery = { ...initialQuery };
-  let currentPage = int(currentQuery.page, 1);
-  let currentTtl = 3600;
-  let isLoading = false;
-  let requestToken = 0;
-  let abortController: AbortController | null = null;
-
   el.innerHTML = '';
 
-  const alertContainer = document.createElement('div');
-  const resultsInfo = document.createElement('p');
-  resultsInfo.className = 'results-count';
-  resultsInfo.textContent = '0 results';
+  const heading = document.createElement('h1');
+  heading.textContent = 'UBC Open Collections';
 
-  const resultsList = document.createElement('div');
-  resultsList.className = 'results-list';
+  const indexLine = document.createElement('p');
+  indexLine.className = 'page__status';
+  indexLine.textContent = 'Resolved index: loading…';
 
-  const emptyPlaceholder = document.createElement('p');
-  emptyPlaceholder.className = 'results-placeholder';
-  emptyPlaceholder.textContent = 'No results found.';
+  const collectionsSection = document.createElement('section');
+  collectionsSection.className = 'ubc-section';
+  const collectionsHeading = document.createElement('h2');
+  collectionsHeading.textContent = 'Collections probe';
+  const collectionsStatus = document.createElement('p');
+  collectionsStatus.textContent = 'Collections not loaded yet.';
+  const collectionsList = document.createElement('ul');
+  collectionsList.className = 'collection-list';
+  collectionsSection.append(collectionsHeading, collectionsStatus, collectionsList);
 
-  const chartsContainer = document.createElement('div');
-  chartsContainer.className = 'results-charts';
+  const searchSection = document.createElement('section');
+  searchSection.className = 'ubc-section';
+  const searchHeading = document.createElement('h2');
+  searchHeading.textContent = 'Search index';
+  const searchFormContainer = document.createElement('div');
+  const searchAlertContainer = document.createElement('div');
+  const searchStatus = document.createElement('p');
+  searchStatus.className = 'page__status';
+  const resultsContainer = document.createElement('div');
+  resultsContainer.className = 'page__results';
+  const cardsList = document.createElement('div');
+  cardsList.className = 'card-grid';
+  const pagerContainer = document.createElement('div');
+  pagerContainer.className = 'page__pager';
+  searchSection.append(searchHeading, searchFormContainer, searchAlertContainer, searchStatus, resultsContainer, pagerContainer);
 
-  const yearBar = createBar({ data: [], xLabel: 'Year', yLabel: 'Items' });
-  const yearBlock = createChartBlock('Items by year', yearBar.element);
-  chartsContainer.append(yearBlock);
+  el.append(heading, indexLine, collectionsSection, searchSection);
 
-  const virtualList = createVirtualList({
-    items: [] as ReturnType<typeof toUbcItemCards>,
-    rowHeight: CARD_ROW_HEIGHT,
-    renderItem: (item) => renderItemCard(item),
-  });
+  void getUbcIndex()
+    .then((index) => {
+      indexLine.textContent = `Resolved index: ${index}`;
+    })
+    .catch(() => {
+      indexLine.textContent = 'Resolved index: aaah (fallback)';
+    });
 
-  const renderCards = (cards: ReturnType<typeof toUbcItemCards>): void => {
-    if (cards.length === 0) {
-      resultsList.replaceChildren(emptyPlaceholder);
-      return;
+  const loadCollections = async (): Promise<void> => {
+    collectionsStatus.textContent = 'Loading collections…';
+    collectionsList.innerHTML = '';
+    try {
+      const response = await fetchJSON<CollectionsResponse>('/ubc/collections', { ttl: 3600 });
+      const values = response.data ? Object.values(response.data) : [];
+      const slugs = values
+        .filter((value): value is string => typeof value === 'string')
+        .filter((slug) => /^[A-Za-z]/.test(slug));
+      collectionsStatus.textContent = `${slugs.length} collections discovered.`;
+      slugs.slice(0, 20).forEach((slug) => {
+        const item = document.createElement('li');
+        item.textContent = slug;
+        collectionsList.appendChild(item);
+      });
+    } catch (error) {
+      collectionsStatus.textContent = 'Unable to load collections.';
+      const message = error instanceof Error ? error.message : String(error);
+      collectionsList.replaceChildren(createAlert(message, 'error'));
     }
-
-    virtualList.setItems(cards);
-    resultsList.replaceChildren(virtualList.element);
   };
 
-  const updateCharts = (cards: ReturnType<typeof toUbcItemCards>): void => {
-    const data = collectYearData(cards);
-    yearBar.setData(data);
+  void loadCollections();
+
+  const searchParams = new URLSearchParams(window.location.search);
+  let currentPage = parsePage(searchParams.get('page'));
+  let currentQuery = {
+    q: searchParams.get('q') ?? 'newspaper',
+    size: searchParams.get('size') ?? String(PAGE_SIZE),
+    sort: searchParams.get('sort') ?? '',
   };
 
-  updateCharts([]);
-
-  const updateInfo = (total: number | undefined, count: number): void => {
-    const value = typeof total === 'number' ? total : count;
-    resultsInfo.textContent = `${value} results`;
-  };
-
-  const updateLocation = (query: Record<string, string>): void => {
-    const sanitized = sanitizeQuery(query);
-    const search = new URLSearchParams(toQuery(sanitized)).toString();
-    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}`;
-    window.history.replaceState(null, '', nextUrl);
-  };
-
-  const submitForm = (values: Record<string, string>): void => {
-    const nextQuery = sanitizeQuery({ ...values, page: '1' });
-    currentQuery = nextQuery;
-    currentPage = 1;
-    void performSearch();
+  const updateLocation = (): void => {
+    const params = new URLSearchParams();
+    if (currentQuery.q) params.set('q', currentQuery.q);
+    if (currentQuery.size && currentQuery.size !== String(PAGE_SIZE)) params.set('size', currentQuery.size);
+    if (currentQuery.sort) params.set('sort', currentQuery.sort);
+    if (currentPage > 1) params.set('page', String(currentPage));
+    const query = params.toString();
+    const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
+    window.history.replaceState(null, '', url);
   };
 
   const { element: form, setValues } = createSearchForm({
     fields: [
-      {
-        name: 'q',
-        label: 'Keyword',
-        type: 'text',
-        placeholder: 'Search UBC Open Collections',
-        value: currentQuery.q,
-      },
+      { name: 'q', label: 'Keyword', type: 'text', placeholder: 'Search UBC collections', value: currentQuery.q },
+      { name: 'size', label: 'Results per page', type: 'number', value: currentQuery.size },
+      { name: 'sort', label: 'Sort', type: 'text', placeholder: 'e.g. date:desc', value: currentQuery.sort },
     ],
-    onSubmit: submitForm,
+    submitLabel: 'Search',
+    onSubmit: (values) => {
+      currentQuery = {
+        q: values.q ?? currentQuery.q,
+        size: values.size && values.size.length > 0 ? values.size : String(PAGE_SIZE),
+        sort: values.sort ?? '',
+      };
+      currentPage = 1;
+      updateLocation();
+      void loadSearch();
+    },
   });
-
-  setValues({ q: currentQuery.q });
+  searchFormContainer.appendChild(form);
 
   const pager = createPager({
     page: currentPage,
     hasPrev: currentPage > 1,
     hasNext: false,
     onPrev: () => {
-      if (isLoading || currentPage <= 1) return;
-      currentQuery.page = String(currentPage - 1);
+      if (currentPage <= 1) return;
       currentPage -= 1;
-      void performSearch();
+      updateLocation();
+      void loadSearch();
     },
     onNext: () => {
-      if (isLoading) return;
-      currentQuery.page = String(currentPage + 1);
       currentPage += 1;
-      void performSearch();
+      updateLocation();
+      void loadSearch();
     },
   });
+  pagerContainer.appendChild(pager);
 
-  const requestParamsFromQuery = (
-    query: Record<string, string>,
-    ttl: number,
-  ): Record<string, string | number> => {
-    return {
-      ...toQuery({
-        q: query.q,
-        limit: PAGE_SIZE,
-        page: int(query.page, 1),
-      }),
-      ttl,
-    };
-  };
-
-  const performSearch = async (): Promise<void> => {
-    const pageNumber = Math.max(1, int(currentQuery.page, 1));
-    currentQuery.page = String(pageNumber);
-    currentPage = pageNumber;
-
-    abortController?.abort();
-    const controller = new AbortController();
-    abortController = controller;
-
-    const requestParams = requestParamsFromQuery(currentQuery, currentTtl);
-    const token = ++requestToken;
-    isLoading = true;
-    alertContainer.innerHTML = '';
-    resultsList.innerHTML = '';
-    resultsInfo.textContent = 'Loading…';
-    pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
-    updateLocation(currentQuery);
-    setValues({ q: currentQuery.q });
-
-    try {
-      const response = await fetchJSON<unknown>('/ubc/search', requestParams, {
-        signal: controller.signal,
-      });
-      if (token !== requestToken) {
-        return;
-      }
-
-      const cards = toUbcItemCards(response);
-      const total = getTotalResults(response);
-      const hasNext =
-        typeof total === 'number' ? pageNumber * PAGE_SIZE < total : cards.length === PAGE_SIZE;
-
-      renderCards(cards);
-      updateCharts(cards);
-      updateInfo(total, cards.length);
-      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
-    } catch (error) {
-      if (token !== requestToken) {
-        return;
-      }
-      if (controller.signal.aborted) {
-        return;
-      }
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
-      renderCards([]);
-      updateCharts([]);
-      resultsInfo.textContent = '0 results';
-      const message = error instanceof Error ? error.message : String(error);
-      alertContainer.replaceChildren(createAlert(`UBC search failed: ${message}`, 'error'));
-      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
-    } finally {
-      if (token === requestToken) {
-        isLoading = false;
-        if (abortController === controller) {
-          abortController = null;
-        }
-      }
-    }
-  };
-
-  const facetBar = createFacetBar({
-    ttl: currentTtl,
-    onTtlChange: (value) => {
-      currentTtl = value;
-    },
-    onClear: () => {
-      clearHttpCache();
-      alertContainer.replaceChildren(createAlert('Cache cleared', 'info'));
-    },
-  });
-
-  el.append(
-    form,
-    facetBar.element,
-    alertContainer,
-    resultsInfo,
-    chartsContainer,
-    resultsList,
-    pager,
-  );
-
-  performSearch().catch((error) => {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+  const renderCards = (items: ReturnType<typeof toItemCards>): void => {
+    cardsList.innerHTML = '';
+    if (items.length === 0) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No results found.';
+      resultsContainer.replaceChildren(empty);
       return;
     }
-    const message = error instanceof Error ? error.message : String(error);
-    alertContainer.replaceChildren(createAlert(`UBC search failed: ${message}`, 'error'));
-  });
+    items.forEach((item) => {
+      cardsList.appendChild(renderItemCard(item));
+    });
+    resultsContainer.replaceChildren(cardsList);
+  };
+
+  const updateStatus = (count: number, pageSize: number): void => {
+    const from = (currentPage - 1) * pageSize + 1;
+    const to = from + count - 1;
+    searchStatus.textContent = `Showing ${from}-${to}`;
+  };
+
+  let isLoading = false;
+  const loadSearch = async (): Promise<void> => {
+    if (isLoading) return;
+    isLoading = true;
+    searchAlertContainer.innerHTML = '';
+    searchStatus.textContent = 'Searching…';
+    resultsContainer.textContent = '';
+
+    try {
+      const sizeValue = Number(currentQuery.size);
+      const pageSize = Number.isInteger(sizeValue) && sizeValue > 0 ? sizeValue : PAGE_SIZE;
+      const from = (currentPage - 1) * pageSize;
+      const response = await searchUbc(currentQuery.q, {
+        size: pageSize,
+        from,
+        sort: currentQuery.sort,
+      });
+      const cards = toItemCards(response);
+      renderCards(cards);
+      updateStatus(cards.length, pageSize);
+      pager.update({
+        page: currentPage,
+        hasPrev: currentPage > 1,
+        hasNext: cards.length === pageSize,
+      });
+    } catch (error) {
+      renderCards([]);
+      searchStatus.textContent = 'Search failed.';
+      const message = error instanceof Error ? error.message : String(error);
+      searchAlertContainer.replaceChildren(createAlert(message, 'error'));
+    } finally {
+      isLoading = false;
+    }
+  };
+
+  setValues(currentQuery);
+  updateLocation();
+  void loadSearch();
 };
 
-export default mount;
+export default { mount };

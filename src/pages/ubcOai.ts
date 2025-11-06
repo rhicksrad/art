@@ -368,7 +368,7 @@ const mount = (el: HTMLElement): void => {
     updateButtons();
 
     try {
-      const response = await fetchJSON<unknown>('/ubc-oai', params, { cache: false });
+      const response = await fetchJSON<unknown>('/ubc-oai', params, { cache: 'no-store' });
       const errorMessage = findOaiError(response);
       if (errorMessage) {
         throw new Error(errorMessage);
