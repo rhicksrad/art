@@ -1,3 +1,4 @@
+import { getDominantColor } from '../lib/palette';
 import type { ItemCard } from '../lib/types';
 
 export type CardProps = {
@@ -24,7 +25,15 @@ export const createCard = ({
   const card = document.createElement('article');
   card.className = 'card';
 
+  let accentBar: HTMLDivElement | null = null;
+
   if (typeof img === 'string' && img.length > 0) {
+    card.classList.add('card--with-image');
+
+    accentBar = document.createElement('div');
+    accentBar.className = 'card__accent';
+    card.appendChild(accentBar);
+
     const media = document.createElement('div');
     media.className = 'card__media';
 
@@ -34,6 +43,14 @@ export const createCard = ({
 
     media.appendChild(image);
     card.appendChild(media);
+
+    getDominantColor(img)
+      .then((color) => {
+        card.style.setProperty('--card-accent', color);
+      })
+      .catch(() => {
+        // Swallow errors: the fallback color is handled inside getDominantColor
+      });
   }
 
   const body = document.createElement('div');
