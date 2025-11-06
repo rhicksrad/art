@@ -77,7 +77,7 @@ ALLOWED_ORIGINS="*"
 
 * `/ubc/collections` — full list of collection IDs/slugs.
 * `/ubc/oai` and `/ubc/iiif` — OK.
-* `/ubc/search/8.5/<index>` — confirmed functional (requires valid index).
+* `/ubc/search/8.5` — confirmed functional (requires `index` query parameter).
 
 #### Search Quirks
 
@@ -87,9 +87,9 @@ ALLOWED_ORIGINS="*"
 * Working pattern:
 
   ```
-  GET /ubc/search/8.5/{index}?q=<query>&size=<n>
+  GET /ubc/search/8.5?index={index}&q=<query>&size=<n>
   ```
-* Valid index discovered: **`aaah`**
+* Valid index discovered: **`calendars`**
 
 ### ✅ arXiv
 
@@ -131,7 +131,7 @@ fetch("https://art.hicksrch.workers.dev/harvard-art/object/299843").then(r=>r.js
 fetch("https://art.hicksrch.workers.dev/princeton-art/search?q=monet&type=artobjects&size=1").then(r=>r.json());
 fetch("https://art.hicksrch.workers.dev/dataverse/search?q=data&type=dataset&per_page=1").then(r=>r.json());
 fetch("https://art.hicksrch.workers.dev/ubc/collections").then(r=>r.json());
-fetch("https://art.hicksrch.workers.dev/ubc/search/8.5/aaah?q=newspaper&size=1").then(r=>r.json());
+fetch("https://art.hicksrch.workers.dev/ubc/search/8.5?index=calendars&q=newspaper&size=1").then(r=>r.json());
 fetch("https://art.hicksrch.workers.dev/arxiv/search?search_query=cat:cs.AI&max_results=1").then(r=>r.text());
 fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmuseums.org/manifests/object/299843").then(r=>r.json());
 ```
@@ -167,7 +167,7 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 5. **Small headers, big wins.**
    Removing `content-length` and `content-encoding` fixed stream crashes.
 6. **UBC index is dynamic.**
-   Validate via `/ubc/collections` and fallback to a known slug (e.g., `aaah`).
+   Validate via `/ubc/collections` and fallback to a known slug (e.g., `calendars`).
 7. **Keep caching optional.**
    `ttl=0` disables cache; `ttl=86400` prewarms results for heavy browse sessions.
 
@@ -175,7 +175,7 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 
 ## Future Work
 
-* Add auto-index discovery in Worker for UBC when `index` missing (default to `aaah`).
+* Add auto-index discovery in Worker for UBC when `index` missing (default to `calendars`).
 * Merge IIIF endpoints into a unified `/iiif/*` namespace with manifest parsing.
 * Build data visualizations for temporal and geographic dimensions.
 * Add CLI smoke-test script for all endpoints.

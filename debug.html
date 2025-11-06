@@ -38,10 +38,10 @@
           const data = await resp.json();
           const values = data && typeof data === 'object' ? Object.values(data.data ?? {}) : [];
           const slug = values.find((value) => typeof value === 'string' && /^[A-Za-z]/.test(value));
-          return slug || 'aaah';
+          return slug || 'calendars';
         } catch (error) {
           log(`Failed to resolve UBC index: ${error}`);
-          return 'aaah';
+          return 'calendars';
         }
       };
 
@@ -53,7 +53,7 @@
           { name: 'princeton', url: '/princeton-art/search?q=monet&type=artobjects&size=1' },
           { name: 'dataverse', url: '/dataverse/search?q=data&type=dataset&per_page=1' },
           { name: 'ubc collections', url: '/ubc/collections?ttl=3600' },
-          { name: 'ubc search', url: `/ubc/search/8.5/${ubcIndex}?q=newspaper&size=1` },
+          { name: 'ubc search', url: `/ubc/search/8.5?index=${encodeURIComponent(ubcIndex)}&q=newspaper&size=1` },
           { name: 'arxiv', url: '/arxiv/search?search_query=cat:cs.AI&max_results=1' },
           { name: 'yale', url: `/yale-iiif?url=${encodeURIComponent('https://iiif.harvardartmuseums.org/manifests/object/299843')}` },
         ];

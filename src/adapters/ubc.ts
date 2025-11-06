@@ -244,6 +244,16 @@ const extractHits = (resp: unknown): UnknownRecord[] => {
   if (Array.isArray(record.items)) {
     return record.items as UnknownRecord[];
   }
+  const dataRecord = asRecord(record.data);
+  if (dataRecord) {
+    if (Array.isArray(dataRecord.hits)) {
+      return dataRecord.hits as UnknownRecord[];
+    }
+    const nestedHits = asRecord(dataRecord.hits);
+    if (nestedHits && Array.isArray(nestedHits.hits)) {
+      return nestedHits.hits as UnknownRecord[];
+    }
+  }
   const hits = asRecord(record.hits);
   if (hits && Array.isArray(hits.hits)) {
     return hits.hits as UnknownRecord[];

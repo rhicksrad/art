@@ -1,7 +1,8 @@
-import { fetchJSON } from './http';
+import { fetchJSON, HttpError, toQuery } from './http';
 
 const STORAGE_KEY = 'ubcIndex';
-const FALLBACK_INDEX = 'aaah';
+const FALLBACK_INDEX = 'calendars';
+const UBC_DIRECT_BASE = 'https://oc-index.library.ubc.ca';
 const ALPHA_PATTERN = /^[A-Za-z]/;
 
 type CollectionsResponse = {
@@ -241,5 +242,48 @@ export const searchUbc = async (
     params.sort = opts.sort.trim();
   }
 
-  return fetchJSON(`/ubc/search/8.5/${index}`, params, init);
+  const workerParams = { ...params, index };
+
+  const fetchDirect = async (cause?: unknown): Promise<unknown> => {
+    const url = new URL('/search/8.5', UBC_DIRECT_BASE);
+    const directParams = toQuery(workerParams);
+    url.search = directParams.toString();
+
+    const headers = new Headers({ Accept: 'application/json' });
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => {
+        headers.set(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), { ...init, headers });
+    const contentType = response.headers.get('content-type') ?? undefined;
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new HttpError(
+        `Direct request to ${url.toString()} failed with status ${response.status}`,
+        { status: response.status, url: url.toString(), contentType, sample: text },
+        cause instanceof Error ? { cause } : undefined,
+      );
+    }
+
+    return text ? (JSON.parse(text) as unknown) : undefined;
+  };
+
+  try {
+    const response = await fetchJSON('/ubc/search/8.5', workerParams, init);
+    const record = toRecord(response);
+    const dataRecord = toRecord(record?.data);
+    const routeMessage = typeof dataRecord?.route === 'string' ? dataRecord.route : undefined;
+    if (routeMessage && routeMessage.toLowerCase().includes('missed route')) {
+      return await fetchDirect(response);
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 500) {
+      return await fetchDirect(error);
+    }
+    throw error;
+  }
 };
