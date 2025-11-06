@@ -365,7 +365,7 @@ export const mount = (root: HTMLElement): void => {
   resultsRoot.className = 'art-layout__results';
 
   const resultList = document.createElement('div');
-  resultList.className = 'result-list';
+  resultList.className = 'result-list grid cards';
   resultsRoot.appendChild(resultList);
 
   const loadMore = document.createElement('button');
@@ -604,7 +604,7 @@ export const mount = (root: HTMLElement): void => {
   let pageSizeSelect!: HTMLSelectElement;
 
   const form = document.createElement('form');
-  form.className = 'art-toolbar';
+  form.className = 'art-toolbar form-row';
 
   const searchField = document.createElement('label');
   searchField.className = 'art-toolbar__field';

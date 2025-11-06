@@ -1,0 +1,86 @@
+@layer components {
+  svg {
+    font: var(--fs-md) system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text);
+  }
+
+  .chart__axis path,
+  .chart__axis line,
+  .axis path,
+  .axis line {
+    stroke: var(--border);
+    shape-rendering: crispEdges;
+  }
+
+  .chart__axis text,
+  .axis text {
+    fill: var(--text-subtle);
+    font-size: var(--fs-sm);
+  }
+
+  .chart__grid line,
+  .grid line {
+    stroke: var(--surface-2);
+  }
+
+  .chart__line,
+  .line {
+    fill: none;
+    stroke-width: 2.5px;
+    stroke: var(--accent);
+  }
+
+  .chart__bars rect,
+  .chart__bar,
+  .chart__histogram-bar,
+  .bar {
+    rx: 3;
+    fill: var(--accent);
+  }
+
+  .chart__bars rect:nth-of-type(2n) {
+    fill: color-mix(in srgb, var(--accent) 82%, white 18%);
+  }
+
+  .chart__bars rect:nth-of-type(3n) {
+    fill: color-mix(in srgb, var(--accent-alt) 82%, white 18%);
+  }
+
+  .legend,
+  .chart .legend,
+  .chart-legend {
+    display: flex;
+    gap: 0.8rem;
+    font-size: var(--fs-sm);
+    color: var(--text-subtle);
+    flex-wrap: wrap;
+  }
+
+  .legend__item,
+  .chart-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend__swatch,
+  .chart-legend__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+  }
+
+  .tooltip {
+    position: fixed;
+    z-index: 10;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    color: var(--text);
+    font-size: var(--fs-sm);
+  }
+}

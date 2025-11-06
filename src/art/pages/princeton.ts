@@ -49,7 +49,7 @@ const createToolbar = (
   onImmediateChange: (next: SearchState) => void,
 ) => {
   const form = document.createElement('form');
-  form.className = 'art-toolbar';
+  form.className = 'art-toolbar form-row';
 
   const searchField = document.createElement('label');
   searchField.className = 'art-toolbar__field';
@@ -203,7 +203,7 @@ export const mount = (root: HTMLElement): void => {
   facetsRoot.className = 'art-layout__facets';
 
   const resultsRoot = document.createElement('div');
-  resultsRoot.className = 'art-layout__results card-grid';
+  resultsRoot.className = 'art-layout__results grid cards';
 
   const toolbarHost = document.createElement('div');
   toolbarHost.className = 'art-toolbar__host';

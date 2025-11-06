@@ -192,7 +192,7 @@ const mount = (el: HTMLElement): void => {
   const resultsContainer = document.createElement('div');
   resultsContainer.className = 'page__results';
   const cardsList = document.createElement('div');
-  cardsList.className = 'card-grid';
+  cardsList.className = 'grid cards';
 
   const pagerContainer = document.createElement('div');
   pagerContainer.className = 'page__pager';

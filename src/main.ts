@@ -1,3 +1,5 @@
+import './styles';
+
 import { createSiteHeader, setSiteStatus } from './components/SiteHeader';
 import { createSiteNav } from './components/SiteNav';
 
@@ -26,12 +28,12 @@ const BASE_PATH = normalizeBasePath(import.meta.env.BASE_URL ?? '/');
 
 const createAppShell = (root: HTMLElement): HTMLElement => {
   const shell = document.createElement('div');
-  shell.className = 'app-shell';
+  shell.className = 'app-shell container stack-lg';
 
   const header = createSiteHeader();
   const nav = createSiteNav(BASE_PATH);
   const main = document.createElement('main');
-  main.className = 'app-main';
+  main.className = 'app-main stack-lg';
 
   shell.append(header, nav, main);
   root.replaceChildren(shell);
