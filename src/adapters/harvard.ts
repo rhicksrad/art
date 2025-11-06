@@ -1,111 +1,147 @@
-import { z } from 'zod';
 import type { ItemCard } from '../lib/types';
 
-const HarvardImageSchema = z
-  .object({
-    iiifbaseuri: z.string().nullish(),
-    baseimageurl: z.string().nullish(),
-    format: z.string().nullish(),
-  })
-  .passthrough();
+type HarvardRecord = Record<string, unknown>;
 
-const HarvardPersonSchema = z
-  .object({
-    name: z.string().nullish(),
-    displayname: z.string().nullish(),
-    role: z.string().nullish(),
-  })
-  .passthrough();
-
-export const HarvardRecordSchema = z
-  .object({
-    id: z.union([z.string(), z.number()]),
-    title: z.string().nullish(),
-    objectnumber: z.string().nullish(),
-    dated: z.string().nullish(),
-    culture: z.string().nullish(),
-    classification: z.string().nullish(),
-    technique: z.string().nullish(),
-    url: z.string().nullish(),
-    primaryimageurl: z.string().nullish(),
-    images: z.array(HarvardImageSchema).nullish(),
-    people: z.array(HarvardPersonSchema).nullish(),
-  })
-  .passthrough();
-
-const HarvardResponseSchema = z
-  .object({
-    records: z.array(HarvardRecordSchema).optional(),
-  })
-  .passthrough();
-
-type HarvardRecord = z.infer<typeof HarvardRecordSchema>;
-
-type HarvardResponse = z.infer<typeof HarvardResponseSchema>;
-
-const getPrimaryImage = (record: HarvardRecord): string | undefined => {
-  const iiifImage = record.images?.find((image) => {
-    return typeof image.iiifbaseuri === 'string' && image.iiifbaseuri.length > 0;
-  });
-
-  if (iiifImage?.iiifbaseuri) {
-    return iiifImage.iiifbaseuri;
+const asRecord = (value: unknown): HarvardRecord | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
   }
-
-  if (typeof record.primaryimageurl === 'string' && record.primaryimageurl.length > 0) {
-    return record.primaryimageurl;
-  }
-
-  return undefined;
+  return value as HarvardRecord;
 };
 
-const getPrimaryPerson = (record: HarvardRecord): string | undefined => {
-  if (!Array.isArray(record.people)) {
-    return undefined;
+const firstString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   }
-
-  for (const person of record.people) {
-    const name = person.name ?? person.displayname;
-    if (name && name.trim().length > 0) {
-      return name.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const result = firstString(entry);
+      if (result) {
+        return result;
+      }
+    }
+  } else if (value && typeof value === 'object') {
+    for (const entry of Object.values(value as HarvardRecord)) {
+      const result = firstString(entry);
+      if (result) {
+        return result;
+      }
     }
   }
-
   return undefined;
 };
 
-const buildTags = (record: HarvardRecord): string[] | undefined => {
-  const tags = [record.classification, record.technique, record.culture]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    .map((value) => value.trim());
-
-  return tags.length > 0 ? Array.from(new Set(tags)) : undefined;
+const toIiifImage = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  if (value.includes('/full/')) {
+    return value;
+  }
+  if (value.includes('/iiif/')) {
+    return `${value.replace(/\/?$/, '')}/full/!400,400/0/default.jpg`;
+  }
+  return value;
 };
 
-const toItemCard = (record: HarvardRecord): ItemCard => {
-  const title = record.title?.trim() || record.objectnumber?.trim() || `Harvard item ${record.id}`;
-  const sub = getPrimaryPerson(record) ?? record.culture?.trim();
-  const date = record.dated?.trim();
-  const href = record.url?.trim();
-  const img = getPrimaryImage(record);
-  const tags = buildTags(record);
+const findImage = (record: HarvardRecord): string | undefined => {
+  const images = Array.isArray(record.images) ? (record.images as unknown[]) : [];
+  for (const entry of images) {
+    const item = asRecord(entry);
+    if (!item) {
+      continue;
+    }
+    const iiif = firstString(item.iiifbaseuri ?? item.iiif_url ?? item.baseimageurl);
+    const resolved = toIiifImage(iiif);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  const direct = firstString(record.primaryimageurl ?? record.image);
+  return direct ? toIiifImage(direct) : undefined;
+};
+
+const buildTags = (record: HarvardRecord): string[] => {
+  const tags = new Set<string>();
+  const classification = firstString(record.classification);
+  if (classification) {
+    tags.add(classification);
+  }
+  const century = firstString(record.century);
+  if (century) {
+    tags.add(century);
+  }
+  const culture = firstString(record.culture);
+  if (culture) {
+    tags.add(culture);
+  }
+  return Array.from(tags);
+};
+
+const joinPeople = (record: HarvardRecord): string | undefined => {
+  const people = Array.isArray(record.people) ? (record.people as unknown[]) : [];
+  const names: string[] = [];
+  for (const entry of people) {
+    const person = asRecord(entry);
+    if (!person) {
+      continue;
+    }
+    const name = firstString(person.displayname ?? person.name);
+    if (name) {
+      names.push(name);
+    }
+  }
+  return names.length > 0 ? names.join(', ') : undefined;
+};
+
+const recordToCard = (record: HarvardRecord): ItemCard => {
+  const id = firstString(record.id ?? record.objectid ?? record.objectnumber) ?? `harvard-${Math.random().toString(36).slice(2)}`;
+  const title = firstString(record.title) ?? 'Untitled';
+  const sub = joinPeople(record) ?? firstString(record.division);
+  const date = firstString(record.dated ?? record.date);
+  const href = firstString(record.url);
 
   return {
-    id: String(record.id),
+    id,
     title,
     sub,
     date,
-    tags,
-    img,
+    tags: (() => {
+      const tags = buildTags(record);
+      return tags.length > 0 ? tags : undefined;
+    })(),
+    img: findImage(record),
     href,
     source: 'Harvard',
     raw: record,
   };
 };
 
-export const toItemCards = (resp: unknown): ItemCard[] => {
-  const data: HarvardResponse = HarvardResponseSchema.parse(resp);
-  const records = data.records ?? [];
+const extractRecords = (resp: unknown): HarvardRecord[] => {
+  if (!resp) {
+    return [];
+  }
+  if (Array.isArray(resp)) {
+    return resp as HarvardRecord[];
+  }
+  const record = asRecord(resp);
+  if (!record) {
+    return [];
+  }
+  if (Array.isArray(record.records)) {
+    return record.records as HarvardRecord[];
+  }
+  if (record.record && typeof record.record === 'object') {
+    return [record.record as HarvardRecord];
+  }
+  return [record];
+};
 
-  return records.map((record) => toItemCard(record));
+export const toItemCards = (resp: unknown): ItemCard[] => {
+  const records = extractRecords(resp);
+  return records.map((record) => recordToCard(record));
 };

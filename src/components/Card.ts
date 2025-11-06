@@ -1,121 +1,152 @@
-import { getDominantColor } from '../lib/palette';
 import type { ItemCard } from '../lib/types';
 
 export type CardProps = {
   title: string;
   sub?: string;
+  date?: string;
   img?: string;
-  meta?: string;
+  tags?: string[];
   href?: string;
-  rawLink?: boolean;
+  source?: string;
+  raw?: unknown;
+  meta?: string;
 };
 
 const isNonEmpty = (value: string | undefined): value is string => {
   return typeof value === 'string' && value.trim().length > 0;
 };
 
-export const createCard = ({
-  title,
-  sub,
-  img,
-  meta,
-  href,
-  rawLink = false,
-}: CardProps): HTMLElement => {
+const createTagList = (tags: string[]): HTMLElement => {
+  const list = document.createElement('ul');
+  list.className = 'card__tags';
+  tags.forEach((tag) => {
+    const item = document.createElement('li');
+    item.textContent = tag;
+    list.appendChild(item);
+  });
+  return list;
+};
+
+const createRawLink = (raw: unknown): HTMLAnchorElement => {
+  const link = document.createElement('a');
+  link.href = '#';
+  link.className = 'card__raw-link';
+  link.textContent = 'Raw JSON';
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    try {
+      const json = JSON.stringify(raw, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank', 'noopener');
+      if (win) {
+        win.addEventListener('beforeunload', () => {
+          URL.revokeObjectURL(url);
+        });
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      // raw payload serialisation failed; ignore to keep UI responsive.
+    }
+  });
+  return link;
+};
+
+export const createCard = ({ title, sub, date, img, tags, href, source, raw, meta }: CardProps): HTMLElement => {
   const card = document.createElement('article');
   card.className = 'card';
 
-  let accentBar: HTMLDivElement | null = null;
-
-  if (typeof img === 'string' && img.length > 0) {
-    card.classList.add('card--with-image');
-
-    accentBar = document.createElement('div');
-    accentBar.className = 'card__accent';
-    card.appendChild(accentBar);
-
+  if (isNonEmpty(img)) {
     const media = document.createElement('div');
     media.className = 'card__media';
-
     const image = document.createElement('img');
     image.src = img;
     image.alt = title;
-
     media.appendChild(image);
     card.appendChild(media);
-
-    getDominantColor(img)
-      .then((color) => {
-        card.style.setProperty('--card-accent', color);
-      })
-      .catch(() => {
-        // Swallow errors: the fallback color is handled inside getDominantColor
-      });
   }
 
   const body = document.createElement('div');
   body.className = 'card__body';
 
-  const titleEl = document.createElement('h3');
-  titleEl.className = 'card__title';
-
-  if (typeof href === 'string' && href.length > 0) {
+  const heading = document.createElement('h3');
+  heading.className = 'card__title';
+  if (isNonEmpty(href)) {
     const link = document.createElement('a');
     link.href = href;
+    link.target = '_blank';
+    link.rel = 'noreferrer';
     link.textContent = title;
-    if (!rawLink) {
-      link.target = '_blank';
-      link.rel = 'noreferrer';
-    }
-    titleEl.appendChild(link);
+    heading.appendChild(link);
   } else {
-    titleEl.textContent = title;
+    heading.textContent = title;
   }
+  body.appendChild(heading);
 
-  body.appendChild(titleEl);
-
-  if (typeof sub === 'string' && sub.length > 0) {
+  if (isNonEmpty(sub)) {
     const subtitle = document.createElement('p');
     subtitle.className = 'card__subtitle';
     subtitle.textContent = sub;
     body.appendChild(subtitle);
   }
 
-  if (typeof meta === 'string' && meta.length > 0) {
+  if (isNonEmpty(date)) {
+    const dateEl = document.createElement('p');
+    dateEl.className = 'card__meta';
+    dateEl.textContent = date;
+    body.appendChild(dateEl);
+  }
+
+  if (isNonEmpty(meta)) {
     const metaEl = document.createElement('p');
     metaEl.className = 'card__meta';
     metaEl.textContent = meta;
     body.appendChild(metaEl);
   }
 
-  card.appendChild(body);
+  if (tags && tags.length > 0) {
+    body.appendChild(createTagList(tags));
+  }
 
+  const footer = document.createElement('div');
+  footer.className = 'card__footer';
+  if (isNonEmpty(source)) {
+    const sourceEl = document.createElement('span');
+    sourceEl.className = 'card__source';
+    sourceEl.textContent = source;
+    footer.appendChild(sourceEl);
+  }
+  if (raw !== undefined) {
+    footer.appendChild(createRawLink(raw));
+  }
+  body.appendChild(footer);
+
+  card.appendChild(body);
   return card;
 };
 
 const buildMeta = (item: ItemCard): string | undefined => {
   const parts: string[] = [];
-
   if (isNonEmpty(item.date)) {
     parts.push(item.date.trim());
   }
-
   if (Array.isArray(item.tags) && item.tags.length > 0) {
-    const tags = item.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
-    if (tags.length > 0) {
-      parts.push(tags.join(', '));
-    }
+    parts.push(item.tags.join(', '));
   }
-
   return parts.length > 0 ? parts.join(' • ') : undefined;
 };
 
 export const renderItemCard = (item: ItemCard): HTMLElement => {
   return createCard({
     title: item.title,
-    sub: isNonEmpty(item.sub) ? item.sub : undefined,
-    img: isNonEmpty(item.img) ? item.img : undefined,
+    sub: item.sub,
+    date: item.date,
+    img: item.img,
+    tags: item.tags,
+    href: item.href,
+    source: item.source,
+    raw: item.raw,
     meta: buildMeta(item),
-    href: isNonEmpty(item.href) ? item.href : undefined,
   });
 };

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Worker Debug</title>
+    <link rel="stylesheet" href="/src/styles/theme.css" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 1rem;
+      }
+      pre {
+        background: #111;
+        color: #eee;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Smoke tests</h1>
+    <pre id="log">Running tests…
+</pre>
+    <script type="module">
+      const log = (message) => {
+        const el = document.getElementById('log');
+        el.textContent += `\n${message}`;
+        console.log(message);
+      };
+
+      const resolveUbcIndex = async () => {
+        try {
+          const resp = await fetch('/ubc/collections?ttl=3600', {
+            headers: { Accept: 'application/json' },
+          });
+          const data = await resp.json();
+          const values = data && typeof data === 'object' ? Object.values(data.data ?? {}) : [];
+          const slug = values.find((value) => typeof value === 'string' && /^[A-Za-z]/.test(value));
+          return slug || 'aaah';
+        } catch (error) {
+          log(`Failed to resolve UBC index: ${error}`);
+          return 'aaah';
+        }
+      };
+
+      const run = async () => {
+        const ubcIndex = await resolveUbcIndex();
+        const tests = [
+          { name: 'diag', url: '/diag' },
+          { name: 'harvard', url: '/harvard-art/object?size=1' },
+          { name: 'princeton', url: '/princeton-art/search?q=monet&type=artobjects&size=1' },
+          { name: 'dataverse', url: '/dataverse/search?q=data&type=dataset&per_page=1' },
+          { name: 'ubc collections', url: '/ubc/collections?ttl=3600' },
+          { name: 'ubc search', url: `/ubc/search/8.5/${ubcIndex}?q=newspaper&size=1` },
+          { name: 'arxiv', url: '/arxiv/search?search_query=cat:cs.AI&max_results=1' },
+          { name: 'yale', url: `/yale-iiif?url=${encodeURIComponent('https://iiif.harvardartmuseums.org/manifests/object/299843')}` },
+        ];
+
+        for (const test of tests) {
+          try {
+            const resp = await fetch(test.url);
+            const contentType = resp.headers.get('content-type') || 'unknown';
+            const sample = contentType.includes('json') ? await resp.text() : await resp.text();
+            const snippet = sample.slice(0, 120).replace(/\s+/g, ' ');
+            if (!resp.ok) {
+              log(`FAIL ${test.name}: ${resp.status} ${resp.statusText} (${snippet})`);
+            } else {
+              log(`PASS ${test.name}: ${resp.status} ${resp.statusText} [${contentType}] ${snippet}`);
+            }
+          } catch (error) {
+            log(`FAIL ${test.name}: ${error instanceof Error ? error.message : error}`);
+          }
+        }
+      };
+
+      run();
+    </script>
+  </body>
+</html>

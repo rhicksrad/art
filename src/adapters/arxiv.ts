@@ -1,76 +1,70 @@
 import type { ItemCard } from '../lib/types';
 
-const TRUNCATE_LENGTH = 280;
-
-const normalizeWhitespace = (value: string | null | undefined): string | undefined => {
-  if (!value) return undefined;
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > 0 ? normalized : undefined;
-};
-
-const truncate = (value: string | undefined): string | undefined => {
-  if (!value) return undefined;
-  if (value.length <= TRUNCATE_LENGTH) {
-    return value;
+const textContent = (element: Element | null): string | undefined => {
+  if (!element) {
+    return undefined;
   }
-  return `${value.slice(0, TRUNCATE_LENGTH - 1).trimEnd()}…`;
+  const value = element.textContent ?? '';
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const getFirstText = (element: Element | null, selector: string): string | undefined => {
-  if (!element) return undefined;
-  return normalizeWhitespace(element.querySelector(selector)?.textContent);
+const collectAuthors = (entry: Element): string | undefined => {
+  const names: string[] = [];
+  entry.querySelectorAll('author > name').forEach((author) => {
+    const name = textContent(author);
+    if (name) {
+      names.push(name);
+    }
+  });
+  return names.length > 0 ? names.join(', ') : undefined;
 };
 
-const getAuthors = (entry: Element): string[] => {
-  return Array.from(entry.querySelectorAll('author > name'))
-    .map((node) => normalizeWhitespace(node.textContent))
-    .filter((name): name is string => !!name);
+const collectTags = (entry: Element): string[] => {
+  const tags: string[] = [];
+  entry.querySelectorAll('category').forEach((category) => {
+    const term = category.getAttribute('term');
+    if (term && term.trim()) {
+      tags.push(term.trim());
+    }
+  });
+  return tags;
 };
 
-const getHref = (entry: Element): string | undefined => {
-  const preferred = entry.querySelector("link[rel='alternate']");
-  const fallback = entry.querySelector('link[href]');
-  const href = preferred?.getAttribute('href') ?? fallback?.getAttribute('href') ?? undefined;
-  return href && href.trim().length > 0 ? href.trim() : undefined;
-};
-
-const getCategories = (entry: Element): string[] => {
-  return Array.from(entry.querySelectorAll('category'))
-    .map((category) => category.getAttribute('term') ?? category.getAttribute('label') ?? undefined)
-    .map((value) => (value ? value.trim() : undefined))
-    .filter((value): value is string => !!value && value.length > 0);
+const serializeEntry = (entry: Element): string => {
+  const serializer = new XMLSerializer();
+  return serializer.serializeToString(entry);
 };
 
 export const toItemCards = (atomXml: string): ItemCard[] => {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(atomXml, 'application/xml');
-  const parseError = doc.querySelector('parsererror');
-  if (parseError) {
-    throw new Error('Invalid arXiv feed');
+  const document = parser.parseFromString(atomXml, 'application/xml');
+  if (document.querySelector('parsererror')) {
+    throw new Error('Failed to parse arXiv Atom feed');
   }
 
-  const entries = Array.from(doc.querySelectorAll('entry'));
-
-  return entries.map((entry, index) => {
-    const title =
-      normalizeWhitespace(entry.querySelector('title')?.textContent) ?? `arXiv entry #${index + 1}`;
-    const summary = truncate(normalizeWhitespace(entry.querySelector('summary')?.textContent));
-    const authors = getAuthors(entry);
-    const date = getFirstText(entry, 'published') ?? getFirstText(entry, 'updated');
-    const href = getHref(entry) ?? normalizeWhitespace(entry.querySelector('id')?.textContent);
+  const entries = Array.from(document.getElementsByTagName('entry'));
+  return entries.map((entry) => {
     const id =
-      normalizeWhitespace(entry.querySelector('id')?.textContent) ?? href ?? `arxiv-${index}`;
-    const tags = authors.length > 0 ? authors : getCategories(entry);
+      textContent(entry.querySelector('id')) ??
+      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `arxiv-${Math.random().toString(36).slice(2)}`);
+    const title = textContent(entry.querySelector('title')) ?? 'Untitled';
+    const date = textContent(entry.querySelector('updated')) ?? textContent(entry.querySelector('published'));
+    const href = entry.querySelector('link[rel="alternate"]')?.getAttribute('href') ?? textContent(entry.querySelector('id'));
+    const sub = collectAuthors(entry);
+    const tags = collectTags(entry);
 
     return {
       id,
       title,
-      sub: summary,
+      sub,
       date,
       tags: tags.length > 0 ? tags : undefined,
-      href,
+      href: href ?? undefined,
       source: 'arXiv',
-      raw: entry,
+      raw: serializeEntry(entry),
     };
   });
 };

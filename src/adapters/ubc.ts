@@ -1,79 +1,22 @@
-import { z } from 'zod';
 import type { ItemCard } from '../lib/types';
 
-const StringLikeSchema = z.union([z.string(), z.array(z.string())]);
+type UnknownRecord = Record<string, unknown>;
 
-const UbcThumbnailSchema = z
-  .union([
-    z.string(),
-    z
-      .object({
-        src: z.string().optional(),
-        url: z.string().optional(),
-        square: z.string().optional(),
-        large: z.string().optional(),
-      })
-      .passthrough(),
-  ])
-  .optional();
-
-const UbcIiifSchema = z
-  .object({
-    id: z.string().optional(),
-    '@id': z.string().optional(),
-    service: z.string().optional(),
-    manifest: z.string().optional(),
-    tileSource: z.string().optional(),
-  })
-  .passthrough()
-  .optional();
-
-export const UbcHitSchema = z
-  .object({
-    id: z.union([z.string(), z.number()]).optional(),
-    identifier: StringLikeSchema.optional(),
-    title: StringLikeSchema.optional(),
-    name: StringLikeSchema.optional(),
-    label: StringLikeSchema.optional(),
-    date: StringLikeSchema.optional(),
-    issued: StringLikeSchema.optional(),
-    displayDate: StringLikeSchema.optional(),
-    collection: StringLikeSchema.optional(),
-    creator: StringLikeSchema.optional(),
-    contributor: StringLikeSchema.optional(),
-    type: StringLikeSchema.optional(),
-    url: StringLikeSchema.optional(),
-    href: StringLikeSchema.optional(),
-    source: StringLikeSchema.optional(),
-    thumbnail: UbcThumbnailSchema,
-    img: StringLikeSchema.optional(),
-    image: StringLikeSchema.optional(),
-    iiif: UbcIiifSchema,
-  })
-  .passthrough();
-
-export const UbcResponseSchema = z
-  .object({
-    total: z.number().optional(),
-    resultCount: z.number().optional(),
-    results: z.array(UbcHitSchema).optional(),
-    items: z.array(UbcHitSchema).optional(),
-  })
-  .passthrough();
-
-type UbcHit = z.infer<typeof UbcHitSchema>;
-type UbcResponse = z.infer<typeof UbcResponseSchema>;
+const asRecord = (value: unknown): UnknownRecord | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as UnknownRecord;
+};
 
 const extractFirstString = (value: unknown): string | undefined => {
   if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
-
-  if (typeof value === 'number' || typeof value === 'bigint') {
+  if (typeof value === 'number' && Number.isFinite(value)) {
     return String(value);
   }
-
   if (Array.isArray(value)) {
     for (const entry of value) {
       const result = extractFirstString(entry);
@@ -82,31 +25,47 @@ const extractFirstString = (value: unknown): string | undefined => {
       }
     }
   } else if (value && typeof value === 'object') {
-    for (const entry of Object.values(value as Record<string, unknown>)) {
+    for (const entry of Object.values(value as UnknownRecord)) {
       const result = extractFirstString(entry);
       if (result) {
         return result;
       }
     }
   }
-
   return undefined;
 };
 
-const getImage = (hit: UbcHit): string | undefined => {
-  const thumb = extractFirstString(hit.thumbnail);
-  if (thumb) {
-    return thumb;
+const collectStrings = (value: unknown): string[] => {
+  if (!value) {
+    return [];
   }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (Array.isArray(value)) {
+    const results = value
+      .map((entry) => extractFirstString(entry))
+      .filter((entry): entry is string => !!entry);
+    return results;
+  }
+  return [];
+};
 
-  const direct = extractFirstString(hit.img ?? hit.image);
+const deriveImage = (hit: UnknownRecord): string | undefined => {
+  const direct = extractFirstString(hit.thumbnail ?? hit.thumb ?? hit.image ?? hit.img);
   if (direct) {
     return direct;
   }
 
-  const iiif = hit.iiif;
+  const iiif = asRecord(hit.iiif ?? hit.image_service ?? hit.media);
   if (iiif) {
-    const candidate = extractFirstString(iiif.id ?? iiif['@id'] ?? iiif.service ?? iiif.manifest);
+    const candidate =
+      extractFirstString(iiif.id) ??
+      extractFirstString(iiif['@id']) ??
+      extractFirstString(iiif.service) ??
+      extractFirstString(iiif.manifest) ??
+      extractFirstString(iiif.tileSource);
     if (candidate) {
       return candidate;
     }
@@ -115,8 +74,8 @@ const getImage = (hit: UbcHit): string | undefined => {
   return undefined;
 };
 
-const getIdentifier = (hit: UbcHit): string => {
-  const candidates: Array<unknown> = [hit.id, hit.identifier, hit.url, hit.source];
+const deriveIdentifier = (hit: UnknownRecord): string => {
+  const candidates = [hit.id, hit.identifier, hit.url, hit.href, hit.source, hit.handle];
   for (const candidate of candidates) {
     const value = extractFirstString(candidate);
     if (value) {
@@ -126,43 +85,76 @@ const getIdentifier = (hit: UbcHit): string => {
   return `ubc-item-${Math.random().toString(36).slice(2)}`;
 };
 
-const toItemCard = (hit: UbcHit): ItemCard => {
-  const identifier = getIdentifier(hit);
+const toCard = (hit: UnknownRecord): ItemCard => {
+  const source = asRecord(hit['_source']) ?? hit;
+  const identifier = deriveIdentifier(source);
   const title =
-    extractFirstString(hit.title) ??
-    extractFirstString(hit.label) ??
-    extractFirstString(hit.name) ??
+    extractFirstString(source.title) ??
+    extractFirstString(source.label) ??
+    extractFirstString(source.name) ??
     identifier;
-
-  const sub = extractFirstString(hit.creator ?? hit.contributor ?? hit.collection);
+  const sub =
+    extractFirstString(source.creator) ??
+    extractFirstString(source.contributor) ??
+    extractFirstString(source.collection);
   const date =
-    extractFirstString(hit.date) ??
-    extractFirstString(hit.issued) ??
-    extractFirstString(hit.displayDate);
+    extractFirstString(source.date) ??
+    extractFirstString(source.issued) ??
+    extractFirstString(source.displayDate) ??
+    extractFirstString(source.created);
+  const href =
+    extractFirstString(source.url) ??
+    extractFirstString(source.href) ??
+    extractFirstString(source.source) ??
+    extractFirstString(source.identifier);
 
-  const href = extractFirstString(hit.url ?? hit.href ?? hit.source);
-  const img = getImage(hit);
-
-  const tags = [extractFirstString(hit.collection), extractFirstString(hit.type)]
-    .filter((value): value is string => !!value)
-    .map((value) => value.trim());
+  const tags = [
+    ...collectStrings(source.collection),
+    ...collectStrings(source.type ?? source.format),
+  ];
+  const uniqueTags = Array.from(new Set(tags.filter((value) => value.length > 0)));
 
   return {
     id: identifier,
     title,
     sub,
     date,
-    tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
-    img,
+    tags: uniqueTags.length > 0 ? uniqueTags : undefined,
+    img: deriveImage(source),
     href,
     source: 'UBC',
     raw: hit,
   };
 };
 
+const extractHits = (resp: unknown): UnknownRecord[] => {
+  if (!resp) {
+    return [];
+  }
+  if (Array.isArray(resp)) {
+    return resp as UnknownRecord[];
+  }
+  const record = asRecord(resp);
+  if (!record) {
+    return [];
+  }
+  if (Array.isArray(record.data)) {
+    return record.data as UnknownRecord[];
+  }
+  if (Array.isArray(record.results)) {
+    return record.results as UnknownRecord[];
+  }
+  if (Array.isArray(record.items)) {
+    return record.items as UnknownRecord[];
+  }
+  const hits = asRecord(record.hits);
+  if (hits && Array.isArray(hits.hits)) {
+    return hits.hits as UnknownRecord[];
+  }
+  return [];
+};
+
 export const toItemCards = (resp: unknown): ItemCard[] => {
-  const data: UbcResponse = UbcResponseSchema.parse(resp);
-  const hits =
-    Array.isArray(data.results) && data.results.length > 0 ? data.results : (data.items ?? []);
-  return hits.map((hit) => toItemCard(hit));
+  const hits = extractHits(resp);
+  return hits.map((hit) => toCard(hit));
 };
