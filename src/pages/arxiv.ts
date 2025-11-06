@@ -5,6 +5,8 @@ import { createFacetBar } from "../components/FacetBar";
 import { createPager } from "../components/Pager";
 import { createSearchForm } from "../components/SearchForm";
 import { createVirtualList } from "../components/VirtualList";
+import { createSparkline } from "../components/Sparkline";
+import { createChartBlock } from "../components/ChartBlock";
 import { fetchText, clearCache as clearHttpCache } from "../lib/http";
 import { int, pageFromUrl, toQuery } from "../lib/params";
 
@@ -51,6 +53,26 @@ const sanitizeQuery = (query: Record<string, string>): Record<string, string> =>
   page: query.page ?? "1",
 });
 
+const extractUpdatedTimestamp = (entry: ReturnType<typeof toArxivItemCards>[number]): number | undefined => {
+  const raw = entry.raw;
+  if (raw instanceof Element) {
+    const updated = raw.querySelector("updated")?.textContent ?? raw.querySelector("published")?.textContent ?? undefined;
+    if (updated) {
+      const parsed = Date.parse(updated);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  if (typeof entry.date === "string" && entry.date.length > 0) {
+    const parsed = Date.parse(entry.date);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
 const mount = (el: HTMLElement): void => {
   const searchParams = new URLSearchParams(window.location.search);
   const initialQuery = sanitizeQuery({
@@ -81,6 +103,16 @@ const mount = (el: HTMLElement): void => {
   emptyPlaceholder.className = "results-placeholder";
   emptyPlaceholder.textContent = "No results found.";
 
+  const chartsContainer = document.createElement("div");
+  chartsContainer.className = "results-charts";
+
+  const updatedSparkline = createSparkline({ values: [] });
+  const updatedBlock = createChartBlock(
+    "Updated dates trend",
+    updatedSparkline.element
+  );
+  chartsContainer.append(updatedBlock);
+
   const virtualList = createVirtualList({
     items: [] as ReturnType<typeof toArxivItemCards>,
     rowHeight: CARD_ROW_HEIGHT,
@@ -96,6 +128,15 @@ const mount = (el: HTMLElement): void => {
     virtualList.setItems(cards);
     resultsList.replaceChildren(virtualList.element);
   };
+
+  const updateCharts = (cards: ReturnType<typeof toArxivItemCards>): void => {
+    const values = cards
+      .map((card) => extractUpdatedTimestamp(card))
+      .filter((value): value is number => typeof value === "number");
+    updatedSparkline.setValues(values);
+  };
+
+  updateCharts([]);
 
   const updateInfo = (total: number | undefined, count: number): void => {
     const value = typeof total === "number" ? total : count;
@@ -226,6 +267,7 @@ const mount = (el: HTMLElement): void => {
         : cards.length === PAGE_SIZE;
 
       renderCards(cards);
+      updateCharts(cards);
       updateInfo(total, cards.length);
       pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
     } catch (error) {
@@ -239,6 +281,7 @@ const mount = (el: HTMLElement): void => {
         return;
       }
       renderCards([]);
+      updateCharts([]);
       resultsInfo.textContent = "0 results";
       const message = error instanceof Error ? error.message : String(error);
       alertContainer.replaceChildren(
@@ -266,7 +309,15 @@ const mount = (el: HTMLElement): void => {
     },
   });
 
-  el.append(form, facetBar.element, alertContainer, resultsInfo, resultsList, pager);
+  el.append(
+    form,
+    facetBar.element,
+    alertContainer,
+    resultsInfo,
+    chartsContainer,
+    resultsList,
+    pager,
+  );
 
   performSearch().catch((error) => {
     if (error instanceof DOMException && error.name === "AbortError") {
