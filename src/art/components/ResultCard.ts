@@ -1,62 +1,7 @@
 import { candidateUrls } from '../lib/imagePipeline';
-import { NormalArt } from '../lib/types';
+import type { NormalArt } from '../lib/types';
 
-const createPlaceholder = (text: string): HTMLElement => {
-  const placeholder = document.createElement('div');
-  placeholder.className = 'card__placeholder';
-  placeholder.textContent = text;
-  return placeholder;
-};
-
-const applyImagePipeline = (img: HTMLImageElement, urls: string[], placeholder: HTMLElement): void => {
-  let index = 0;
-  if (urls.length === 0) {
-    img.remove();
-    return;
-  }
-
-  const tryNext = (): void => {
-    if (index >= urls.length) {
-      img.remove();
-      return;
-    }
-    const url = urls[index++];
-    img.src = url;
-  };
-
-  img.addEventListener('error', () => {
-    tryNext();
-  });
-
-  img.addEventListener('load', () => {
-    placeholder.remove();
-    img.classList.add('card__image--loaded');
-  });
-
-  tryNext();
-};
-
-const createActionLink = (href: string, label: string): HTMLAnchorElement => {
-  const link = document.createElement('a');
-  link.href = href;
-  link.target = '_blank';
-  link.rel = 'noreferrer';
-  link.textContent = label;
-  link.className = 'result-card__action';
-  return link;
-};
-
-const joinUnique = (values: string[] | undefined): string | undefined => {
-  if (!values) return undefined;
-  const seen = new Set<string>();
-  for (const value of values) {
-    if (value) seen.add(value);
-  }
-  if (seen.size === 0) return undefined;
-  return Array.from(seen).join(', ');
-};
-
-const rightsLabel = (rights: NormalArt['rights']): string | undefined => {
+const rightsLabel = (rights: NormalArt['rights'] | undefined): string | undefined => {
   switch (rights) {
     case 'PD':
       return 'Public domain';
@@ -68,6 +13,98 @@ const rightsLabel = (rights: NormalArt['rights']): string | undefined => {
     default:
       return undefined;
   }
+};
+
+const createPlaceholder = (text: string): HTMLElement => {
+  const el = document.createElement('div');
+  el.className = 'img-ph';
+  el.textContent = text;
+  el.setAttribute('role', 'img');
+  el.setAttribute('aria-label', text);
+  return el;
+};
+
+const createActionLink = (href: string, label: string): HTMLAnchorElement => {
+  const link = document.createElement('a');
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.textContent = label;
+  link.className = 'result-card__action';
+  return link;
+};
+
+const formatList = (values: string[] | undefined): string | undefined => {
+  if (!values || values.length === 0) return undefined;
+  const unique = Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  return unique.length ? unique.join(' • ') : undefined;
+};
+
+const providerLabel = (url: string): string => {
+  if (url.includes('harvardartmuseums.org')) return 'Open at Harvard';
+  if (url.includes('artmuseum.princeton.edu')) return 'Open at Princeton';
+  return 'Open item';
+};
+
+const createMetaBlock = (item: NormalArt): HTMLElement | null => {
+  const nodes: HTMLElement[] = [];
+  if (item.maker) {
+    const maker = document.createElement('p');
+    maker.className = 'card__subtitle';
+    maker.textContent = item.maker;
+    nodes.push(maker);
+  }
+  if (item.dated) {
+    const dated = document.createElement('p');
+    dated.className = 'card__meta';
+    dated.textContent = item.dated;
+    nodes.push(dated);
+  }
+  const tags = formatList([...(item.classification ?? []), ...(item.culture ?? [])]);
+  if (tags) {
+    const meta = document.createElement('p');
+    meta.className = 'card__meta';
+    meta.textContent = tags;
+    nodes.push(meta);
+  }
+  const rights = rightsLabel(item.rights);
+  if (rights) {
+    const badge = document.createElement('span');
+    badge.className = 'rights-badge';
+    badge.textContent = rights;
+    nodes.push(badge);
+  }
+  if (nodes.length === 0) return null;
+  const container = document.createElement('div');
+  container.className = 'card__meta-block';
+  nodes.forEach((node) => container.appendChild(node));
+  return container;
+};
+
+const createActions = (item: NormalArt): HTMLElement => {
+  const footer = document.createElement('div');
+  footer.className = 'result-card__footer';
+
+  if (item.providerUrl) {
+    footer.appendChild(createActionLink(item.providerUrl, providerLabel(item.providerUrl)));
+  }
+
+  if (item.hasImage && (item.rights === 'PD' || item.rights === 'CC')) {
+    const urls = candidateUrls(item);
+    if (urls.length > 0) {
+      footer.appendChild(createActionLink(urls[0], 'Download image'));
+    }
+  }
+
+  if (item.jsonUrl) {
+    footer.appendChild(createActionLink(item.jsonUrl, 'Raw JSON'));
+  }
+
+  if (item.manifestUrl) {
+    footer.appendChild(createActionLink(item.manifestUrl, 'IIIF Manifest'));
+  }
+
+  return footer;
 };
 
 export const ResultCard = (item: NormalArt): HTMLElement => {
@@ -83,15 +120,32 @@ export const ResultCard = (item: NormalArt): HTMLElement => {
   const img = document.createElement('img');
   img.loading = 'lazy';
   img.decoding = 'async';
-  img.alt = item.title;
+  img.alt = `${item.title}${item.maker ? ` by ${item.maker}` : ''}`.trim();
   img.className = 'result-card__image';
-  media.appendChild(img);
 
-  const urls = candidateUrls(item);
-  if (urls.length > 0) {
-    applyImagePipeline(img, urls, placeholder);
-  } else {
-    img.remove();
+  const sources = candidateUrls(item);
+  let index = 0;
+
+  const tryNext = () => {
+    if (index >= sources.length) {
+      img.remove();
+      return;
+    }
+    img.src = sources[index++];
+  };
+
+  img.addEventListener('error', () => {
+    tryNext();
+  });
+
+  img.addEventListener('load', () => {
+    placeholder.remove();
+    img.classList.add('result-card__image--loaded');
+  });
+
+  if (sources.length > 0) {
+    media.appendChild(img);
+    tryNext();
   }
 
   card.appendChild(media);
@@ -104,62 +158,17 @@ export const ResultCard = (item: NormalArt): HTMLElement => {
   const titleLink = document.createElement('a');
   titleLink.href = item.providerUrl;
   titleLink.target = '_blank';
-  titleLink.rel = 'noreferrer';
+  titleLink.rel = 'noopener';
   titleLink.textContent = item.title || 'Untitled';
   heading.appendChild(titleLink);
   body.appendChild(heading);
 
-  if (item.maker) {
-    const maker = document.createElement('p');
-    maker.className = 'card__subtitle';
-    maker.textContent = item.maker;
-    body.appendChild(maker);
+  const metaBlock = createMetaBlock(item);
+  if (metaBlock) {
+    body.appendChild(metaBlock);
   }
+  body.appendChild(createActions(item));
 
-  if (item.dated) {
-    const dated = document.createElement('p');
-    dated.className = 'card__meta';
-    dated.textContent = item.dated;
-    body.appendChild(dated);
-  }
-
-  const classifications = joinUnique(item.classification);
-  const cultures = joinUnique(item.culture);
-  const metaParts = [classifications, cultures].filter((value): value is string => Boolean(value));
-  if (metaParts.length > 0) {
-    const meta = document.createElement('p');
-    meta.className = 'card__meta';
-    meta.textContent = metaParts.join(' • ');
-    body.appendChild(meta);
-  }
-
-  const rights = rightsLabel(item.rights ?? 'Unknown');
-  if (rights) {
-    const rightsEl = document.createElement('p');
-    rightsEl.className = 'card__meta';
-    rightsEl.textContent = `Rights: ${rights}`;
-    body.appendChild(rightsEl);
-  }
-
-  const footer = document.createElement('div');
-  footer.className = 'result-card__footer';
-
-  if (item.providerUrl) {
-    const providerLabel = item.providerUrl.includes('artmuseum.princeton.edu')
-      ? 'Open at Princeton'
-      : 'Open item';
-    footer.appendChild(createActionLink(item.providerUrl, providerLabel));
-  }
-
-  if (item.jsonUrl) {
-    footer.appendChild(createActionLink(item.jsonUrl, 'Raw JSON'));
-  }
-
-  if (item.manifestUrl) {
-    footer.appendChild(createActionLink(item.manifestUrl, 'IIIF Manifest'));
-  }
-
-  body.appendChild(footer);
   card.appendChild(body);
   return card;
 };

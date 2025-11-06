@@ -1,34 +1,68 @@
-import { NormalArt } from './types';
+import type { NormalArt } from './types';
 
 const toIiifImage = (service: string, width = 600): string => {
-  const base = service.replace(/\/info\.json$/i, '').replace(/\/$/, '');
-  return `${base}/full/!${width},${width}/0/default.jpg`;
+  const normalized = service.replace(/\/info\.json$/i, '').replace(/\/$/, '');
+  return `${normalized}/full/!${width},${width}/0/default.jpg`;
 };
 
-const normalizeUrl = (input: string): string | undefined => {
+const normalizeUrl = (input: string | undefined): string | undefined => {
   if (!input) return undefined;
   try {
-    const url = new URL(input, window.location.origin);
+    const url = new URL(input);
     if (url.protocol === 'http:') {
       url.protocol = 'https:';
     }
     return url.toString();
   } catch {
-    return undefined;
+    return input.startsWith('http://') ? input.replace('http://', 'https://') : input;
   }
 };
 
-export const candidateUrls = (item: NormalArt): string[] => {
+const gatherFromItem = (item: NormalArt): { iiif?: string; primary?: string; renditions: string[] } => {
+  return {
+    iiif: item.iiifService,
+    primary: item.primaryImage,
+    renditions: item.renditions ?? [],
+  };
+};
+
+export function candidateUrls(item: NormalArt): string[];
+export function candidateUrls(iiifService?: string, primary?: string, renditions?: string[], size?: number): string[];
+export function candidateUrls(
+  sourceOrIiif?: NormalArt | string,
+  primaryOrSize?: string | number,
+  renditions: string[] = [],
+  size = 600,
+): string[] {
+  let iiifService: string | undefined;
+  let primary: string | undefined;
+  let extras: string[] = renditions;
+  let desiredSize = size;
+
+  if (typeof sourceOrIiif === 'object' && sourceOrIiif !== null) {
+    const data = gatherFromItem(sourceOrIiif);
+    iiifService = data.iiif;
+    primary = data.primary;
+    extras = data.renditions;
+    desiredSize = typeof primaryOrSize === 'number' ? primaryOrSize : size;
+  } else {
+    iiifService = sourceOrIiif ?? undefined;
+    if (typeof primaryOrSize === 'number') {
+      desiredSize = primaryOrSize;
+    } else if (typeof primaryOrSize === 'string') {
+      primary = primaryOrSize;
+    }
+  }
+
   const urls: string[] = [];
-  if (item.iiifService) {
-    urls.push(toIiifImage(item.iiifService));
+  if (iiifService) {
+    urls.push(toIiifImage(iiifService, desiredSize));
   }
-  if (item.primaryImage) {
-    urls.push(item.primaryImage);
+  if (primary) {
+    urls.push(primary);
   }
-  for (const rendition of item.renditions ?? []) {
-    urls.push(rendition);
-  }
+  urls.push(...extras);
+
   const unique: string[] = [];
   const seen = new Set<string>();
   for (const url of urls) {
@@ -39,4 +73,4 @@ export const candidateUrls = (item: NormalArt): string[] => {
     unique.push(normalized);
   }
   return unique;
-};
+}
