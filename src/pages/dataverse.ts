@@ -5,8 +5,12 @@ import { createFacetBar } from "../components/FacetBar";
 import { createPager } from "../components/Pager";
 import { createSearchForm } from "../components/SearchForm";
 import { createVirtualList } from "../components/VirtualList";
+import { createBar } from "../components/Bar";
+import { createHistogram } from "../components/Histogram";
+import { createChartBlock } from "../components/ChartBlock";
 import { fetchJSON, clearCache as clearHttpCache } from "../lib/http";
 import { int, pageFromUrl, toQuery } from "../lib/params";
+import { countStrings, findNumericByKey, parseNumericValue } from "../lib/analytics";
 
 const PAGE_SIZE = 12;
 const CARD_ROW_HEIGHT = 280;
@@ -42,6 +46,82 @@ const sanitizeQuery = (query: Record<string, string>): Record<string, string> =>
   page: query.page ?? "1",
 });
 
+const FILE_SIZE_KEYS = ["file_size", "filesize", "size", "bytes", "filesizebytes"];
+
+const extractFileSize = (raw: unknown): number | undefined => {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  for (const key of FILE_SIZE_KEYS) {
+    if (key in record) {
+      const parsed = parseNumericValue(record[key]);
+      if (typeof parsed === "number" && parsed >= 0) {
+        return parsed;
+      }
+    }
+  }
+  const nested = findNumericByKey(raw, FILE_SIZE_KEYS);
+  return typeof nested === "number" && nested >= 0 ? nested : undefined;
+};
+
+const splitSubjects = (value: unknown): string[] => {
+  if (typeof value === "string") {
+    return value
+      .split(/[,;|]/)
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => splitSubjects(entry));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).flatMap((entry) =>
+      splitSubjects(entry)
+    );
+  }
+  return [];
+};
+
+const extractSubjects = (raw: unknown): string[] => {
+  if (!raw || typeof raw !== "object") {
+    return [];
+  }
+
+  const results: string[] = [];
+  const stack: unknown[] = [raw];
+  const visited = new WeakSet<object>();
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+    if (visited.has(current as object)) {
+      continue;
+    }
+    visited.add(current as object);
+
+    if (Array.isArray(current)) {
+      for (const entry of current) {
+        stack.push(entry);
+      }
+      continue;
+    }
+
+    const record = current as Record<string, unknown>;
+    for (const [key, value] of Object.entries(record)) {
+      if (key.toLowerCase().includes("subject")) {
+        results.push(...splitSubjects(value));
+      } else if (value && typeof value === "object") {
+        stack.push(value);
+      }
+    }
+  }
+
+  return results;
+};
+
 const mount = (el: HTMLElement): void => {
   const searchParams = new URLSearchParams(window.location.search);
   const initialQuery = sanitizeQuery({
@@ -71,6 +151,20 @@ const mount = (el: HTMLElement): void => {
   emptyPlaceholder.className = "results-placeholder";
   emptyPlaceholder.textContent = "No results found.";
 
+  const chartsContainer = document.createElement("div");
+  chartsContainer.className = "results-charts";
+
+  const fileHistogram = createHistogram({ values: [], bins: 12 });
+  const fileHistogramBlock = createChartBlock(
+    "File size distribution",
+    fileHistogram.element
+  );
+  chartsContainer.append(fileHistogramBlock);
+
+  const subjectBar = createBar({ data: [], xLabel: "Subject", yLabel: "Items" });
+  const subjectBarBlock = createChartBlock("Items by subject", subjectBar.element);
+  chartsContainer.append(subjectBarBlock);
+
   const virtualList = createVirtualList({
     items: [] as ReturnType<typeof toDataverseItemCards>,
     rowHeight: CARD_ROW_HEIGHT,
@@ -86,6 +180,25 @@ const mount = (el: HTMLElement): void => {
     virtualList.setItems(cards);
     resultsList.replaceChildren(virtualList.element);
   };
+
+  const updateCharts = (cards: ReturnType<typeof toDataverseItemCards>): void => {
+    if (currentQuery.type === "file") {
+      fileHistogramBlock.hidden = false;
+      subjectBarBlock.hidden = true;
+      const sizes = cards
+        .map((card) => extractFileSize(card.raw))
+        .filter((value): value is number => typeof value === "number");
+      fileHistogram.setValues(sizes);
+    } else {
+      fileHistogramBlock.hidden = true;
+      subjectBarBlock.hidden = false;
+      const subjects = cards.flatMap((card) => extractSubjects(card.raw));
+      const data = countStrings(subjects);
+      subjectBar.setData(data);
+    }
+  };
+
+  updateCharts([]);
 
   const updateInfo = (total: number | undefined, count: number): void => {
     const value = typeof total === "number" ? total : count;
@@ -197,6 +310,7 @@ const mount = (el: HTMLElement): void => {
         : cards.length === PAGE_SIZE;
 
       renderCards(cards);
+      updateCharts(cards);
       updateInfo(total, cards.length);
       pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
     } catch (error) {
@@ -210,6 +324,7 @@ const mount = (el: HTMLElement): void => {
         return;
       }
       renderCards([]);
+      updateCharts([]);
       resultsInfo.textContent = "0 results";
       const message = error instanceof Error ? error.message : String(error);
       alertContainer.replaceChildren(
@@ -237,7 +352,15 @@ const mount = (el: HTMLElement): void => {
     },
   });
 
-  el.append(form, facetBar.element, alertContainer, resultsInfo, resultsList, pager);
+  el.append(
+    form,
+    facetBar.element,
+    alertContainer,
+    resultsInfo,
+    chartsContainer,
+    resultsList,
+    pager,
+  );
 
   performSearch().catch((error) => {
     if (error instanceof DOMException && error.name === "AbortError") {

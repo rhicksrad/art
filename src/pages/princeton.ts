@@ -5,8 +5,11 @@ import { createFacetBar } from "../components/FacetBar";
 import { createPager } from "../components/Pager";
 import { createSearchForm } from "../components/SearchForm";
 import { createVirtualList } from "../components/VirtualList";
+import { createBar } from "../components/Bar";
+import { createChartBlock } from "../components/ChartBlock";
 import { fetchJSON, clearCache as clearHttpCache } from "../lib/http";
 import { int, pageFromUrl, toQuery } from "../lib/params";
+import { countDecades, extractYear } from "../lib/analytics";
 
 const PAGE_SIZE = 12;
 const CARD_ROW_HEIGHT = 280;
@@ -49,6 +52,19 @@ const sanitizeQuery = (query: Record<string, string>): Record<string, string> =>
   page: query.page ?? "1",
 });
 
+const collectDecadeData = (
+  cards: ReturnType<typeof toPrincetonItemCards>
+): ReturnType<typeof countDecades> => {
+  const years: number[] = [];
+  for (const card of cards) {
+    const year = extractYear(card.date);
+    if (typeof year === "number") {
+      years.push(year);
+    }
+  }
+  return countDecades(years);
+};
+
 const mount = (el: HTMLElement): void => {
   const searchParams = new URLSearchParams(window.location.search);
   const initialQuery = sanitizeQuery({
@@ -77,6 +93,17 @@ const mount = (el: HTMLElement): void => {
   emptyPlaceholder.className = "results-placeholder";
   emptyPlaceholder.textContent = "No results found.";
 
+  const chartsContainer = document.createElement("div");
+  chartsContainer.className = "results-charts";
+
+  const decadeBar = createBar({
+    data: [],
+    xLabel: "Decade",
+    yLabel: "Objects",
+  });
+  const decadeBlock = createChartBlock("Objects by decade", decadeBar.element);
+  chartsContainer.append(decadeBlock);
+
   const virtualList = createVirtualList({
     items: [] as ReturnType<typeof toPrincetonItemCards>,
     rowHeight: CARD_ROW_HEIGHT,
@@ -91,6 +118,11 @@ const mount = (el: HTMLElement): void => {
 
     virtualList.setItems(cards);
     resultsList.replaceChildren(virtualList.element);
+  };
+
+  const updateCharts = (cards: ReturnType<typeof toPrincetonItemCards>): void => {
+    const data = collectDecadeData(cards);
+    decadeBar.setData(data);
   };
 
   const updateInfo = (total: number | undefined, count: number): void => {
@@ -193,6 +225,7 @@ const mount = (el: HTMLElement): void => {
         : cards.length === PAGE_SIZE;
 
       renderCards(cards);
+      updateCharts(cards);
       updateInfo(total, cards.length);
       pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
     } catch (error) {
@@ -206,6 +239,7 @@ const mount = (el: HTMLElement): void => {
         return;
       }
       renderCards([]);
+      updateCharts([]);
       resultsInfo.textContent = "0 results";
       const message = error instanceof Error ? error.message : String(error);
       alertContainer.replaceChildren(
@@ -233,7 +267,15 @@ const mount = (el: HTMLElement): void => {
     },
   });
 
-  el.append(form, facetBar.element, alertContainer, resultsInfo, resultsList, pager);
+  el.append(
+    form,
+    facetBar.element,
+    alertContainer,
+    resultsInfo,
+    chartsContainer,
+    resultsList,
+    pager,
+  );
 
   performSearch().catch((error) => {
     if (error instanceof DOMException && error.name === "AbortError") {
