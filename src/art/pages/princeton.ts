@@ -1,12 +1,23 @@
 import { Facets } from '../components/Facets';
+import type { PrincetonFacetDefinition } from '../components/Facets';
 import { ResultCard } from '../components/ResultCard';
 import { searchPrinceton } from '../lib/providers/princeton';
 import { onStateChange, readState, writeState } from '../lib/urlState';
 import { NormalArt, SearchState } from '../lib/types';
 
-const FACET_DEFINITIONS = [
-  { key: 'classification' as const, label: 'Classification' },
-  { key: 'century' as const, label: 'Century' },
+const FACET_DEFINITIONS: PrincetonFacetDefinition[] = [
+  {
+    key: 'classification',
+    label: 'Classification',
+    getValues: (state) => state.classification,
+    setValues: (state, values) => ({ ...state, classification: values, page: 1 }),
+  },
+  {
+    key: 'century',
+    label: 'Century',
+    getValues: (state) => state.century,
+    setValues: (state, values) => ({ ...state, century: values, page: 1 }),
+  },
 ];
 
 type SearchPayload = {
