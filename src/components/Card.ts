@@ -1,3 +1,5 @@
+import type { ItemCard } from "../lib/types";
+
 export type CardProps = {
   title: string;
   sub?: string;
@@ -5,6 +7,10 @@ export type CardProps = {
   meta?: string;
   href?: string;
   rawLink?: boolean;
+};
+
+const isNonEmpty = (value: string | undefined): value is string => {
+  return typeof value === "string" && value.trim().length > 0;
 };
 
 export const createCard = ({
@@ -68,4 +74,33 @@ export const createCard = ({
   card.appendChild(body);
 
   return card;
+};
+
+const buildMeta = (item: ItemCard): string | undefined => {
+  const parts: string[] = [];
+
+  if (isNonEmpty(item.date)) {
+    parts.push(item.date.trim());
+  }
+
+  if (Array.isArray(item.tags) && item.tags.length > 0) {
+    const tags = item.tags
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+    if (tags.length > 0) {
+      parts.push(tags.join(", "));
+    }
+  }
+
+  return parts.length > 0 ? parts.join(" • ") : undefined;
+};
+
+export const renderItemCard = (item: ItemCard): HTMLElement => {
+  return createCard({
+    title: item.title,
+    sub: isNonEmpty(item.sub) ? item.sub : undefined,
+    img: isNonEmpty(item.img) ? item.img : undefined,
+    meta: buildMeta(item),
+    href: isNonEmpty(item.href) ? item.href : undefined,
+  });
 };

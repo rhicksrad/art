@@ -1,195 +1,204 @@
+import { toItemCards as toPrincetonItemCards } from "../adapters/princeton";
 import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
+import { renderItemCard } from "../components/Card";
 import { createPager } from "../components/Pager";
+import { createSearchForm } from "../components/SearchForm";
 import { fetchJSON } from "../lib/http";
+import { int, pageFromUrl, toQuery } from "../lib/params";
 
-type PrincetonResponse = {
-  count?: number;
-  info?: {
-    total?: number;
-    total_count?: number;
-  };
-  pagination?: {
-    total?: number;
-    total_count?: number;
-  };
-  records?: unknown[];
-  results?: unknown[];
-  data?: unknown[];
-  hits?: unknown[];
-};
+const PAGE_SIZE = 12;
 
-const getRecordCount = (data: PrincetonResponse): number | undefined => {
-  if (Array.isArray(data.records)) return data.records.length;
-  if (Array.isArray(data.results)) return data.results.length;
-  if (Array.isArray(data.data)) return data.data.length;
-  if (Array.isArray(data.hits)) return data.hits.length;
+const getTotalRecords = (resp: unknown): number | undefined => {
+  if (!resp || typeof resp !== "object") {
+    return undefined;
+  }
+
+  const data = resp as Record<string, unknown>;
+
+  const direct = data.count ?? data.total ?? data.total_count;
+  if (typeof direct === "number") {
+    return direct;
+  }
+
+  const info = data.info;
+  if (info && typeof info === "object") {
+    const infoData = info as Record<string, unknown>;
+    const infoTotal = infoData.total ?? infoData.total_count;
+    if (typeof infoTotal === "number") {
+      return infoTotal;
+    }
+  }
+
+  const pagination = data.pagination;
+  if (pagination && typeof pagination === "object") {
+    const paginationData = pagination as Record<string, unknown>;
+    const paginationTotal = paginationData.total ?? paginationData.total_count;
+    if (typeof paginationTotal === "number") {
+      return paginationTotal;
+    }
+  }
+
   return undefined;
 };
 
-const getTotal = (data: PrincetonResponse): number | undefined => {
-  return (
-    (typeof data.count === "number" ? data.count : undefined) ??
-    data.info?.total ??
-    data.info?.total_count ??
-    data.pagination?.total ??
-    data.pagination?.total_count
-  );
-};
+const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
+  q: query.q ?? "",
+  page: query.page ?? "1",
+});
 
 const mount = (el: HTMLElement): void => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialQuery = sanitizeQuery({
+    q: searchParams.get("q") ?? "",
+    page: String(pageFromUrl()),
+  });
+
+  let currentQuery = { ...initialQuery };
+  let currentPage = int(currentQuery.page, 1);
+  let isLoading = false;
+  let requestToken = 0;
+
   el.innerHTML = "";
 
-  const status = document.createElement("p");
-  status.textContent = "Running Princeton University Art Museum probe…";
-  el.appendChild(status);
-
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
-
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
-  resultsSection.appendChild(resultsHeading);
+  const alertContainer = document.createElement("div");
+  const resultsInfo = document.createElement("p");
+  resultsInfo.className = "results-count";
+  resultsInfo.textContent = "0 results";
 
   const resultsList = document.createElement("div");
   resultsList.className = "results-list";
-  resultsSection.appendChild(resultsList);
 
-  const pager = createPager({
-    page: 1,
-    hasPrev: false,
-    hasNext: false,
-    onPrev: () => {},
-    onNext: () => {},
-  });
-  resultsSection.appendChild(pager);
-
-  const updateResults = (items: CardProps[]): void => {
+  const renderCards = (cards: ReturnType<typeof toPrincetonItemCards>): void => {
     resultsList.innerHTML = "";
-    if (items.length === 0) {
+    if (cards.length === 0) {
       const placeholder = document.createElement("p");
       placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      placeholder.textContent = "No results found.";
       resultsList.appendChild(placeholder);
       return;
     }
 
-    items.forEach((item) => {
-      resultsList.appendChild(createCard(item));
+    cards.forEach((card) => {
+      resultsList.appendChild(renderItemCard(card));
     });
   };
 
-  const extractRecords = (data: PrincetonResponse): unknown[] => {
-    if (Array.isArray(data.records) && data.records.length > 0) return data.records;
-    if (Array.isArray(data.results) && data.results.length > 0) return data.results;
-    if (Array.isArray(data.data) && data.data.length > 0) return data.data;
-    if (Array.isArray(data.hits) && data.hits.length > 0) return data.hits;
-    return [];
+  const updateInfo = (total: number | undefined, count: number): void => {
+    const value = typeof total === "number" ? total : count;
+    resultsInfo.textContent = `${value} results`;
   };
 
-  const firstString = (value: unknown): string | undefined => {
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
-
-    if (Array.isArray(value)) {
-      for (const entry of value) {
-        const result = firstString(entry);
-        if (result) {
-          return result;
-        }
-      }
-    }
-
-    if (value && typeof value === "object") {
-      for (const entry of Object.values(value as Record<string, unknown>)) {
-        const result = firstString(entry);
-        if (result) {
-          return result;
-        }
-      }
-    }
-
-    return undefined;
+  const updateLocation = (query: Record<string, string>): void => {
+    const sanitized = sanitizeQuery(query);
+    const search = new URLSearchParams(toQuery(sanitized)).toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
   };
 
-  const toCard = (record: unknown, index: number): CardProps => {
-    if (!record || typeof record !== "object") {
-      return { title: `Result #${index + 1}` };
-    }
-
-    const data = record as Record<string, unknown>;
-    const title =
-      firstString(data.title) ??
-      firstString(data.label) ??
-      firstString(data.display_title) ??
-      firstString(data.name) ??
-      `Result #${index + 1}`;
-
-    const sub =
-      firstString(data.display_date) ??
-      firstString(data.displayDate) ??
-      firstString(data.date) ??
-      undefined;
-
-    const meta =
-      firstString(data.maker) ??
-      firstString(data.makers) ??
-      firstString(data.artist) ??
-      firstString(data.artists) ??
-      undefined;
-
-    const href = firstString(data.url) ?? firstString(data.href) ?? firstString(data.link);
-    const img = firstString(data.primaryimageurl) ?? firstString(data.thumbnail) ?? undefined;
-
-    return {
-      title,
-      sub,
-      meta,
-      href,
-      img,
-      rawLink: !!href && /^https?:/i.test(href),
-    };
+  const submitForm = (values: Record<string, string>): void => {
+    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    currentQuery = nextQuery;
+    currentPage = 1;
+    void performSearch();
   };
 
-  updateResults([]);
-  el.appendChild(resultsSection);
+  const { element: form, setValues } = createSearchForm({
+    fields: [
+      {
+        name: "q",
+        label: "Keyword",
+        type: "text",
+        placeholder: "Search Princeton University Art Museum",
+        value: currentQuery.q,
+      },
+    ],
+    onSubmit: submitForm,
+  });
 
-  fetchJSON<PrincetonResponse>("/princeton-art/objects", { size: 1 })
-    .then((data) => {
-      const recordCount = getRecordCount(data);
-      const total = getTotal(data);
+  setValues({ q: currentQuery.q });
 
-      const parts: string[] = [];
-      if (typeof recordCount === "number") {
-        parts.push(`${recordCount} record${recordCount === 1 ? "" : "s"}`);
+  const pager = createPager({
+    page: currentPage,
+    hasPrev: currentPage > 1,
+    hasNext: false,
+    onPrev: () => {
+      if (isLoading || currentPage <= 1) return;
+      currentQuery.page = String(currentPage - 1);
+      currentPage -= 1;
+      void performSearch();
+    },
+    onNext: () => {
+      if (isLoading) return;
+      currentQuery.page = String(currentPage + 1);
+      currentPage += 1;
+      void performSearch();
+    },
+  });
+
+  const requestParamsFromQuery = (query: Record<string, string>) => {
+    return toQuery({
+      q: query.q,
+      size: PAGE_SIZE,
+      page: int(query.page, 1),
+    });
+  };
+
+  const performSearch = async (): Promise<void> => {
+    const pageNumber = Math.max(1, int(currentQuery.page, 1));
+    currentQuery.page = String(pageNumber);
+    currentPage = pageNumber;
+
+    const requestParams = requestParamsFromQuery(currentQuery);
+    const token = ++requestToken;
+    isLoading = true;
+    alertContainer.innerHTML = "";
+    resultsList.innerHTML = "";
+    resultsInfo.textContent = "Loading…";
+    pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    updateLocation(currentQuery);
+    setValues({ q: currentQuery.q });
+
+    try {
+      const response = await fetchJSON<unknown>("/princeton-art/objects", requestParams);
+      if (token !== requestToken) {
+        return;
       }
-      if (typeof total === "number") {
-        parts.push(`${total} total`);
+
+      const cards = toPrincetonItemCards(response);
+      const total = getTotalRecords(response);
+      const hasNext = typeof total === "number"
+        ? pageNumber * PAGE_SIZE < total
+        : cards.length === PAGE_SIZE;
+
+      renderCards(cards);
+      updateInfo(total, cards.length);
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
+    } catch (error) {
+      if (token !== requestToken) {
+        return;
       }
-
-      const detail = parts.length > 0 ? parts.join(", ") : "Endpoint responded";
-      status.textContent = `Probe OK: ${detail}.`;
-
-      const records = extractRecords(data).slice(0, 3);
-      const results = records.map((record, index) => toCard(record, index));
-
-      if (results.length === 0) {
-        results.push({ title: "Result #1" });
-      }
-
-      updateResults(results);
-    })
-    .catch((error: Error) => {
-      status.remove();
-      el.appendChild(
-        createAlert(
-          `Princeton University Art Museum probe failed: ${error.message}`,
-          "error",
-        ),
+      renderCards([]);
+      resultsInfo.textContent = "0 results";
+      const message = error instanceof Error ? error.message : String(error);
+      alertContainer.replaceChildren(
+        createAlert(`Princeton search failed: ${message}`, "error"),
       );
-      updateResults([]);
-    });
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    } finally {
+      if (token === requestToken) {
+        isLoading = false;
+      }
+    }
+  };
+
+  el.append(form, alertContainer, resultsInfo, resultsList, pager);
+
+  performSearch().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    alertContainer.replaceChildren(
+      createAlert(`Princeton search failed: ${message}`, "error"),
+    );
+  });
 };
 
 export default mount;

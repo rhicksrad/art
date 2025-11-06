@@ -1,121 +1,237 @@
+import { toItemCards as toArxivItemCards } from "../adapters/arxiv";
 import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
+import { renderItemCard } from "../components/Card";
 import { createPager } from "../components/Pager";
-import { WORKER_BASE } from "../lib/config";
+import { createSearchForm } from "../components/SearchForm";
+import { fetchText } from "../lib/http";
+import { int, pageFromUrl, toQuery } from "../lib/params";
+
+const PAGE_SIZE = 12;
+
+const SORT_BY_OPTIONS = [
+  { value: "", label: "Default order" },
+  { value: "relevance", label: "Relevance" },
+  { value: "lastUpdatedDate", label: "Last updated" },
+  { value: "submittedDate", label: "Submitted date" },
+];
+
+const SORT_ORDER_OPTIONS = [
+  { value: "", label: "Default" },
+  { value: "ascending", label: "Ascending" },
+  { value: "descending", label: "Descending" },
+];
+
+const extractTotalResults = (xml: string): number | undefined => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "application/xml");
+  const parseError = doc.querySelector("parsererror");
+  if (parseError) {
+    throw new Error("Received invalid XML from arXiv");
+  }
+
+  const totalNode =
+    doc.querySelector("opensearch\\:totalResults") ??
+    doc.querySelector("totalResults");
+  const text = totalNode?.textContent?.trim();
+  if (!text) {
+    return undefined;
+  }
+
+  const value = parseInt(text, 10);
+  return Number.isNaN(value) ? undefined : value;
+};
+
+const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
+  search_query: query.search_query ?? "",
+  sortBy: query.sortBy ?? "",
+  sortOrder: query.sortOrder ?? "",
+  page: query.page ?? "1",
+});
 
 const mount = (el: HTMLElement): void => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialQuery = sanitizeQuery({
+    search_query: searchParams.get("search_query") ?? "",
+    sortBy: searchParams.get("sortBy") ?? "",
+    sortOrder: searchParams.get("sortOrder") ?? "",
+    page: String(pageFromUrl()),
+  });
+
+  let currentQuery = { ...initialQuery };
+  let currentPage = int(currentQuery.page, 1);
+  let isLoading = false;
+  let requestToken = 0;
+
   el.innerHTML = "";
 
-  const status = document.createElement("p");
-  status.textContent = "Running arXiv probe…";
-  el.appendChild(status);
-
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
-
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
-  resultsSection.appendChild(resultsHeading);
+  const alertContainer = document.createElement("div");
+  const resultsInfo = document.createElement("p");
+  resultsInfo.className = "results-count";
+  resultsInfo.textContent = "0 results";
 
   const resultsList = document.createElement("div");
   resultsList.className = "results-list";
-  resultsSection.appendChild(resultsList);
 
-  const pager = createPager({
-    page: 1,
-    hasPrev: false,
-    hasNext: false,
-    onPrev: () => {},
-    onNext: () => {},
-  });
-  resultsSection.appendChild(pager);
-
-  const updateResults = (items: CardProps[]): void => {
+  const renderCards = (cards: ReturnType<typeof toArxivItemCards>): void => {
     resultsList.innerHTML = "";
-    if (items.length === 0) {
+    if (cards.length === 0) {
       const placeholder = document.createElement("p");
       placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      placeholder.textContent = "No results found.";
       resultsList.appendChild(placeholder);
       return;
     }
 
-    items.forEach((item) => {
-      resultsList.appendChild(createCard(item));
+    cards.forEach((card) => {
+      resultsList.appendChild(renderItemCard(card));
     });
   };
 
-  const createEntryCard = (entry: Element, index: number): CardProps => {
-    const getText = (selector: string): string | undefined => {
-      const value = entry.querySelector(selector)?.textContent?.trim();
-      return value && value.length > 0 ? value : undefined;
-    };
-
-    const title = getText("title") ?? `Result #${index + 1}`;
-    const sub = getText("published") ?? getText("updated");
-    const meta = getText("author > name") ?? getText("category");
-
-    const linkElement =
-      entry.querySelector("link[rel='alternate']") ??
-      entry.querySelector("link[href]") ??
-      null;
-    const href =
-      linkElement?.getAttribute("href") ?? getText("id") ?? undefined;
-
-    return {
-      title,
-      sub,
-      meta,
-      href,
-      rawLink: !!href && /^https?:/i.test(href),
-    };
+  const updateInfo = (total: number | undefined, count: number): void => {
+    const value = typeof total === "number" ? total : count;
+    resultsInfo.textContent = `${value} results`;
   };
 
-  updateResults([]);
-  el.appendChild(resultsSection);
+  const updateLocation = (query: Record<string, string>): void => {
+    const sanitized = sanitizeQuery(query);
+    const search = new URLSearchParams(toQuery(sanitized)).toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
+  };
 
-  const url = new URL("/arxiv/search", WORKER_BASE);
-  const params = new URLSearchParams({
-    search_query: "cat:cs.AI",
-    max_results: "1",
+  const submitForm = (values: Record<string, string>): void => {
+    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    currentQuery = nextQuery;
+    currentPage = 1;
+    void performSearch();
+  };
+
+  const { element: form, setValues } = createSearchForm({
+    fields: [
+      {
+        name: "search_query",
+        label: "Query",
+        type: "text",
+        placeholder: "Search arXiv",
+        value: currentQuery.search_query,
+      },
+      {
+        name: "sortBy",
+        label: "Sort by",
+        type: "select",
+        placeholder: "Default order",
+        options: SORT_BY_OPTIONS.filter((option) => option.value !== ""),
+        value: currentQuery.sortBy,
+      },
+      {
+        name: "sortOrder",
+        label: "Sort order",
+        type: "select",
+        placeholder: "Default",
+        options: SORT_ORDER_OPTIONS.filter((option) => option.value !== ""),
+        value: currentQuery.sortOrder,
+      },
+    ],
+    onSubmit: submitForm,
   });
-  url.search = params.toString();
 
-  fetch(url.toString())
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-      return response.text();
-    })
-    .then((body) => {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(body, "application/xml");
-      const parseError = doc.querySelector("parsererror");
-      if (parseError) {
-        throw new Error("Received invalid XML from arXiv endpoint");
-      }
+  setValues({
+    search_query: currentQuery.search_query,
+    sortBy: currentQuery.sortBy,
+    sortOrder: currentQuery.sortOrder,
+  });
 
-      const title = doc.querySelector("entry > title")?.textContent?.trim();
-      const detail = title && title.length > 0 ? title : "Endpoint responded";
-      status.textContent = `Probe OK: ${detail}.`;
+  const pager = createPager({
+    page: currentPage,
+    hasPrev: currentPage > 1,
+    hasNext: false,
+    onPrev: () => {
+      if (isLoading || currentPage <= 1) return;
+      currentQuery.page = String(currentPage - 1);
+      currentPage -= 1;
+      void performSearch();
+    },
+    onNext: () => {
+      if (isLoading) return;
+      currentQuery.page = String(currentPage + 1);
+      currentPage += 1;
+      void performSearch();
+    },
+  });
 
-      const entries = Array.from(doc.querySelectorAll("entry")).slice(0, 3);
-      const results = entries.map((entry, index) => createEntryCard(entry, index));
-
-      if (results.length === 0) {
-        results.push({ title: "Result #1" });
-      }
-
-      updateResults(results);
-    })
-    .catch((error: Error) => {
-      status.remove();
-      el.appendChild(
-        createAlert(`arXiv probe failed: ${error.message}`, "error"),
-      );
-      updateResults([]);
+  const requestParamsFromQuery = (query: Record<string, string>) => {
+    const pageNumber = Math.max(1, int(query.page, 1));
+    const trimmed = query.search_query?.trim();
+    const searchQuery = trimmed && trimmed.length > 0 ? trimmed : "all";
+    return toQuery({
+      search_query: searchQuery,
+      max_results: PAGE_SIZE,
+      start: (pageNumber - 1) * PAGE_SIZE,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder,
     });
+  };
+
+  const performSearch = async (): Promise<void> => {
+    const pageNumber = Math.max(1, int(currentQuery.page, 1));
+    currentQuery.page = String(pageNumber);
+    currentPage = pageNumber;
+
+    const requestParams = requestParamsFromQuery(currentQuery);
+    const token = ++requestToken;
+    isLoading = true;
+    alertContainer.innerHTML = "";
+    resultsList.innerHTML = "";
+    resultsInfo.textContent = "Loading…";
+    pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    updateLocation(currentQuery);
+    setValues({
+      search_query: currentQuery.search_query,
+      sortBy: currentQuery.sortBy,
+      sortOrder: currentQuery.sortOrder,
+    });
+
+    try {
+      const response = await fetchText("/arxiv/search", requestParams);
+      if (token !== requestToken) {
+        return;
+      }
+
+      const total = extractTotalResults(response);
+      const cards = toArxivItemCards(response);
+      const hasNext = typeof total === "number"
+        ? pageNumber * PAGE_SIZE < total
+        : cards.length === PAGE_SIZE;
+
+      renderCards(cards);
+      updateInfo(total, cards.length);
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
+    } catch (error) {
+      if (token !== requestToken) {
+        return;
+      }
+      renderCards([]);
+      resultsInfo.textContent = "0 results";
+      const message = error instanceof Error ? error.message : String(error);
+      alertContainer.replaceChildren(
+        createAlert(`arXiv search failed: ${message}`, "error"),
+      );
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    } finally {
+      if (token === requestToken) {
+        isLoading = false;
+      }
+    }
+  };
+
+  el.append(form, alertContainer, resultsInfo, resultsList, pager);
+
+  performSearch().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    alertContainer.replaceChildren(
+      createAlert(`arXiv search failed: ${message}`, "error"),
+    );
+  });
 };
 
 export default mount;

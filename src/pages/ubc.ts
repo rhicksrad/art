@@ -1,172 +1,186 @@
+import { toItemCards as toUbcItemCards } from "../adapters/ubc";
 import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
+import { renderItemCard } from "../components/Card";
 import { createPager } from "../components/Pager";
+import { createSearchForm } from "../components/SearchForm";
 import { fetchJSON } from "../lib/http";
+import { int, pageFromUrl, toQuery } from "../lib/params";
 
-type UbcResponse = {
-  total?: number;
-  resultCount?: number;
-  results?: unknown[];
-  items?: unknown[];
+const PAGE_SIZE = 12;
+
+const getTotalResults = (resp: unknown): number | undefined => {
+  if (!resp || typeof resp !== "object") {
+    return undefined;
+  }
+
+  const data = resp as { total?: number; resultCount?: number };
+  if (typeof data.total === "number") {
+    return data.total;
+  }
+  if (typeof data.resultCount === "number") {
+    return data.resultCount;
+  }
+  return undefined;
 };
 
+const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
+  q: query.q ?? "",
+  page: query.page ?? "1",
+});
+
 const mount = (el: HTMLElement): void => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialQuery = sanitizeQuery({
+    q: searchParams.get("q") ?? "",
+    page: String(pageFromUrl()),
+  });
+
+  let currentQuery = { ...initialQuery };
+  let currentPage = int(currentQuery.page, 1);
+  let isLoading = false;
+  let requestToken = 0;
+
   el.innerHTML = "";
 
-  const status = document.createElement("p");
-  status.textContent = "Running UBC Open Collections probe…";
-  el.appendChild(status);
-
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
-
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
-  resultsSection.appendChild(resultsHeading);
+  const alertContainer = document.createElement("div");
+  const resultsInfo = document.createElement("p");
+  resultsInfo.className = "results-count";
+  resultsInfo.textContent = "0 results";
 
   const resultsList = document.createElement("div");
   resultsList.className = "results-list";
-  resultsSection.appendChild(resultsList);
 
-  const pager = createPager({
-    page: 1,
-    hasPrev: false,
-    hasNext: false,
-    onPrev: () => {},
-    onNext: () => {},
-  });
-  resultsSection.appendChild(pager);
-
-  const updateResults = (items: CardProps[]): void => {
+  const renderCards = (cards: ReturnType<typeof toUbcItemCards>): void => {
     resultsList.innerHTML = "";
-    if (items.length === 0) {
+    if (cards.length === 0) {
       const placeholder = document.createElement("p");
       placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      placeholder.textContent = "No results found.";
       resultsList.appendChild(placeholder);
       return;
     }
 
-    items.forEach((item) => {
-      resultsList.appendChild(createCard(item));
+    cards.forEach((card) => {
+      resultsList.appendChild(renderItemCard(card));
     });
   };
 
-  const firstString = (value: unknown): string | undefined => {
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
-
-    if (Array.isArray(value)) {
-      for (const entry of value) {
-        const result = firstString(entry);
-        if (result) {
-          return result;
-        }
-      }
-    }
-
-    if (value && typeof value === "object") {
-      for (const entry of Object.values(value as Record<string, unknown>)) {
-        const result = firstString(entry);
-        if (result) {
-          return result;
-        }
-      }
-    }
-
-    return undefined;
+  const updateInfo = (total: number | undefined, count: number): void => {
+    const value = typeof total === "number" ? total : count;
+    resultsInfo.textContent = `${value} results`;
   };
 
-  const toCard = (record: unknown, index: number): CardProps => {
-    if (!record || typeof record !== "object") {
-      return { title: `Result #${index + 1}` };
-    }
-
-    const data = record as Record<string, unknown>;
-    const title =
-      firstString(data.title) ??
-      firstString(data.label) ??
-      firstString(data.name) ??
-      `Result #${index + 1}`;
-
-    const sub =
-      firstString(data.date) ??
-      firstString(data.issued) ??
-      firstString(data.displayDate) ??
-      undefined;
-
-    const meta =
-      firstString(data.creator) ??
-      firstString(data.contributor) ??
-      firstString(data.collection) ??
-      undefined;
-
-    const href =
-      firstString(data.url) ??
-      firstString(data.id) ??
-      firstString(data.identifier) ??
-      firstString(data.source);
-
-    const img =
-      firstString(data.thumbnail) ??
-      firstString(data.image) ??
-      firstString(data.img) ??
-      undefined;
-
-    return {
-      title,
-      sub,
-      meta,
-      href,
-      img,
-      rawLink: !!href && /^https?:/i.test(href),
-    };
+  const updateLocation = (query: Record<string, string>): void => {
+    const sanitized = sanitizeQuery(query);
+    const search = new URLSearchParams(toQuery(sanitized)).toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
   };
 
-  updateResults([]);
-  el.appendChild(resultsSection);
+  const submitForm = (values: Record<string, string>): void => {
+    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    currentQuery = nextQuery;
+    currentPage = 1;
+    void performSearch();
+  };
 
-  fetchJSON<UbcResponse>("/ubc/search", { q: "newspaper", limit: 1 })
-    .then((data) => {
-      const total = data.total ?? data.resultCount;
-      const results = Array.isArray(data.results)
-        ? data.results.length
-        : Array.isArray(data.items)
-          ? data.items.length
-          : undefined;
+  const { element: form, setValues } = createSearchForm({
+    fields: [
+      {
+        name: "q",
+        label: "Keyword",
+        type: "text",
+        placeholder: "Search UBC Open Collections",
+        value: currentQuery.q,
+      },
+    ],
+    onSubmit: submitForm,
+  });
 
-      const parts: string[] = [];
-      if (typeof results === "number") {
-        parts.push(`${results} result${results === 1 ? "" : "s"}`);
+  setValues({ q: currentQuery.q });
+
+  const pager = createPager({
+    page: currentPage,
+    hasPrev: currentPage > 1,
+    hasNext: false,
+    onPrev: () => {
+      if (isLoading || currentPage <= 1) return;
+      currentQuery.page = String(currentPage - 1);
+      currentPage -= 1;
+      void performSearch();
+    },
+    onNext: () => {
+      if (isLoading) return;
+      currentQuery.page = String(currentPage + 1);
+      currentPage += 1;
+      void performSearch();
+    },
+  });
+
+  const requestParamsFromQuery = (query: Record<string, string>) => {
+    return toQuery({
+      q: query.q,
+      limit: PAGE_SIZE,
+      page: int(query.page, 1),
+    });
+  };
+
+  const performSearch = async (): Promise<void> => {
+    const pageNumber = Math.max(1, int(currentQuery.page, 1));
+    currentQuery.page = String(pageNumber);
+    currentPage = pageNumber;
+
+    const requestParams = requestParamsFromQuery(currentQuery);
+    const token = ++requestToken;
+    isLoading = true;
+    alertContainer.innerHTML = "";
+    resultsList.innerHTML = "";
+    resultsInfo.textContent = "Loading…";
+    pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    updateLocation(currentQuery);
+    setValues({ q: currentQuery.q });
+
+    try {
+      const response = await fetchJSON<unknown>("/ubc/search", requestParams);
+      if (token !== requestToken) {
+        return;
       }
-      if (typeof total === "number") {
-        parts.push(`${total} total`);
+
+      const cards = toUbcItemCards(response);
+      const total = getTotalResults(response);
+      const hasNext = typeof total === "number"
+        ? pageNumber * PAGE_SIZE < total
+        : cards.length === PAGE_SIZE;
+
+      renderCards(cards);
+      updateInfo(total, cards.length);
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
+    } catch (error) {
+      if (token !== requestToken) {
+        return;
       }
-
-      const detail = parts.length > 0 ? parts.join(", ") : "Endpoint responded";
-      status.textContent = `Probe OK: ${detail}.`;
-
-      const entries = Array.isArray(data.results)
-        ? data.results.slice(0, 3)
-        : Array.isArray(data.items)
-          ? data.items.slice(0, 3)
-          : [];
-      const cards = entries.map((entry, index) => toCard(entry, index));
-
-      if (cards.length === 0) {
-        cards.push({ title: "Result #1" });
-      }
-
-      updateResults(cards);
-    })
-    .catch((error: Error) => {
-      status.remove();
-      el.appendChild(
-        createAlert(`UBC Open Collections probe failed: ${error.message}`, "error"),
+      renderCards([]);
+      resultsInfo.textContent = "0 results";
+      const message = error instanceof Error ? error.message : String(error);
+      alertContainer.replaceChildren(
+        createAlert(`UBC search failed: ${message}`, "error"),
       );
-      updateResults([]);
-    });
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    } finally {
+      if (token === requestToken) {
+        isLoading = false;
+      }
+    }
+  };
+
+  el.append(form, alertContainer, resultsInfo, resultsList, pager);
+
+  performSearch().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    alertContainer.replaceChildren(
+      createAlert(`UBC search failed: ${message}`, "error"),
+    );
+  });
 };
 
 export default mount;

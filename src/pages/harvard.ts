@@ -1,143 +1,239 @@
+import { toItemCards as toHarvardItemCards } from "../adapters/harvard";
 import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
+import { renderItemCard } from "../components/Card";
 import { createPager } from "../components/Pager";
+import { createSearchForm } from "../components/SearchForm";
 import { fetchJSON } from "../lib/http";
+import { int, pageFromUrl, toQuery } from "../lib/params";
 
-type HarvardResponse = {
-  info?: {
-    totalrecords?: number;
-    totalrecordsperquery?: number;
+const PAGE_SIZE = 12;
+
+const CLASSIFICATION_OPTIONS = [
+  { value: "", label: "Any classification" },
+  { value: "Prints", label: "Prints" },
+  { value: "Paintings", label: "Paintings" },
+  { value: "Drawings", label: "Drawings" },
+  { value: "Photographs", label: "Photographs" },
+];
+
+const CENTURY_OPTIONS = [
+  { value: "", label: "Any century" },
+  { value: "16th century", label: "16th century" },
+  { value: "17th century", label: "17th century" },
+  { value: "18th century", label: "18th century" },
+  { value: "19th century", label: "19th century" },
+  { value: "20th century", label: "20th century" },
+  { value: "21st century", label: "21st century" },
+];
+
+const getTotalRecords = (resp: unknown): number | undefined => {
+  if (!resp || typeof resp !== "object") {
+    return undefined;
+  }
+
+  const info = (resp as { info?: { totalrecords?: number; totalrecordsperquery?: number } }).info;
+  if (!info) return undefined;
+  if (typeof info.totalrecords === "number") return info.totalrecords;
+  if (typeof info.totalrecordsperquery === "number") return info.totalrecordsperquery;
+  return undefined;
+};
+
+const sanitizeQuery = (query: Record<string, string>): Record<string, string> => {
+  return {
+    q: query.q ?? "",
+    classification: query.classification ?? "",
+    century: query.century ?? "",
+    page: query.page ?? "1",
   };
-  records?: unknown[];
 };
 
 const mount = (el: HTMLElement): void => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialQuery = sanitizeQuery({
+    q: searchParams.get("q") ?? "",
+    classification: searchParams.get("classification") ?? "",
+    century: searchParams.get("century") ?? "",
+    page: String(pageFromUrl()),
+  });
+
+  let currentQuery = { ...initialQuery };
+  let currentPage = int(currentQuery.page, 1);
+  let isLoading = false;
+  let requestToken = 0;
+
   el.innerHTML = "";
 
-  const status = document.createElement("p");
-  status.textContent = "Running Harvard Art Museums probe…";
-  el.appendChild(status);
-
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
-
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
-  resultsSection.appendChild(resultsHeading);
+  const alertContainer = document.createElement("div");
+  const resultsInfo = document.createElement("p");
+  resultsInfo.className = "results-count";
+  resultsInfo.textContent = "0 results";
 
   const resultsList = document.createElement("div");
   resultsList.className = "results-list";
-  resultsSection.appendChild(resultsList);
 
-  const pager = createPager({
-    page: 1,
-    hasPrev: false,
-    hasNext: false,
-    onPrev: () => {},
-    onNext: () => {},
-  });
-  resultsSection.appendChild(pager);
-
-  const updateResults = (items: CardProps[]): void => {
+  const renderCards = (cards: ReturnType<typeof toHarvardItemCards>): void => {
     resultsList.innerHTML = "";
-    if (items.length === 0) {
+    if (cards.length === 0) {
       const placeholder = document.createElement("p");
       placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      placeholder.textContent = "No results found.";
       resultsList.appendChild(placeholder);
       return;
     }
 
-    items.forEach((item) => {
-      resultsList.appendChild(createCard(item));
+    cards.forEach((card) => {
+      resultsList.appendChild(renderItemCard(card));
     });
   };
 
-  const toCard = (record: unknown, index: number): CardProps => {
-    if (!record || typeof record !== "object") {
-      return { title: `Result #${index + 1}` };
-    }
-
-    const data = record as Record<string, unknown>;
-    const title = typeof data.title === "string" && data.title.trim().length > 0
-      ? data.title.trim()
-      : typeof data.objectnumber === "string" && data.objectnumber.length > 0
-        ? data.objectnumber
-        : `Result #${index + 1}`;
-    const sub = typeof data.dated === "string" && data.dated.trim().length > 0
-      ? data.dated.trim()
-      : undefined;
-
-    let meta: string | undefined;
-    const people = data.people;
-    if (Array.isArray(people)) {
-      for (const person of people) {
-        if (person && typeof person === "object") {
-          const name = (person as Record<string, unknown>).name;
-          if (typeof name === "string" && name.length > 0) {
-            meta = name;
-            break;
-          }
-        }
-      }
-    }
-
-    if (!meta && typeof data.culture === "string" && data.culture.length > 0) {
-      meta = data.culture;
-    }
-
-    const href = typeof data.url === "string" && data.url.length > 0 ? data.url : undefined;
-    const img = typeof data.primaryimageurl === "string" && data.primaryimageurl.length > 0
-      ? data.primaryimageurl
-      : undefined;
-
-    return {
-      title,
-      sub,
-      meta,
-      href,
-      img,
-      rawLink: !!href && /^https?:/i.test(href),
-    };
+  const updateInfo = (total: number | undefined, count: number): void => {
+    const value = typeof total === "number" ? total : count;
+    resultsInfo.textContent = `${value} results`;
   };
 
-  updateResults([]);
-  el.appendChild(resultsSection);
+  const updateLocation = (query: Record<string, string>): void => {
+    const sanitized = sanitizeQuery(query);
+    const urlQuery = toQuery({
+      q: sanitized.q,
+      classification: sanitized.classification,
+      century: sanitized.century,
+      page: sanitized.page,
+    });
+    const search = new URLSearchParams(urlQuery).toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
+  };
 
-  fetchJSON<HarvardResponse>("/harvard-art/object", { size: 1 })
-    .then((data) => {
-      const totalRecords =
-        data.info?.totalrecords ?? data.info?.totalrecordsperquery;
-      const recordCount = Array.isArray(data.records) ? data.records.length : undefined;
+  const submitForm = (values: Record<string, string>): void => {
+    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    currentQuery = nextQuery;
+    currentPage = 1;
+    void performSearch();
+  };
 
-      const parts: string[] = [];
-      if (typeof recordCount === "number") {
-        parts.push(`${recordCount} record${recordCount === 1 ? "" : "s"}`);
+  const { element: form, setValues } = createSearchForm({
+    fields: [
+      {
+        name: "q",
+        label: "Keyword",
+        type: "text",
+        placeholder: "Search Harvard Art Museums",
+        value: currentQuery.q,
+      },
+      {
+        name: "classification",
+        label: "Classification",
+        type: "select",
+        placeholder: "Any classification",
+        options: CLASSIFICATION_OPTIONS.filter((option) => option.value !== ""),
+        value: currentQuery.classification,
+      },
+      {
+        name: "century",
+        label: "Century",
+        type: "select",
+        placeholder: "Any century",
+        options: CENTURY_OPTIONS.filter((option) => option.value !== ""),
+        value: currentQuery.century,
+      },
+    ],
+    onSubmit: submitForm,
+  });
+
+  setValues({
+    q: currentQuery.q,
+    classification: currentQuery.classification,
+    century: currentQuery.century,
+  });
+
+  const pager = createPager({
+    page: currentPage,
+    hasPrev: currentPage > 1,
+    hasNext: false,
+    onPrev: () => {
+      if (isLoading || currentPage <= 1) return;
+      currentQuery.page = String(currentPage - 1);
+      currentPage -= 1;
+      void performSearch();
+    },
+    onNext: () => {
+      if (isLoading) return;
+      currentQuery.page = String(currentPage + 1);
+      currentPage += 1;
+      void performSearch();
+    },
+  });
+
+  const requestParamsFromQuery = (query: Record<string, string>) => {
+    return toQuery({
+      q: query.q,
+      classification: query.classification,
+      century: query.century,
+      size: PAGE_SIZE,
+      page: int(query.page, 1),
+    });
+  };
+
+  const performSearch = async (): Promise<void> => {
+    const pageNumber = Math.max(1, int(currentQuery.page, 1));
+    currentQuery.page = String(pageNumber);
+    currentPage = pageNumber;
+
+    const requestParams = requestParamsFromQuery(currentQuery);
+    const token = ++requestToken;
+    isLoading = true;
+    alertContainer.innerHTML = "";
+    resultsList.innerHTML = "";
+    resultsInfo.textContent = "Loading…";
+    pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    updateLocation(currentQuery);
+    setValues({
+      q: currentQuery.q,
+      classification: currentQuery.classification,
+      century: currentQuery.century,
+    });
+
+    try {
+      const response = await fetchJSON<unknown>("/harvard-art/object", requestParams);
+      if (token !== requestToken) {
+        return;
       }
-      if (typeof totalRecords === "number") {
-        parts.push(`${totalRecords} total`);
+
+      const cards = toHarvardItemCards(response);
+      const total = getTotalRecords(response);
+      const hasNext = typeof total === "number"
+        ? pageNumber * PAGE_SIZE < total
+        : cards.length === PAGE_SIZE;
+
+      renderCards(cards);
+      updateInfo(total, cards.length);
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext });
+    } catch (error) {
+      if (token !== requestToken) {
+        return;
       }
-
-      const detail = parts.length > 0 ? parts.join(", ") : "Endpoint responded";
-      status.textContent = `Probe OK: ${detail}.`;
-
-      const results = Array.isArray(data.records)
-        ? data.records.slice(0, 3).map((record, index) => toCard(record, index))
-        : [];
-
-      if (results.length === 0) {
-        results.push({ title: "Result #1" });
-      }
-
-      updateResults(results);
-    })
-    .catch((error: Error) => {
-      status.remove();
-      el.appendChild(
-        createAlert(`Harvard Art Museums probe failed: ${error.message}`, "error"),
+      renderCards([]);
+      resultsInfo.textContent = "0 results";
+      const message = error instanceof Error ? error.message : String(error);
+      alertContainer.replaceChildren(
+        createAlert(`Harvard search failed: ${message}`, "error"),
       );
-      updateResults([]);
-    });
+      pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
+    } finally {
+      if (token === requestToken) {
+        isLoading = false;
+      }
+    }
+  };
+
+  el.append(form, alertContainer, resultsInfo, resultsList, pager);
+
+  performSearch().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    alertContainer.replaceChildren(
+      createAlert(`Harvard search failed: ${message}`, "error"),
+    );
+  });
 };
 
 export default mount;
