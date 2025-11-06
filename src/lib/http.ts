@@ -1,8 +1,15 @@
 import { WORKER_BASE } from "./config";
+import { clear, get, set } from "./cache";
 
 type QueryParamValue = string | number | boolean;
 
 type QueryParams = Record<string, QueryParamValue>;
+
+type RequestOptions = {
+  signal?: AbortSignal;
+  method?: string;
+  cache?: boolean;
+};
 
 const toSearchParams = (params: QueryParams): URLSearchParams => {
   const searchParams = new URLSearchParams();
@@ -32,33 +39,84 @@ const buildUrl = (path: string, params: QueryParams = {}): URL => {
   return url;
 };
 
+const cloneIfNeeded = <T>(value: T): T => {
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (typeof structuredClone === "function") {
+    try {
+      return structuredClone(value) as T;
+    } catch {
+      // ignore and fall back to JSON cloning
+    }
+  }
+
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
 const request = async <T>(
   path: string,
   params: QueryParams,
-  parse: (response: Response) => Promise<T>
+  parse: (response: Response) => Promise<T>,
+  options: RequestOptions = {}
 ): Promise<T> => {
+  const method = options.method?.toUpperCase() ?? "GET";
   const url = buildUrl(path, params);
-  const response = await fetch(url.toString());
+  const urlString = url.toString();
+  const useCache = options.cache !== false;
+
+  if (useCache) {
+    const cached = get<T>(urlString, method);
+    if (cached !== undefined) {
+      return cloneIfNeeded(cached);
+    }
+  }
+
+  const response = await fetch(urlString, {
+    method,
+    signal: options.signal,
+  });
 
   if (!response.ok) {
     throw new Error(
-      `Request failed with status ${response.status} for ${url.toString()}`
+      `Request failed with status ${response.status} for ${urlString}`
     );
   }
 
-  return parse(response);
+  const parsed = await parse(response);
+
+  if (useCache) {
+    set(urlString, parsed, method);
+  }
+
+  return cloneIfNeeded(parsed);
 };
 
 export async function fetchJSON<T = unknown>(
   path: string,
-  params: QueryParams = {}
+  params: QueryParams = {},
+  options: RequestOptions = {}
 ): Promise<T> {
-  return request<T>(path, params, (response) => response.json() as Promise<T>);
+  return request<T>(
+    path,
+    params,
+    (response) => response.json() as Promise<T>,
+    options
+  );
 }
 
 export async function fetchText(
   path: string,
-  params: QueryParams = {}
+  params: QueryParams = {},
+  options: RequestOptions = {}
 ): Promise<string> {
-  return request(path, params, (response) => response.text());
+  return request(
+    path,
+    params,
+    (response) => response.text(),
+    options
+  );
 }
+
+export { clear as clearCache } from "./cache";

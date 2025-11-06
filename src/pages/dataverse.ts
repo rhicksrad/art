@@ -1,12 +1,15 @@
 import { toItemCards as toDataverseItemCards } from "../adapters/dataverse";
 import { createAlert } from "../components/Alert";
 import { renderItemCard } from "../components/Card";
+import { createFacetBar } from "../components/FacetBar";
 import { createPager } from "../components/Pager";
 import { createSearchForm } from "../components/SearchForm";
-import { fetchJSON } from "../lib/http";
+import { createVirtualList } from "../components/VirtualList";
+import { fetchJSON, clearCache as clearHttpCache } from "../lib/http";
 import { int, pageFromUrl, toQuery } from "../lib/params";
 
 const PAGE_SIZE = 12;
+const CARD_ROW_HEIGHT = 280;
 
 const TYPE_OPTIONS = [
   { value: "", label: "Any type" },
@@ -49,8 +52,10 @@ const mount = (el: HTMLElement): void => {
 
   let currentQuery = { ...initialQuery };
   let currentPage = int(currentQuery.page, 1);
+  let currentTtl = 3600;
   let isLoading = false;
   let requestToken = 0;
+  let abortController: AbortController | null = null;
 
   el.innerHTML = "";
 
@@ -62,19 +67,24 @@ const mount = (el: HTMLElement): void => {
   const resultsList = document.createElement("div");
   resultsList.className = "results-list";
 
+  const emptyPlaceholder = document.createElement("p");
+  emptyPlaceholder.className = "results-placeholder";
+  emptyPlaceholder.textContent = "No results found.";
+
+  const virtualList = createVirtualList({
+    items: [] as ReturnType<typeof toDataverseItemCards>,
+    rowHeight: CARD_ROW_HEIGHT,
+    renderItem: (item) => renderItemCard(item),
+  });
+
   const renderCards = (cards: ReturnType<typeof toDataverseItemCards>): void => {
-    resultsList.innerHTML = "";
     if (cards.length === 0) {
-      const placeholder = document.createElement("p");
-      placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results found.";
-      resultsList.appendChild(placeholder);
+      resultsList.replaceChildren(emptyPlaceholder);
       return;
     }
 
-    cards.forEach((card) => {
-      resultsList.appendChild(renderItemCard(card));
-    });
+    virtualList.setItems(cards);
+    resultsList.replaceChildren(virtualList.element);
   };
 
   const updateInfo = (total: number | undefined, count: number): void => {
@@ -137,14 +147,20 @@ const mount = (el: HTMLElement): void => {
     },
   });
 
-  const requestParamsFromQuery = (query: Record<string, string>) => {
+  const requestParamsFromQuery = (
+    query: Record<string, string>,
+    ttl: number
+  ): Record<string, string | number> => {
     const pageNumber = Math.max(1, int(query.page, 1));
-    return toQuery({
-      q: query.q,
-      type: query.type,
-      per_page: PAGE_SIZE,
-      start: (pageNumber - 1) * PAGE_SIZE,
-    });
+    return {
+      ...toQuery({
+        q: query.q,
+        type: query.type,
+        per_page: PAGE_SIZE,
+        start: (pageNumber - 1) * PAGE_SIZE,
+      }),
+      ttl,
+    };
   };
 
   const performSearch = async (): Promise<void> => {
@@ -152,7 +168,11 @@ const mount = (el: HTMLElement): void => {
     currentQuery.page = String(pageNumber);
     currentPage = pageNumber;
 
-    const requestParams = requestParamsFromQuery(currentQuery);
+    abortController?.abort();
+    const controller = new AbortController();
+    abortController = controller;
+
+    const requestParams = requestParamsFromQuery(currentQuery, currentTtl);
     const token = ++requestToken;
     isLoading = true;
     alertContainer.innerHTML = "";
@@ -163,7 +183,9 @@ const mount = (el: HTMLElement): void => {
     setValues({ q: currentQuery.q, type: currentQuery.type });
 
     try {
-      const response = await fetchJSON<unknown>("/dataverse/search", requestParams);
+      const response = await fetchJSON<unknown>("/dataverse/search", requestParams, {
+        signal: controller.signal,
+      });
       if (token !== requestToken) {
         return;
       }
@@ -181,6 +203,12 @@ const mount = (el: HTMLElement): void => {
       if (token !== requestToken) {
         return;
       }
+      if (controller.signal.aborted) {
+        return;
+      }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       renderCards([]);
       resultsInfo.textContent = "0 results";
       const message = error instanceof Error ? error.message : String(error);
@@ -191,13 +219,30 @@ const mount = (el: HTMLElement): void => {
     } finally {
       if (token === requestToken) {
         isLoading = false;
+        if (abortController === controller) {
+          abortController = null;
+        }
       }
     }
   };
 
-  el.append(form, alertContainer, resultsInfo, resultsList, pager);
+  const facetBar = createFacetBar({
+    ttl: currentTtl,
+    onTtlChange: (value) => {
+      currentTtl = value;
+    },
+    onClear: () => {
+      clearHttpCache();
+      alertContainer.replaceChildren(createAlert("Cache cleared", "info"));
+    },
+  });
+
+  el.append(form, facetBar.element, alertContainer, resultsInfo, resultsList, pager);
 
   performSearch().catch((error) => {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
     alertContainer.replaceChildren(
       createAlert(`Dataverse search failed: ${message}`, "error"),
