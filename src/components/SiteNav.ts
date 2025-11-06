@@ -9,30 +9,53 @@ const ROUTES = [
   { href: 'arxiv.html', label: 'arXiv' },
 ];
 
-const isCurrentPath = (href: string): boolean => {
-  const normalizedHref = href.endsWith('/') ? href.slice(0, -1) : href;
-  const pathname = window.location.pathname.endsWith('/')
-    ? window.location.pathname.slice(0, -1)
-    : window.location.pathname;
-  return normalizedHref === pathname;
+const normalizePath = (value: string): string => {
+  if (!value) return '/';
+  const ensured = value.startsWith('/') ? value : `/${value}`;
+  if (ensured === '/index.html') {
+    return '/';
+  }
+  if (ensured.endsWith('/index.html')) {
+    return ensured.slice(0, -'/index.html'.length) || '/';
+  }
+  if (ensured.endsWith('/') && ensured.length > 1) {
+    return ensured.slice(0, -1);
+  }
+  return ensured;
 };
 
-export const createSiteNav = (base: string): HTMLElement => {
+const joinBase = (basePath: string, routeHref: string): string => {
+  const normalizedBase = basePath === '/' ? '' : basePath.replace(/\/+$/, '');
+  if (!routeHref) {
+    return normalizedBase || '/';
+  }
+  const trimmedRoute = routeHref.startsWith('/') ? routeHref.slice(1) : routeHref;
+  const joined = `${normalizedBase}/${trimmedRoute}`;
+  if (joined.endsWith('/') && joined !== '/') {
+    return joined.slice(0, -1);
+  }
+  return joined.startsWith('/') ? joined : `/${joined}`;
+};
+
+const isCurrentPath = (href: string): boolean => {
+  const current = normalizePath(window.location.pathname);
+  const target = normalizePath(href);
+  return current === target;
+};
+
+export const createSiteNav = (basePath: string): HTMLElement => {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
+  nav.setAttribute('aria-label', 'Primary navigation');
 
   ROUTES.forEach((route) => {
     const link = document.createElement('a');
-    const normalizedHref = `${base}${route.href}`;
+    const normalizedHref = joinBase(basePath, route.href);
     link.setAttribute('href', normalizedHref);
     link.textContent = route.label;
     link.className = 'site-nav__link';
 
-    if (
-      normalizedHref === window.location.pathname ||
-      `${normalizedHref}/` === window.location.pathname ||
-      isCurrentPath(normalizedHref)
-    ) {
+    if (isCurrentPath(normalizedHref)) {
       link.setAttribute('aria-current', 'page');
       link.classList.add('site-nav__link--current');
     }

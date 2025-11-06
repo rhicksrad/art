@@ -1,3 +1,6 @@
+import { createSiteHeader, setSiteStatus } from './components/SiteHeader';
+import { createSiteNav } from './components/SiteNav';
+
 const routes: Record<string, () => Promise<{ default: { mount: (el: HTMLElement) => void } | ((el: HTMLElement) => void) }>> = {
   '/': () => import('./pages/home'),
   '/index.html': () => import('./pages/home'),
@@ -20,6 +23,21 @@ const normalizeBasePath = (value: string): string => {
 };
 
 const BASE_PATH = normalizeBasePath(import.meta.env.BASE_URL ?? '/');
+
+const createAppShell = (root: HTMLElement): HTMLElement => {
+  const shell = document.createElement('div');
+  shell.className = 'app-shell';
+
+  const header = createSiteHeader();
+  const nav = createSiteNav(BASE_PATH);
+  const main = document.createElement('main');
+  main.className = 'app-main';
+
+  shell.append(header, nav, main);
+  root.replaceChildren(shell);
+
+  return main;
+};
 
 const stripBasePath = (pathname: string): string => {
   if (BASE_PATH === '/' || !pathname.startsWith(BASE_PATH)) {
@@ -44,6 +62,8 @@ const mount = async (): Promise<void> => {
 
   const path = resolvePath();
   const loader = routes[path] ?? routes['/'];
+  const main = createAppShell(container);
+
   try {
     const module = await loader();
     const entry = module.default;
@@ -51,9 +71,14 @@ const mount = async (): Promise<void> => {
     if (typeof mountFn !== 'function') {
       throw new Error('Page module does not export a mount function');
     }
-    mountFn(container);
+    mountFn(main);
+    setSiteStatus('ok');
   } catch (error) {
-    container.textContent = `Failed to load page: ${error instanceof Error ? error.message : String(error)}`;
+    main.replaceChildren();
+    const message = document.createElement('p');
+    message.textContent = `Failed to load page: ${error instanceof Error ? error.message : String(error)}`;
+    main.appendChild(message);
+    setSiteStatus('error', 'Unavailable');
   }
 };
 
