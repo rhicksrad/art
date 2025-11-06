@@ -1,7 +1,10 @@
-import { extent } from "d3-array";
-import { scaleLinear } from "d3-scale";
-import { line, curveMonotoneX } from "d3-shape";
-import { select } from "d3-selection";
+import {
+  curveMonotoneX,
+  extent,
+  line,
+  scaleLinear,
+  select,
+} from "d3";
 
 export type SparklineProps = {
   values: number[];
