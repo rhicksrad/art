@@ -1,7 +1,7 @@
-import { z } from "zod";
-import type { ItemCard } from "../lib/types";
+import { z } from 'zod';
+import type { ItemCard } from '../lib/types';
 
-const DataverseItemTypeSchema = z.enum(["dataverse", "dataset", "file"]);
+const DataverseItemTypeSchema = z.enum(['dataverse', 'dataset', 'file']);
 
 export const DataverseItemSchema = z
   .object({
@@ -44,12 +44,12 @@ type DataverseItem = z.infer<typeof DataverseItemSchema>;
 type DataverseResponse = z.infer<typeof DataverseResponseSchema>;
 
 const extractFirstString = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
 
-  if (typeof value === "number" || typeof value === "bigint") {
+  if (typeof value === 'number' || typeof value === 'bigint') {
     return String(value);
   }
 
@@ -60,7 +60,7 @@ const extractFirstString = (value: unknown): string | undefined => {
         return result;
       }
     }
-  } else if (value && typeof value === "object") {
+  } else if (value && typeof value === 'object') {
     for (const entry of Object.values(value as Record<string, unknown>)) {
       const result = extractFirstString(entry);
       if (result) {
@@ -112,7 +112,7 @@ const toItemCard = (item: DataverseItem): ItemCard => {
     date,
     tags,
     href,
-    source: "Dataverse",
+    source: 'Dataverse',
     raw: item,
   };
 };

@@ -1,4 +1,4 @@
-import type { ItemCard } from "../lib/types";
+import type { ItemCard } from '../lib/types';
 
 export type CardProps = {
   title: string;
@@ -10,7 +10,7 @@ export type CardProps = {
 };
 
 const isNonEmpty = (value: string | undefined): value is string => {
-  return typeof value === "string" && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
 };
 
 export const createCard = ({
@@ -21,14 +21,14 @@ export const createCard = ({
   href,
   rawLink = false,
 }: CardProps): HTMLElement => {
-  const card = document.createElement("article");
-  card.className = "card";
+  const card = document.createElement('article');
+  card.className = 'card';
 
-  if (typeof img === "string" && img.length > 0) {
-    const media = document.createElement("div");
-    media.className = "card__media";
+  if (typeof img === 'string' && img.length > 0) {
+    const media = document.createElement('div');
+    media.className = 'card__media';
 
-    const image = document.createElement("img");
+    const image = document.createElement('img');
     image.src = img;
     image.alt = title;
 
@@ -36,19 +36,19 @@ export const createCard = ({
     card.appendChild(media);
   }
 
-  const body = document.createElement("div");
-  body.className = "card__body";
+  const body = document.createElement('div');
+  body.className = 'card__body';
 
-  const titleEl = document.createElement("h3");
-  titleEl.className = "card__title";
+  const titleEl = document.createElement('h3');
+  titleEl.className = 'card__title';
 
-  if (typeof href === "string" && href.length > 0) {
-    const link = document.createElement("a");
+  if (typeof href === 'string' && href.length > 0) {
+    const link = document.createElement('a');
     link.href = href;
     link.textContent = title;
     if (!rawLink) {
-      link.target = "_blank";
-      link.rel = "noreferrer";
+      link.target = '_blank';
+      link.rel = 'noreferrer';
     }
     titleEl.appendChild(link);
   } else {
@@ -57,16 +57,16 @@ export const createCard = ({
 
   body.appendChild(titleEl);
 
-  if (typeof sub === "string" && sub.length > 0) {
-    const subtitle = document.createElement("p");
-    subtitle.className = "card__subtitle";
+  if (typeof sub === 'string' && sub.length > 0) {
+    const subtitle = document.createElement('p');
+    subtitle.className = 'card__subtitle';
     subtitle.textContent = sub;
     body.appendChild(subtitle);
   }
 
-  if (typeof meta === "string" && meta.length > 0) {
-    const metaEl = document.createElement("p");
-    metaEl.className = "card__meta";
+  if (typeof meta === 'string' && meta.length > 0) {
+    const metaEl = document.createElement('p');
+    metaEl.className = 'card__meta';
     metaEl.textContent = meta;
     body.appendChild(metaEl);
   }
@@ -84,15 +84,13 @@ const buildMeta = (item: ItemCard): string | undefined => {
   }
 
   if (Array.isArray(item.tags) && item.tags.length > 0) {
-    const tags = item.tags
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
+    const tags = item.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0);
     if (tags.length > 0) {
-      parts.push(tags.join(", "));
+      parts.push(tags.join(', '));
     }
   }
 
-  return parts.length > 0 ? parts.join(" • ") : undefined;
+  return parts.length > 0 ? parts.join(' • ') : undefined;
 };
 
 export const renderItemCard = (item: ItemCard): HTMLElement => {

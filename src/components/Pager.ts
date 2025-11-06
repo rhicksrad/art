@@ -6,7 +6,7 @@ export type PagerProps = {
   onNext: () => void;
 };
 
-type PagerState = Pick<PagerProps, "page" | "hasPrev" | "hasNext">;
+type PagerState = Pick<PagerProps, 'page' | 'hasPrev' | 'hasNext'>;
 
 export type PagerElement = HTMLElement & {
   update: (state: PagerState) => void;
@@ -19,29 +19,29 @@ export const createPager = ({
   onPrev,
   onNext,
 }: PagerProps): PagerElement => {
-  const nav = document.createElement("nav") as PagerElement;
-  nav.className = "pager";
-  nav.setAttribute("aria-label", "Pagination");
+  const nav = document.createElement('nav') as PagerElement;
+  nav.className = 'pager';
+  nav.setAttribute('aria-label', 'Pagination');
 
-  const prevButton = document.createElement("button");
-  prevButton.type = "button";
-  prevButton.className = "pager__button pager__button--prev";
-  prevButton.textContent = "Previous";
-  prevButton.addEventListener("click", (event) => {
+  const prevButton = document.createElement('button');
+  prevButton.type = 'button';
+  prevButton.className = 'pager__button pager__button--prev';
+  prevButton.textContent = 'Previous';
+  prevButton.addEventListener('click', (event) => {
     event.preventDefault();
     if (currentState.hasPrev) {
       onPrev();
     }
   });
 
-  const status = document.createElement("span");
-  status.className = "pager__status";
+  const status = document.createElement('span');
+  status.className = 'pager__status';
 
-  const nextButton = document.createElement("button");
-  nextButton.type = "button";
-  nextButton.className = "pager__button pager__button--next";
-  nextButton.textContent = "Next";
-  nextButton.addEventListener("click", (event) => {
+  const nextButton = document.createElement('button');
+  nextButton.type = 'button';
+  nextButton.className = 'pager__button pager__button--next';
+  nextButton.textContent = 'Next';
+  nextButton.addEventListener('click', (event) => {
     event.preventDefault();
     if (currentState.hasNext) {
       onNext();

@@ -1,72 +1,72 @@
-import { toItemCards as toDataverseItemCards } from "../adapters/dataverse";
-import { createAlert } from "../components/Alert";
-import { renderItemCard } from "../components/Card";
-import { createFacetBar } from "../components/FacetBar";
-import { createPager } from "../components/Pager";
-import { createSearchForm } from "../components/SearchForm";
-import { createVirtualList } from "../components/VirtualList";
-import { createBar } from "../components/Bar";
-import { createHistogram } from "../components/Histogram";
-import { createChartBlock } from "../components/ChartBlock";
-import { fetchJSON, clearCache as clearHttpCache } from "../lib/http";
-import { int, pageFromUrl, toQuery } from "../lib/params";
-import { countStrings, findNumericByKey, parseNumericValue } from "../lib/analytics";
+import { toItemCards as toDataverseItemCards } from '../adapters/dataverse';
+import { createAlert } from '../components/Alert';
+import { renderItemCard } from '../components/Card';
+import { createFacetBar } from '../components/FacetBar';
+import { createPager } from '../components/Pager';
+import { createSearchForm } from '../components/SearchForm';
+import { createVirtualList } from '../components/VirtualList';
+import { createBar } from '../components/Bar';
+import { createHistogram } from '../components/Histogram';
+import { createChartBlock } from '../components/ChartBlock';
+import { fetchJSON, clearCache as clearHttpCache } from '../lib/http';
+import { int, pageFromUrl, toQuery } from '../lib/params';
+import { countStrings, findNumericByKey, parseNumericValue } from '../lib/analytics';
 
 const PAGE_SIZE = 12;
 const CARD_ROW_HEIGHT = 280;
 
 const TYPE_OPTIONS = [
-  { value: "", label: "Any type" },
-  { value: "dataverse", label: "Dataverse" },
-  { value: "dataset", label: "Dataset" },
-  { value: "file", label: "File" },
+  { value: '', label: 'Any type' },
+  { value: 'dataverse', label: 'Dataverse' },
+  { value: 'dataset', label: 'Dataset' },
+  { value: 'file', label: 'File' },
 ];
 
 const getTotalResults = (resp: unknown): number | undefined => {
-  if (!resp || typeof resp !== "object") {
+  if (!resp || typeof resp !== 'object') {
     return undefined;
   }
 
   const data = resp as { total_count?: number; count?: number; data?: { total_count?: number } };
-  if (typeof data.data?.total_count === "number") {
+  if (typeof data.data?.total_count === 'number') {
     return data.data.total_count;
   }
-  if (typeof data.total_count === "number") {
+  if (typeof data.total_count === 'number') {
     return data.total_count;
   }
-  if (typeof data.count === "number") {
+  if (typeof data.count === 'number') {
     return data.count;
   }
   return undefined;
 };
 
 const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
-  q: query.q ?? "",
-  type: query.type ?? "",
-  page: query.page ?? "1",
+  q: query.q ?? '',
+  type: query.type ?? '',
+  page: query.page ?? '1',
 });
 
-const FILE_SIZE_KEYS = ["file_size", "filesize", "size", "bytes", "filesizebytes"];
+const FILE_SIZE_KEYS = ['file_size', 'filesize', 'size', 'bytes', 'filesizebytes'];
 
 const extractFileSize = (raw: unknown): number | undefined => {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || typeof raw !== 'object') {
     return undefined;
   }
   const record = raw as Record<string, unknown>;
   for (const key of FILE_SIZE_KEYS) {
     if (key in record) {
       const parsed = parseNumericValue(record[key]);
-      if (typeof parsed === "number" && parsed >= 0) {
+      if (typeof parsed === 'number' && parsed >= 0) {
         return parsed;
       }
     }
   }
   const nested = findNumericByKey(raw, FILE_SIZE_KEYS);
-  return typeof nested === "number" && nested >= 0 ? nested : undefined;
+  return typeof nested === 'number' && nested >= 0 ? nested : undefined;
 };
 
 const splitSubjects = (value: unknown): string[] => {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     return value
       .split(/[,;|]/)
       .map((part) => part.trim())
@@ -75,16 +75,14 @@ const splitSubjects = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value.flatMap((entry) => splitSubjects(entry));
   }
-  if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).flatMap((entry) =>
-      splitSubjects(entry)
-    );
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap((entry) => splitSubjects(entry));
   }
   return [];
 };
 
 const extractSubjects = (raw: unknown): string[] => {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || typeof raw !== 'object') {
     return [];
   }
 
@@ -94,7 +92,7 @@ const extractSubjects = (raw: unknown): string[] => {
 
   while (stack.length > 0) {
     const current = stack.pop();
-    if (!current || typeof current !== "object") {
+    if (!current || typeof current !== 'object') {
       continue;
     }
     if (visited.has(current as object)) {
@@ -111,9 +109,9 @@ const extractSubjects = (raw: unknown): string[] => {
 
     const record = current as Record<string, unknown>;
     for (const [key, value] of Object.entries(record)) {
-      if (key.toLowerCase().includes("subject")) {
+      if (key.toLowerCase().includes('subject')) {
         results.push(...splitSubjects(value));
-      } else if (value && typeof value === "object") {
+      } else if (value && typeof value === 'object') {
         stack.push(value);
       }
     }
@@ -125,8 +123,8 @@ const extractSubjects = (raw: unknown): string[] => {
 const mount = (el: HTMLElement): void => {
   const searchParams = new URLSearchParams(window.location.search);
   const initialQuery = sanitizeQuery({
-    q: searchParams.get("q") ?? "",
-    type: searchParams.get("type") ?? "",
+    q: searchParams.get('q') ?? '',
+    type: searchParams.get('type') ?? '',
     page: String(pageFromUrl()),
   });
 
@@ -137,32 +135,29 @@ const mount = (el: HTMLElement): void => {
   let requestToken = 0;
   let abortController: AbortController | null = null;
 
-  el.innerHTML = "";
+  el.innerHTML = '';
 
-  const alertContainer = document.createElement("div");
-  const resultsInfo = document.createElement("p");
-  resultsInfo.className = "results-count";
-  resultsInfo.textContent = "0 results";
+  const alertContainer = document.createElement('div');
+  const resultsInfo = document.createElement('p');
+  resultsInfo.className = 'results-count';
+  resultsInfo.textContent = '0 results';
 
-  const resultsList = document.createElement("div");
-  resultsList.className = "results-list";
+  const resultsList = document.createElement('div');
+  resultsList.className = 'results-list';
 
-  const emptyPlaceholder = document.createElement("p");
-  emptyPlaceholder.className = "results-placeholder";
-  emptyPlaceholder.textContent = "No results found.";
+  const emptyPlaceholder = document.createElement('p');
+  emptyPlaceholder.className = 'results-placeholder';
+  emptyPlaceholder.textContent = 'No results found.';
 
-  const chartsContainer = document.createElement("div");
-  chartsContainer.className = "results-charts";
+  const chartsContainer = document.createElement('div');
+  chartsContainer.className = 'results-charts';
 
   const fileHistogram = createHistogram({ values: [], bins: 12 });
-  const fileHistogramBlock = createChartBlock(
-    "File size distribution",
-    fileHistogram.element
-  );
+  const fileHistogramBlock = createChartBlock('File size distribution', fileHistogram.element);
   chartsContainer.append(fileHistogramBlock);
 
-  const subjectBar = createBar({ data: [], xLabel: "Subject", yLabel: "Items" });
-  const subjectBarBlock = createChartBlock("Items by subject", subjectBar.element);
+  const subjectBar = createBar({ data: [], xLabel: 'Subject', yLabel: 'Items' });
+  const subjectBarBlock = createChartBlock('Items by subject', subjectBar.element);
   chartsContainer.append(subjectBarBlock);
 
   const virtualList = createVirtualList({
@@ -182,12 +177,12 @@ const mount = (el: HTMLElement): void => {
   };
 
   const updateCharts = (cards: ReturnType<typeof toDataverseItemCards>): void => {
-    if (currentQuery.type === "file") {
+    if (currentQuery.type === 'file') {
       fileHistogramBlock.hidden = false;
       subjectBarBlock.hidden = true;
       const sizes = cards
         .map((card) => extractFileSize(card.raw))
-        .filter((value): value is number => typeof value === "number");
+        .filter((value): value is number => typeof value === 'number');
       fileHistogram.setValues(sizes);
     } else {
       fileHistogramBlock.hidden = true;
@@ -201,19 +196,19 @@ const mount = (el: HTMLElement): void => {
   updateCharts([]);
 
   const updateInfo = (total: number | undefined, count: number): void => {
-    const value = typeof total === "number" ? total : count;
+    const value = typeof total === 'number' ? total : count;
     resultsInfo.textContent = `${value} results`;
   };
 
   const updateLocation = (query: Record<string, string>): void => {
     const sanitized = sanitizeQuery(query);
     const search = new URLSearchParams(toQuery(sanitized)).toString();
-    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
-    window.history.replaceState(null, "", nextUrl);
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}`;
+    window.history.replaceState(null, '', nextUrl);
   };
 
   const submitForm = (values: Record<string, string>): void => {
-    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    const nextQuery = sanitizeQuery({ ...values, page: '1' });
     currentQuery = nextQuery;
     currentPage = 1;
     void performSearch();
@@ -222,18 +217,18 @@ const mount = (el: HTMLElement): void => {
   const { element: form, setValues } = createSearchForm({
     fields: [
       {
-        name: "q",
-        label: "Keyword",
-        type: "text",
-        placeholder: "Search Harvard Dataverse",
+        name: 'q',
+        label: 'Keyword',
+        type: 'text',
+        placeholder: 'Search Harvard Dataverse',
         value: currentQuery.q,
       },
       {
-        name: "type",
-        label: "Type",
-        type: "select",
-        placeholder: "Any type",
-        options: TYPE_OPTIONS.filter((option) => option.value !== ""),
+        name: 'type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: TYPE_OPTIONS.filter((option) => option.value !== ''),
         value: currentQuery.type,
       },
     ],
@@ -262,7 +257,7 @@ const mount = (el: HTMLElement): void => {
 
   const requestParamsFromQuery = (
     query: Record<string, string>,
-    ttl: number
+    ttl: number,
   ): Record<string, string | number> => {
     const pageNumber = Math.max(1, int(query.page, 1));
     return {
@@ -288,15 +283,15 @@ const mount = (el: HTMLElement): void => {
     const requestParams = requestParamsFromQuery(currentQuery, currentTtl);
     const token = ++requestToken;
     isLoading = true;
-    alertContainer.innerHTML = "";
-    resultsList.innerHTML = "";
-    resultsInfo.textContent = "Loading…";
+    alertContainer.innerHTML = '';
+    resultsList.innerHTML = '';
+    resultsInfo.textContent = 'Loading…';
     pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
     updateLocation(currentQuery);
     setValues({ q: currentQuery.q, type: currentQuery.type });
 
     try {
-      const response = await fetchJSON<unknown>("/dataverse/search", requestParams, {
+      const response = await fetchJSON<unknown>('/dataverse/search', requestParams, {
         signal: controller.signal,
       });
       if (token !== requestToken) {
@@ -305,9 +300,8 @@ const mount = (el: HTMLElement): void => {
 
       const cards = toDataverseItemCards(response);
       const total = getTotalResults(response);
-      const hasNext = typeof total === "number"
-        ? pageNumber * PAGE_SIZE < total
-        : cards.length === PAGE_SIZE;
+      const hasNext =
+        typeof total === 'number' ? pageNumber * PAGE_SIZE < total : cards.length === PAGE_SIZE;
 
       renderCards(cards);
       updateCharts(cards);
@@ -320,16 +314,14 @@ const mount = (el: HTMLElement): void => {
       if (controller.signal.aborted) {
         return;
       }
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       renderCards([]);
       updateCharts([]);
-      resultsInfo.textContent = "0 results";
+      resultsInfo.textContent = '0 results';
       const message = error instanceof Error ? error.message : String(error);
-      alertContainer.replaceChildren(
-        createAlert(`Dataverse search failed: ${message}`, "error"),
-      );
+      alertContainer.replaceChildren(createAlert(`Dataverse search failed: ${message}`, 'error'));
       pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
     } finally {
       if (token === requestToken) {
@@ -348,7 +340,7 @@ const mount = (el: HTMLElement): void => {
     },
     onClear: () => {
       clearHttpCache();
-      alertContainer.replaceChildren(createAlert("Cache cleared", "info"));
+      alertContainer.replaceChildren(createAlert('Cache cleared', 'info'));
     },
   });
 
@@ -363,13 +355,11 @@ const mount = (el: HTMLElement): void => {
   );
 
   performSearch().catch((error) => {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
-    alertContainer.replaceChildren(
-      createAlert(`Dataverse search failed: ${message}`, "error"),
-    );
+    alertContainer.replaceChildren(createAlert(`Dataverse search failed: ${message}`, 'error'));
   });
 };
 

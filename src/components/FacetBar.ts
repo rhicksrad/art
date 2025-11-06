@@ -35,7 +35,7 @@ const formatSeconds = (value: number): string => {
     parts.push(`${seconds}s`);
   }
 
-  return parts.join(" ");
+  return parts.join(' ');
 };
 
 export const createFacetBar = ({
@@ -45,46 +45,46 @@ export const createFacetBar = ({
   min = 60,
   max = 86400,
 }: FacetBarProps): FacetBarHandle => {
-  const container = document.createElement("div");
-  container.className = "facet-bar";
+  const container = document.createElement('div');
+  container.className = 'facet-bar';
 
-  const ttlField = document.createElement("label");
-  ttlField.className = "facet-bar__field";
+  const ttlField = document.createElement('label');
+  ttlField.className = 'facet-bar__field';
 
-  const labelText = document.createElement("span");
-  labelText.className = "facet-bar__label";
-  labelText.textContent = "Cache TTL";
+  const labelText = document.createElement('span');
+  labelText.className = 'facet-bar__label';
+  labelText.textContent = 'Cache TTL';
   ttlField.appendChild(labelText);
 
-  const sliderWrapper = document.createElement("div");
-  sliderWrapper.className = "facet-bar__slider";
+  const sliderWrapper = document.createElement('div');
+  sliderWrapper.className = 'facet-bar__slider';
 
-  const slider = document.createElement("input");
-  slider.type = "range";
+  const slider = document.createElement('input');
+  slider.type = 'range';
   slider.min = String(min);
   slider.max = String(max);
-  slider.step = "60";
+  slider.step = '60';
   slider.value = String(ttl);
   sliderWrapper.appendChild(slider);
 
-  const valueLabel = document.createElement("span");
-  valueLabel.className = "facet-bar__value";
+  const valueLabel = document.createElement('span');
+  valueLabel.className = 'facet-bar__value';
   valueLabel.textContent = formatSeconds(ttl);
   sliderWrapper.appendChild(valueLabel);
 
   ttlField.appendChild(sliderWrapper);
 
-  const clearButton = document.createElement("button");
-  clearButton.type = "button";
-  clearButton.className = "facet-bar__clear";
-  clearButton.textContent = "Clear cache";
+  const clearButton = document.createElement('button');
+  clearButton.type = 'button';
+  clearButton.className = 'facet-bar__clear';
+  clearButton.textContent = 'Clear cache';
 
   const updateValue = (next: number): void => {
     slider.value = String(next);
     valueLabel.textContent = formatSeconds(next);
   };
 
-  slider.addEventListener("input", () => {
+  slider.addEventListener('input', () => {
     const nextValue = Number.parseInt(slider.value, 10);
     if (Number.isNaN(nextValue)) {
       return;
@@ -93,7 +93,7 @@ export const createFacetBar = ({
     onTtlChange(nextValue);
   });
 
-  clearButton.addEventListener("click", () => {
+  clearButton.addEventListener('click', () => {
     onClear();
   });
 

@@ -8,10 +8,9 @@ declare global {
   }
 }
 
-const DEFAULT_WORKER_BASE = "https://art.hicksrch.workers.dev";
+const DEFAULT_WORKER_BASE = 'https://art.hicksrch.workers.dev';
 
 const runtimeConfig: Partial<RuntimeConfig> | undefined =
-  typeof window !== "undefined" ? window.__CONFIG__ : undefined;
+  typeof window !== 'undefined' ? window.__CONFIG__ : undefined;
 
-export const WORKER_BASE: string =
-  runtimeConfig?.WORKER_BASE ?? DEFAULT_WORKER_BASE;
+export const WORKER_BASE: string = runtimeConfig?.WORKER_BASE ?? DEFAULT_WORKER_BASE;

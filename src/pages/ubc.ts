@@ -1,46 +1,46 @@
-import { toItemCards as toUbcItemCards } from "../adapters/ubc";
-import { createAlert } from "../components/Alert";
-import { renderItemCard } from "../components/Card";
-import { createFacetBar } from "../components/FacetBar";
-import { createPager } from "../components/Pager";
-import { createSearchForm } from "../components/SearchForm";
-import { createVirtualList } from "../components/VirtualList";
-import { createBar } from "../components/Bar";
-import { createChartBlock } from "../components/ChartBlock";
-import { fetchJSON, clearCache as clearHttpCache } from "../lib/http";
-import { int, pageFromUrl, toQuery } from "../lib/params";
-import { countYears, extractYear } from "../lib/analytics";
+import { toItemCards as toUbcItemCards } from '../adapters/ubc';
+import { createAlert } from '../components/Alert';
+import { renderItemCard } from '../components/Card';
+import { createFacetBar } from '../components/FacetBar';
+import { createPager } from '../components/Pager';
+import { createSearchForm } from '../components/SearchForm';
+import { createVirtualList } from '../components/VirtualList';
+import { createBar } from '../components/Bar';
+import { createChartBlock } from '../components/ChartBlock';
+import { fetchJSON, clearCache as clearHttpCache } from '../lib/http';
+import { int, pageFromUrl, toQuery } from '../lib/params';
+import { countYears, extractYear } from '../lib/analytics';
 
 const PAGE_SIZE = 12;
 const CARD_ROW_HEIGHT = 280;
 
 const getTotalResults = (resp: unknown): number | undefined => {
-  if (!resp || typeof resp !== "object") {
+  if (!resp || typeof resp !== 'object') {
     return undefined;
   }
 
   const data = resp as { total?: number; resultCount?: number };
-  if (typeof data.total === "number") {
+  if (typeof data.total === 'number') {
     return data.total;
   }
-  if (typeof data.resultCount === "number") {
+  if (typeof data.resultCount === 'number') {
     return data.resultCount;
   }
   return undefined;
 };
 
 const sanitizeQuery = (query: Record<string, string>): Record<string, string> => ({
-  q: query.q ?? "",
-  page: query.page ?? "1",
+  q: query.q ?? '',
+  page: query.page ?? '1',
 });
 
 const collectYearData = (
-  cards: ReturnType<typeof toUbcItemCards>
+  cards: ReturnType<typeof toUbcItemCards>,
 ): ReturnType<typeof countYears> => {
   const years: number[] = [];
   for (const card of cards) {
     const year = extractYear(card.date);
-    if (typeof year === "number") {
+    if (typeof year === 'number') {
       years.push(year);
     }
   }
@@ -50,7 +50,7 @@ const collectYearData = (
 const mount = (el: HTMLElement): void => {
   const searchParams = new URLSearchParams(window.location.search);
   const initialQuery = sanitizeQuery({
-    q: searchParams.get("q") ?? "",
+    q: searchParams.get('q') ?? '',
     page: String(pageFromUrl()),
   });
 
@@ -61,25 +61,25 @@ const mount = (el: HTMLElement): void => {
   let requestToken = 0;
   let abortController: AbortController | null = null;
 
-  el.innerHTML = "";
+  el.innerHTML = '';
 
-  const alertContainer = document.createElement("div");
-  const resultsInfo = document.createElement("p");
-  resultsInfo.className = "results-count";
-  resultsInfo.textContent = "0 results";
+  const alertContainer = document.createElement('div');
+  const resultsInfo = document.createElement('p');
+  resultsInfo.className = 'results-count';
+  resultsInfo.textContent = '0 results';
 
-  const resultsList = document.createElement("div");
-  resultsList.className = "results-list";
+  const resultsList = document.createElement('div');
+  resultsList.className = 'results-list';
 
-  const emptyPlaceholder = document.createElement("p");
-  emptyPlaceholder.className = "results-placeholder";
-  emptyPlaceholder.textContent = "No results found.";
+  const emptyPlaceholder = document.createElement('p');
+  emptyPlaceholder.className = 'results-placeholder';
+  emptyPlaceholder.textContent = 'No results found.';
 
-  const chartsContainer = document.createElement("div");
-  chartsContainer.className = "results-charts";
+  const chartsContainer = document.createElement('div');
+  chartsContainer.className = 'results-charts';
 
-  const yearBar = createBar({ data: [], xLabel: "Year", yLabel: "Items" });
-  const yearBlock = createChartBlock("Items by year", yearBar.element);
+  const yearBar = createBar({ data: [], xLabel: 'Year', yLabel: 'Items' });
+  const yearBlock = createChartBlock('Items by year', yearBar.element);
   chartsContainer.append(yearBlock);
 
   const virtualList = createVirtualList({
@@ -106,19 +106,19 @@ const mount = (el: HTMLElement): void => {
   updateCharts([]);
 
   const updateInfo = (total: number | undefined, count: number): void => {
-    const value = typeof total === "number" ? total : count;
+    const value = typeof total === 'number' ? total : count;
     resultsInfo.textContent = `${value} results`;
   };
 
   const updateLocation = (query: Record<string, string>): void => {
     const sanitized = sanitizeQuery(query);
     const search = new URLSearchParams(toQuery(sanitized)).toString();
-    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ""}`;
-    window.history.replaceState(null, "", nextUrl);
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}`;
+    window.history.replaceState(null, '', nextUrl);
   };
 
   const submitForm = (values: Record<string, string>): void => {
-    const nextQuery = sanitizeQuery({ ...values, page: "1" });
+    const nextQuery = sanitizeQuery({ ...values, page: '1' });
     currentQuery = nextQuery;
     currentPage = 1;
     void performSearch();
@@ -127,10 +127,10 @@ const mount = (el: HTMLElement): void => {
   const { element: form, setValues } = createSearchForm({
     fields: [
       {
-        name: "q",
-        label: "Keyword",
-        type: "text",
-        placeholder: "Search UBC Open Collections",
+        name: 'q',
+        label: 'Keyword',
+        type: 'text',
+        placeholder: 'Search UBC Open Collections',
         value: currentQuery.q,
       },
     ],
@@ -159,7 +159,7 @@ const mount = (el: HTMLElement): void => {
 
   const requestParamsFromQuery = (
     query: Record<string, string>,
-    ttl: number
+    ttl: number,
   ): Record<string, string | number> => {
     return {
       ...toQuery({
@@ -183,15 +183,15 @@ const mount = (el: HTMLElement): void => {
     const requestParams = requestParamsFromQuery(currentQuery, currentTtl);
     const token = ++requestToken;
     isLoading = true;
-    alertContainer.innerHTML = "";
-    resultsList.innerHTML = "";
-    resultsInfo.textContent = "Loading…";
+    alertContainer.innerHTML = '';
+    resultsList.innerHTML = '';
+    resultsInfo.textContent = 'Loading…';
     pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
     updateLocation(currentQuery);
     setValues({ q: currentQuery.q });
 
     try {
-      const response = await fetchJSON<unknown>("/ubc/search", requestParams, {
+      const response = await fetchJSON<unknown>('/ubc/search', requestParams, {
         signal: controller.signal,
       });
       if (token !== requestToken) {
@@ -200,9 +200,8 @@ const mount = (el: HTMLElement): void => {
 
       const cards = toUbcItemCards(response);
       const total = getTotalResults(response);
-      const hasNext = typeof total === "number"
-        ? pageNumber * PAGE_SIZE < total
-        : cards.length === PAGE_SIZE;
+      const hasNext =
+        typeof total === 'number' ? pageNumber * PAGE_SIZE < total : cards.length === PAGE_SIZE;
 
       renderCards(cards);
       updateCharts(cards);
@@ -215,16 +214,14 @@ const mount = (el: HTMLElement): void => {
       if (controller.signal.aborted) {
         return;
       }
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       renderCards([]);
       updateCharts([]);
-      resultsInfo.textContent = "0 results";
+      resultsInfo.textContent = '0 results';
       const message = error instanceof Error ? error.message : String(error);
-      alertContainer.replaceChildren(
-        createAlert(`UBC search failed: ${message}`, "error"),
-      );
+      alertContainer.replaceChildren(createAlert(`UBC search failed: ${message}`, 'error'));
       pager.update({ page: pageNumber, hasPrev: pageNumber > 1, hasNext: false });
     } finally {
       if (token === requestToken) {
@@ -243,7 +240,7 @@ const mount = (el: HTMLElement): void => {
     },
     onClear: () => {
       clearHttpCache();
-      alertContainer.replaceChildren(createAlert("Cache cleared", "info"));
+      alertContainer.replaceChildren(createAlert('Cache cleared', 'info'));
     },
   });
 
@@ -258,13 +255,11 @@ const mount = (el: HTMLElement): void => {
   );
 
   performSearch().catch((error) => {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
-    alertContainer.replaceChildren(
-      createAlert(`UBC search failed: ${message}`, "error"),
-    );
+    alertContainer.replaceChildren(createAlert(`UBC search failed: ${message}`, 'error'));
   });
 };
 

@@ -1,7 +1,7 @@
-import { createAlert } from "../components/Alert";
-import { createCard, CardProps } from "../components/Card";
-import { createPager } from "../components/Pager";
-import { fetchJSON } from "../lib/http";
+import { createAlert } from '../components/Alert';
+import { createCard, CardProps } from '../components/Card';
+import { createPager } from '../components/Pager';
+import { fetchJSON } from '../lib/http';
 
 type IdentifyResponse = {
   repositoryName?: string;
@@ -11,21 +11,21 @@ type IdentifyResponse = {
 };
 
 const mount = (el: HTMLElement): void => {
-  el.innerHTML = "";
+  el.innerHTML = '';
 
-  const status = document.createElement("p");
-  status.textContent = "Running UBC OAI Identify probe…";
+  const status = document.createElement('p');
+  status.textContent = 'Running UBC OAI Identify probe…';
   el.appendChild(status);
 
-  const resultsSection = document.createElement("section");
-  resultsSection.className = "results";
+  const resultsSection = document.createElement('section');
+  resultsSection.className = 'results';
 
-  const resultsHeading = document.createElement("h3");
-  resultsHeading.textContent = "Results";
+  const resultsHeading = document.createElement('h3');
+  resultsHeading.textContent = 'Results';
   resultsSection.appendChild(resultsHeading);
 
-  const resultsList = document.createElement("div");
-  resultsList.className = "results-list";
+  const resultsList = document.createElement('div');
+  resultsList.className = 'results-list';
   resultsSection.appendChild(resultsList);
 
   const pager = createPager({
@@ -38,11 +38,11 @@ const mount = (el: HTMLElement): void => {
   resultsSection.appendChild(pager);
 
   const updateResults = (items: CardProps[]): void => {
-    resultsList.innerHTML = "";
+    resultsList.innerHTML = '';
     if (items.length === 0) {
-      const placeholder = document.createElement("p");
-      placeholder.className = "results-placeholder";
-      placeholder.textContent = "No results yet.";
+      const placeholder = document.createElement('p');
+      placeholder.className = 'results-placeholder';
+      placeholder.textContent = 'No results yet.';
       resultsList.appendChild(placeholder);
       return;
     }
@@ -55,18 +55,17 @@ const mount = (el: HTMLElement): void => {
   updateResults([]);
   el.appendChild(resultsSection);
 
-  fetchJSON<IdentifyResponse>("/ubc-oai", { verb: "Identify" })
+  fetchJSON<IdentifyResponse>('/ubc-oai', { verb: 'Identify' })
     .then((data) => {
-      const repositoryName =
-        data.repositoryName ?? data.Identify?.repositoryName ?? undefined;
+      const repositoryName = data.repositoryName ?? data.Identify?.repositoryName ?? undefined;
 
-      const detail = repositoryName ?? "Endpoint responded";
+      const detail = repositoryName ?? 'Endpoint responded';
       status.textContent = `Probe OK: ${detail}.`;
 
       const cards: CardProps[] = [
         {
-          title: repositoryName ?? "Result #1",
-          sub: "Identify response",
+          title: repositoryName ?? 'Result #1',
+          sub: 'Identify response',
           meta: repositoryName ? `Repository: ${repositoryName}` : undefined,
         },
       ];
@@ -75,9 +74,7 @@ const mount = (el: HTMLElement): void => {
     })
     .catch((error: Error) => {
       status.remove();
-      el.appendChild(
-        createAlert(`UBC OAI probe failed: ${error.message}`, "error"),
-      );
+      el.appendChild(createAlert(`UBC OAI probe failed: ${error.message}`, 'error'));
       updateResults([]);
     });
 };

@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { ItemCard } from "../lib/types";
+import { z } from 'zod';
+import type { ItemCard } from '../lib/types';
 
 const IIIFBodySchema = z
   .union([
@@ -7,7 +7,7 @@ const IIIFBodySchema = z
     z
       .object({
         id: z.string().optional(),
-        "@id": z.string().optional(),
+        '@id': z.string().optional(),
         type: z.string().optional(),
         format: z.string().optional(),
       })
@@ -30,15 +30,20 @@ const IIIFAnnotationPageSchema = z
 const ThumbnailSchema = z
   .union([
     z.string(),
-    z.array(z.union([z.string(), z.object({ id: z.string().optional(), "@id": z.string().optional() }).passthrough()])),
-    z.object({ id: z.string().optional(), "@id": z.string().optional() }).passthrough(),
+    z.array(
+      z.union([
+        z.string(),
+        z.object({ id: z.string().optional(), '@id': z.string().optional() }).passthrough(),
+      ]),
+    ),
+    z.object({ id: z.string().optional(), '@id': z.string().optional() }).passthrough(),
   ])
   .optional();
 
 const IIIFCanvasSchema = z
   .object({
     id: z.string().optional(),
-    "@id": z.string().optional(),
+    '@id': z.string().optional(),
     label: z.unknown().optional(),
     items: z.array(IIIFAnnotationPageSchema).optional(),
     thumbnail: ThumbnailSchema,
@@ -54,7 +59,7 @@ const IIIFSequenceSchema = z
 const IIIFManifestSchema = z
   .object({
     id: z.string().optional(),
-    "@id": z.string().optional(),
+    '@id': z.string().optional(),
     label: z.unknown().optional(),
     items: z.array(IIIFCanvasSchema).optional(),
     sequences: z.array(IIIFSequenceSchema).optional(),
@@ -118,12 +123,12 @@ type PrincetonRecord = z.infer<typeof PrincetonRecordSchema>;
 type PrincetonResponse = z.infer<typeof PrincetonResponseSchema>;
 
 const extractString = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
 
-  if (typeof value === "number" || typeof value === "bigint") {
+  if (typeof value === 'number' || typeof value === 'bigint') {
     return String(value);
   }
 
@@ -137,18 +142,18 @@ const extractString = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;
     const priorityKeys = [
-      "value",
-      "@value",
-      "default",
-      "en",
-      "text",
-      "content",
-      "title",
-      "label",
-      "rendered",
+      'value',
+      '@value',
+      'default',
+      'en',
+      'text',
+      'content',
+      'title',
+      'label',
+      'rendered',
     ];
 
     for (const key of priorityKeys) {
@@ -192,7 +197,7 @@ const flattenCanvases = (manifest: IIIFManifest | undefined): IIIFCanvas[] => {
 
 const getCanvasImage = (canvas: IIIFCanvas): string | undefined => {
   const thumb = canvas.thumbnail;
-  if (typeof thumb === "string" && thumb.trim().length > 0) {
+  if (typeof thumb === 'string' && thumb.trim().length > 0) {
     return thumb.trim();
   }
   if (Array.isArray(thumb)) {
@@ -203,7 +208,7 @@ const getCanvasImage = (canvas: IIIFCanvas): string | undefined => {
       }
     }
   }
-  if (thumb && typeof thumb === "object") {
+  if (thumb && typeof thumb === 'object') {
     const url = extractString(thumb);
     if (url) {
       return url;
@@ -232,7 +237,7 @@ const getManifest = (record: PrincetonRecord): IIIFManifest | undefined => {
   const candidates = [record.manifest, record.iiif_manifest, record.iiifManifest];
   for (const candidate of candidates) {
     if (!candidate) continue;
-    if (typeof candidate === "string") {
+    if (typeof candidate === 'string') {
       continue;
     }
     return candidate;
@@ -252,7 +257,7 @@ const getPrimaryImage = (record: PrincetonRecord): string | undefined => {
   ];
 
   for (const candidate of candidates) {
-    const url = typeof candidate === "string" ? candidate.trim() : undefined;
+    const url = typeof candidate === 'string' ? candidate.trim() : undefined;
     if (url && url.length > 0) {
       return url;
     }
@@ -261,7 +266,7 @@ const getPrimaryImage = (record: PrincetonRecord): string | undefined => {
   if (Array.isArray(record.images)) {
     for (const image of record.images) {
       const url = image.representative ?? image.url ?? image.thumbnail;
-      if (typeof url === "string" && url.trim().length > 0) {
+      if (typeof url === 'string' && url.trim().length > 0) {
         return url.trim();
       }
     }
@@ -285,7 +290,7 @@ const getMakers = (record: PrincetonRecord): string | undefined => {
     if (!Array.isArray(list)) continue;
     for (const maker of list) {
       const name = maker?.name;
-      if (typeof name === "string" && name.trim().length > 0) {
+      if (typeof name === 'string' && name.trim().length > 0) {
         return name.trim();
       }
     }
@@ -309,7 +314,7 @@ const toItemCard = (record: PrincetonRecord): ItemCard => {
   const hrefCandidates = [record.url, record.link, record.slug];
   let href: string | undefined;
   for (const candidate of hrefCandidates) {
-    if (typeof candidate === "string" && candidate.trim().length > 0) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
       href = candidate.trim();
       break;
     }
@@ -324,7 +329,7 @@ const toItemCard = (record: PrincetonRecord): ItemCard => {
     date,
     img,
     href,
-    source: "Princeton",
+    source: 'Princeton',
     raw: record,
   };
 };

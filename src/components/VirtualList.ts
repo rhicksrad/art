@@ -19,13 +19,13 @@ const createRow = <T>(
   item: T,
   index: number,
   rowHeight: number,
-  renderItem: (item: T, index: number) => HTMLElement
+  renderItem: (item: T, index: number) => HTMLElement,
 ): HTMLElement => {
-  const row = document.createElement("div");
-  row.className = "virtual-list__row";
+  const row = document.createElement('div');
+  row.className = 'virtual-list__row';
   row.style.minHeight = `${rowHeight}px`;
-  row.style.boxSizing = "border-box";
-  row.style.width = "100%";
+  row.style.boxSizing = 'border-box';
+  row.style.width = '100%';
   row.appendChild(renderItem(item, index));
   return row;
 };
@@ -40,21 +40,21 @@ export const createVirtualList = <T>({
   let startIndex = 0;
   let endIndex = 0;
 
-  const container = document.createElement("div");
-  container.className = "virtual-list";
-  container.style.position = "relative";
+  const container = document.createElement('div');
+  container.className = 'virtual-list';
+  container.style.position = 'relative';
 
-  const sentinel = document.createElement("div");
-  sentinel.className = "virtual-list__sentinel";
-  sentinel.style.width = "100%";
+  const sentinel = document.createElement('div');
+  sentinel.className = 'virtual-list__sentinel';
+  sentinel.style.width = '100%';
   sentinel.style.height = `${currentItems.length * rowHeight}px`;
 
-  const content = document.createElement("div");
-  content.className = "virtual-list__content";
-  content.style.position = "absolute";
-  content.style.top = "0";
-  content.style.left = "0";
-  content.style.right = "0";
+  const content = document.createElement('div');
+  content.className = 'virtual-list__content';
+  content.style.position = 'absolute';
+  content.style.top = '0';
+  content.style.left = '0';
+  content.style.right = '0';
 
   container.append(sentinel, content);
 
@@ -66,7 +66,7 @@ export const createVirtualList = <T>({
     startIndex = from;
     endIndex = to;
 
-    content.innerHTML = "";
+    content.innerHTML = '';
     if (startIndex >= endIndex) {
       return;
     }
@@ -115,15 +115,16 @@ export const createVirtualList = <T>({
     updateVisibleRows();
   };
 
-  const observer = typeof ResizeObserver === "function"
-    ? new ResizeObserver(() => {
-        updateVisibleRows();
-      })
-    : null;
+  const observer =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+          updateVisibleRows();
+        })
+      : null;
 
   observer?.observe(container);
-  window.addEventListener("scroll", handleScroll, { passive: true });
-  window.addEventListener("resize", handleResize);
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('resize', handleResize);
 
   const setItems = (nextItems: readonly T[]): void => {
     currentItems = nextItems;
@@ -140,8 +141,8 @@ export const createVirtualList = <T>({
 
   const destroy = (): void => {
     observer?.disconnect();
-    window.removeEventListener("scroll", handleScroll);
-    window.removeEventListener("resize", handleResize);
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleResize);
   };
 
   return {

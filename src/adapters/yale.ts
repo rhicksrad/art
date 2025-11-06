@@ -1,5 +1,5 @@
-import { z } from "zod";
-import type { ItemCard } from "../lib/types";
+import { z } from 'zod';
+import type { ItemCard } from '../lib/types';
 
 const LabelValueSchema = z.unknown();
 
@@ -9,7 +9,7 @@ const YaleBodySchema = z
     z
       .object({
         id: z.string().optional(),
-        "@id": z.string().optional(),
+        '@id': z.string().optional(),
         type: z.string().optional(),
         format: z.string().optional(),
       })
@@ -32,14 +32,19 @@ const YaleAnnotationPageSchema = z
 const YaleCanvasSchema = z
   .object({
     id: z.string().optional(),
-    "@id": z.string().optional(),
+    '@id': z.string().optional(),
     label: LabelValueSchema.optional(),
     items: z.array(YaleAnnotationPageSchema).optional(),
     thumbnail: z
       .union([
         z.string(),
-        z.array(z.union([z.string(), z.object({ id: z.string().optional(), "@id": z.string().optional() }).passthrough()])),
-        z.object({ id: z.string().optional(), "@id": z.string().optional() }).passthrough(),
+        z.array(
+          z.union([
+            z.string(),
+            z.object({ id: z.string().optional(), '@id': z.string().optional() }).passthrough(),
+          ]),
+        ),
+        z.object({ id: z.string().optional(), '@id': z.string().optional() }).passthrough(),
       ])
       .optional(),
   })
@@ -54,7 +59,7 @@ const YaleSequenceSchema = z
 const YaleManifestSchema = z
   .object({
     id: z.string().optional(),
-    "@id": z.string().optional(),
+    '@id': z.string().optional(),
     label: LabelValueSchema.optional(),
     items: z.array(YaleCanvasSchema).optional(),
     sequences: z.array(YaleSequenceSchema).optional(),
@@ -76,12 +81,12 @@ type ParsedManifest = {
 };
 
 const extractString = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
 
-  if (typeof value === "number" || typeof value === "bigint") {
+  if (typeof value === 'number' || typeof value === 'bigint') {
     return String(value);
   }
 
@@ -95,9 +100,9 @@ const extractString = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    const priority = ["value", "@value", "default", "en", "none", "text", "label", "content"];
+    const priority = ['value', '@value', 'default', 'en', 'none', 'text', 'label', 'content'];
     for (const key of priority) {
       if (key in record) {
         const result = extractString(record[key]);
@@ -135,7 +140,7 @@ const flattenCanvases = (manifest: YaleManifest): YaleCanvas[] => {
 
 const getCanvasImage = (canvas: YaleCanvas): string | undefined => {
   const thumb = canvas.thumbnail;
-  if (typeof thumb === "string" && thumb.trim().length > 0) {
+  if (typeof thumb === 'string' && thumb.trim().length > 0) {
     return thumb.trim();
   }
   if (Array.isArray(thumb)) {
@@ -146,7 +151,7 @@ const getCanvasImage = (canvas: YaleCanvas): string | undefined => {
       }
     }
   }
-  if (thumb && typeof thumb === "object") {
+  if (thumb && typeof thumb === 'object') {
     const candidate = extractString(thumb);
     if (candidate) {
       return candidate;
@@ -174,7 +179,7 @@ export const parseManifest = (manifest: unknown): ParsedManifest => {
   const data: YaleManifest = YaleManifestSchema.parse(manifest);
   const canvases = flattenCanvases(data)
     .map<ParsedCanvas | undefined>((canvas) => {
-      const id = extractString(canvas.id ?? canvas["@id"]);
+      const id = extractString(canvas.id ?? canvas['@id']);
       if (!id) {
         return undefined;
       }
@@ -197,14 +202,14 @@ export const toItemCards = (manifest: unknown): ItemCard[] => {
   const parsed = parseManifest(manifest);
 
   return parsed.canvases.map((canvas, index) => {
-    const title = canvas.label ?? `${parsed.label ?? "Yale manifest"} #${index + 1}`;
+    const title = canvas.label ?? `${parsed.label ?? 'Yale manifest'} #${index + 1}`;
 
     return {
       id: canvas.id,
       title,
       sub: parsed.label,
       img: canvas.img,
-      source: "Yale",
+      source: 'Yale',
       raw: canvas,
     };
   });
