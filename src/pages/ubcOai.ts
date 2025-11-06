@@ -1,7 +1,7 @@
 import { createAlert } from '../components/Alert';
 import { createCard, CardProps } from '../components/Card';
 import { setSiteStatus } from '../components/SiteHeader';
-import { fetchJSON } from '../lib/http';
+import { fetchJSON, HttpError } from '../lib/http';
 import { exportCsv } from '../lib/csv';
 
 const DEFAULT_METADATA_PREFIX = 'oai_dc';
@@ -175,6 +175,44 @@ const findOaiError = (payload: unknown): string | null => {
   return null;
 };
 
+const parseSampleMessage = (sample?: string): string | null => {
+  if (!sample) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(sample) as unknown;
+    const message = findOaiError(parsed) ?? extractErrorMessage(parsed);
+    if (message) {
+      return message;
+    }
+  } catch (error) {
+    const fallback = sample.trim();
+    if (fallback.length > 0) {
+      return fallback;
+    }
+  }
+
+  return null;
+};
+
+const describeHttpError = (error: HttpError): string => {
+  const sampleMessage = parseSampleMessage(error.sample);
+  if (sampleMessage) {
+    return sampleMessage;
+  }
+
+  if ([522, 523, 524].includes(error.status)) {
+    return `Cloudflare ${error.status}: the upstream OAI service timed out. Try a narrower query or retry later.`;
+  }
+
+  if (error.status === 504) {
+    return 'Gateway timeout from UBC OAI service. Try again in a moment or limit the date range.';
+  }
+
+  return `Request failed with status ${error.status}.`;
+};
+
 const createFormField = (
   label: string,
   control: HTMLInputElement | HTMLSelectElement,
@@ -344,13 +382,22 @@ const mount = (el: HTMLElement): void => {
     identifyStatus.textContent = 'Running Identify probe…';
     alertContainer.innerHTML = '';
     try {
-      const response = await fetchJSON<IdentifyResponse>('/ubc-oai', { verb: 'Identify' });
+      const response = await fetchJSON<IdentifyResponse>(
+        '/ubc-oai',
+        { verb: 'Identify', ttl: '0' },
+        { cache: 'no-store' },
+      );
       const repositoryName =
         response.repositoryName ?? response.Identify?.repositoryName ?? 'Unknown repository';
       identifyStatus.textContent = `Identify OK: ${repositoryName}`;
       setSiteStatus('ok', 'OAI online');
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message =
+        error instanceof HttpError
+          ? describeHttpError(error)
+          : error instanceof Error
+          ? error.message
+          : String(error);
       identifyStatus.textContent = 'Identify probe failed.';
       alertContainer.replaceChildren(createAlert(`Identify request failed: ${message}`, 'error'));
       setSiteStatus('error', 'OAI error');
@@ -368,7 +415,8 @@ const mount = (el: HTMLElement): void => {
     updateButtons();
 
     try {
-      const response = await fetchJSON<unknown>('/ubc-oai', params, { cache: 'no-store' });
+      const requestParams = { ...params, ttl: '0' };
+      const response = await fetchJSON<unknown>('/ubc-oai', requestParams, { cache: 'no-store' });
       const errorMessage = findOaiError(response);
       if (errorMessage) {
         throw new Error(errorMessage);
@@ -382,7 +430,12 @@ const mount = (el: HTMLElement): void => {
       updateSummary();
       updateButtons();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message =
+        error instanceof HttpError
+          ? describeHttpError(error)
+          : error instanceof Error
+          ? error.message
+          : String(error);
       alertContainer.replaceChildren(createAlert(`ListRecords failed: ${message}`, 'error'));
       statusLine.textContent = 'No records loaded.';
       recordsSummary.textContent = '';
