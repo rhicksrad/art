@@ -1,165 +1,142 @@
 import { candidateUrls } from '../lib/imagePipeline';
-import { NormalArt } from '../lib/types';
+import type { NormalArt } from '../lib/providers/harvard';
 
-const createPlaceholder = (text: string): HTMLElement => {
-  const placeholder = document.createElement('div');
-  placeholder.className = 'card__placeholder';
-  placeholder.textContent = text;
-  return placeholder;
+const RIGHTS_LABEL: Record<NonNullable<NormalArt['rights']>, string> = {
+  PD: 'Public Domain',
+  CC: 'Creative Commons',
+  Restricted: 'Rights Restricted',
+  Unknown: 'Rights Status Unknown',
 };
 
-const applyImagePipeline = (img: HTMLImageElement, urls: string[], placeholder: HTMLElement): void => {
-  let index = 0;
-  if (urls.length === 0) {
-    img.remove();
-    return;
-  }
+const DOWNLOADABLE_RIGHTS = new Set<NormalArt['rights']>(['PD', 'CC']);
 
-  const tryNext = (): void => {
-    if (index >= urls.length) {
-      img.remove();
-      return;
-    }
-    const url = urls[index++];
-    img.src = url;
-  };
+export function ResultCard(item: NormalArt): HTMLElement {
+  const el = document.createElement('article');
+  el.className = 'result-card';
+  el.tabIndex = -1;
 
-  img.addEventListener('error', () => {
-    tryNext();
-  });
-
-  img.addEventListener('load', () => {
-    placeholder.remove();
-    img.classList.add('card__image--loaded');
-  });
-
-  tryNext();
-};
-
-const createActionLink = (href: string, label: string): HTMLAnchorElement => {
-  const link = document.createElement('a');
-  link.href = href;
-  link.target = '_blank';
-  link.rel = 'noreferrer';
-  link.textContent = label;
-  link.className = 'result-card__action';
-  return link;
-};
-
-const joinUnique = (values: string[] | undefined): string | undefined => {
-  if (!values) return undefined;
-  const seen = new Set<string>();
-  for (const value of values) {
-    if (value) seen.add(value);
-  }
-  if (seen.size === 0) return undefined;
-  return Array.from(seen).join(', ');
-};
-
-const rightsLabel = (rights: NormalArt['rights']): string | undefined => {
-  switch (rights) {
-    case 'PD':
-      return 'Public domain';
-    case 'CC':
-      return 'Creative Commons';
-    case 'Restricted':
-      return 'Restricted';
-    case 'Unknown':
-    default:
-      return undefined;
-  }
-};
-
-export const ResultCard = (item: NormalArt): HTMLElement => {
-  const card = document.createElement('article');
-  card.className = 'card result-card';
-
-  const media = document.createElement('div');
-  media.className = 'card__media';
-
-  const placeholder = createPlaceholder('Image unavailable');
-  media.appendChild(placeholder);
+  const imgWrapper = document.createElement('div');
+  imgWrapper.className = 'result-card__media';
 
   const img = document.createElement('img');
   img.loading = 'lazy';
   img.decoding = 'async';
-  img.alt = item.title;
-  img.className = 'result-card__image';
-  media.appendChild(img);
-
-  const urls = candidateUrls(item);
-  if (urls.length > 0) {
-    applyImagePipeline(img, urls, placeholder);
+  img.alt = `${item.title}${item.maker ? ` by ${item.maker}` : ''}`.trim();
+  const candidates = candidateUrls(item.iiifService, item.primaryImage, item.renditions, 600);
+  let idx = 0;
+  if (candidates.length > 0) {
+    img.src = candidates[idx] ?? '';
   } else {
-    img.remove();
+    imgWrapper.appendChild(placeholder());
   }
-
-  card.appendChild(media);
+  img.onerror = () => {
+    if (idx < candidates.length - 1) {
+      idx += 1;
+      img.src = candidates[idx];
+    } else {
+      img.replaceWith(placeholder());
+    }
+  };
+  if (candidates.length > 0) {
+    imgWrapper.appendChild(img);
+  }
 
   const body = document.createElement('div');
-  body.className = 'card__body';
+  body.className = 'result-card__body';
 
-  const heading = document.createElement('h2');
-  heading.className = 'card__title';
-  const titleLink = document.createElement('a');
-  titleLink.href = item.providerUrl;
-  titleLink.target = '_blank';
-  titleLink.rel = 'noreferrer';
-  titleLink.textContent = item.title || 'Untitled';
-  heading.appendChild(titleLink);
-  body.appendChild(heading);
+  const title = anchor(item.title, item.providerUrl);
+  title.className = 'result-card__title';
 
-  if (item.maker) {
-    const maker = document.createElement('p');
-    maker.className = 'card__subtitle';
-    maker.textContent = item.maker;
-    body.appendChild(maker);
+  const meta = smallMeta(item);
+  const actions = actionRow(item, candidates[0]);
+
+  body.append(title, meta, actions);
+  el.append(imgWrapper, body);
+  return el;
+}
+
+function placeholder(): HTMLElement {
+  const p = document.createElement('div');
+  p.className = 'img-ph';
+  p.textContent = 'Image unavailable';
+  p.setAttribute('role', 'img');
+  p.setAttribute('aria-label', 'Image unavailable');
+  return p;
+}
+
+function anchor(text: string, href: string): HTMLAnchorElement {
+  const a = document.createElement('a');
+  a.textContent = text;
+  a.href = href;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  return a;
+}
+
+function smallMeta(item: NormalArt): HTMLElement {
+  const meta = document.createElement('div');
+  meta.className = 'result-card__meta';
+
+  const maker = item.maker;
+  const dated = item.dated;
+  if (maker || dated) {
+    const info = document.createElement('p');
+    info.className = 'result-card__text';
+    info.textContent = [maker, dated].filter(Boolean).join(' • ');
+    meta.appendChild(info);
   }
 
-  if (item.dated) {
-    const dated = document.createElement('p');
-    dated.className = 'card__meta';
-    dated.textContent = item.dated;
-    body.appendChild(dated);
+  const chips = [...(item.classification ?? []), ...(item.culture ?? [])];
+  if (chips.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'result-card__chips';
+    for (const chip of chips) {
+      const li = document.createElement('li');
+      li.textContent = chip;
+      list.appendChild(li);
+    }
+    meta.appendChild(list);
   }
 
-  const classifications = joinUnique(item.classification);
-  const cultures = joinUnique(item.culture);
-  const metaParts = [classifications, cultures].filter((value): value is string => Boolean(value));
-  if (metaParts.length > 0) {
-    const meta = document.createElement('p');
-    meta.className = 'card__meta';
-    meta.textContent = metaParts.join(' • ');
-    body.appendChild(meta);
-  }
+  return meta;
+}
 
-  const rights = rightsLabel(item.rights ?? 'Unknown');
-  if (rights) {
-    const rightsEl = document.createElement('p');
-    rightsEl.className = 'card__meta';
-    rightsEl.textContent = `Rights: ${rights}`;
-    body.appendChild(rightsEl);
-  }
+function actionRow(item: NormalArt, downloadCandidate?: string): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'result-card__actions';
 
-  const footer = document.createElement('div');
-  footer.className = 'result-card__footer';
+  const rights = document.createElement('span');
+  const status = item.rights ?? 'Unknown';
+  rights.className = `result-card__badge result-card__badge--${status.toLowerCase()}`;
+  rights.textContent = RIGHTS_LABEL[status] ?? 'Rights status unavailable';
+  rights.title = rights.textContent;
+  row.appendChild(rights);
 
-  if (item.providerUrl) {
-    const providerLabel = item.providerUrl.includes('artmuseum.princeton.edu')
-      ? 'Open at Princeton'
-      : 'Open item';
-    footer.appendChild(createActionLink(item.providerUrl, providerLabel));
-  }
+  const links = document.createElement('div');
+  links.className = 'result-card__links';
+  row.appendChild(links);
 
-  if (item.jsonUrl) {
-    footer.appendChild(createActionLink(item.jsonUrl, 'Raw JSON'));
-  }
+  const addLink = (label: string, href: string, attrs: Record<string, string> = {}) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.textContent = label;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    for (const [key, value] of Object.entries(attrs)) {
+      link.setAttribute(key, value);
+    }
+    links.appendChild(link);
+  };
 
+  addLink('Open at Harvard', item.providerUrl);
+  addLink('Raw JSON', item.jsonUrl);
   if (item.manifestUrl) {
-    footer.appendChild(createActionLink(item.manifestUrl, 'IIIF Manifest'));
+    addLink('IIIF Manifest', item.manifestUrl);
   }
 
-  body.appendChild(footer);
-  card.appendChild(body);
-  return card;
-};
+  if (DOWNLOADABLE_RIGHTS.has(status) && downloadCandidate) {
+    addLink('Download image', downloadCandidate, { download: '' });
+  }
+
+  return row;
+}

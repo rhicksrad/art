@@ -1,42 +1,17 @@
-import { NormalArt } from './types';
-
-const toIiifImage = (service: string, width = 600): string => {
-  const base = service.replace(/\/info\.json$/i, '').replace(/\/$/, '');
-  return `${base}/full/!${width},${width}/0/default.jpg`;
-};
-
-const normalizeUrl = (input: string): string | undefined => {
-  if (!input) return undefined;
-  try {
-    const url = new URL(input, window.location.origin);
-    if (url.protocol === 'http:') {
-      url.protocol = 'https:';
-    }
-    return url.toString();
-  } catch {
-    return undefined;
+export function candidateUrls(
+  iiifService?: string,
+  primary?: string,
+  renditions: string[] = [],
+  size = 600,
+): string[] {
+  const urls: (string | null | undefined)[] = [];
+  if (iiifService) {
+    const trimmed = iiifService.replace(/\/$/, '');
+    urls.push(`${trimmed}/full/!${size},${size}/0/default.jpg`);
   }
-};
-
-export const candidateUrls = (item: NormalArt): string[] => {
-  const urls: string[] = [];
-  if (item.iiifService) {
-    urls.push(toIiifImage(item.iiifService));
+  urls.push(primary);
+  for (const entry of renditions) {
+    urls.push(entry);
   }
-  if (item.primaryImage) {
-    urls.push(item.primaryImage);
-  }
-  for (const rendition of item.renditions ?? []) {
-    urls.push(rendition);
-  }
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const url of urls) {
-    const normalized = normalizeUrl(url);
-    if (!normalized) continue;
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    unique.push(normalized);
-  }
-  return unique;
-};
+  return urls.filter((value): value is string => Boolean(value));
+}

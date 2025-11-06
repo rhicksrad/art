@@ -661,3 +661,363 @@ input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+.harvard-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.harvard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.harvard-toolbar__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.harvard-toolbar__input {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card-bg);
+  color: var(--fg);
+  font-size: 0.95rem;
+  min-width: 220px;
+}
+
+.harvard-toolbar__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.harvard-toolbar__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.65rem;
+  background: rgba(48, 86, 211, 0.08);
+}
+
+.harvard-toolbar__toggle input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.harvard-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) 1fr;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+@media (max-width: 900px) {
+  .harvard-layout {
+    grid-template-columns: 1fr;
+  }
+  .harvard-facets {
+    order: 2;
+  }
+}
+
+.harvard-facets {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.facets {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.facet-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+}
+
+.facet-group legend {
+  font-weight: 650;
+  margin-bottom: 0.75rem;
+}
+
+.facet-group__options {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.facet-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.facet-option__label {
+  font-size: 0.9rem;
+}
+
+.facet-option__count {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.facet-group__clear {
+  margin-top: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.facet-group__clear:focus-visible,
+.facet-group__clear:hover {
+  text-decoration: underline;
+}
+
+.facet-group__empty {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.harvard-results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.results-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-height: 100%;
+}
+
+.result-card:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.result-card__media {
+  position: relative;
+  padding-top: 66%;
+  overflow: hidden;
+  background: rgba(17, 21, 31, 0.08);
+}
+
+.result-card__media img,
+.result-card__media .img-ph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.result-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.result-card__title {
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.result-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result-card__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.result-card__chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.result-card__chips li {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(48, 86, 211, 0.12);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.result-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.result-card__badge--pd {
+  background: rgba(40, 167, 69, 0.18);
+  color: #155724;
+}
+
+.result-card__badge--cc {
+  background: rgba(48, 86, 211, 0.18);
+  color: var(--accent);
+}
+
+.result-card__badge--restricted {
+  background: rgba(220, 53, 69, 0.18);
+  color: #7f1420;
+}
+
+.result-card__badge--unknown {
+  background: rgba(108, 117, 125, 0.18);
+  color: var(--muted);
+}
+
+.result-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.result-card__links a {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.img-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: rgba(17, 21, 31, 0.15);
+}
+
+.harvard-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.harvard-pager__button {
+  padding: 0.55rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--fg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.harvard-pager__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.harvard-pager__button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.harvard-pager__indicator {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.results-empty {
+  padding: 2rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: rgba(48, 86, 211, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.results-empty__tips {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
+.results-empty__clear {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.results-empty__clear:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.error-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(220, 53, 69, 0.12);
+  border: 1px solid rgba(220, 53, 69, 0.25);
+}

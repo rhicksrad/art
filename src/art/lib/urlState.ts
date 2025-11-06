@@ -1,116 +1,107 @@
-import { SearchState } from './types';
-
-type Listener = (state: SearchState) => void;
-
-const listeners = new Set<Listener>();
-
-const DEFAULTS: Required<Pick<SearchState, 'page' | 'size' | 'hasImage' | 'sort'>> = {
-  page: 1,
-  size: 30,
-  hasImage: true,
-  sort: 'relevance',
+export type SearchState = {
+  q?: string;
+  classification?: string[];
+  century?: string[];
+  sort?: 'relevance' | 'title' | 'date' | 'hasImage';
+  page?: number;
+  size?: number;
+  hasImage?: boolean;
 };
 
-const isTruthy = (value: string | null): boolean => {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
-};
+const truthyValues = new Set(['1', 'true', 'yes', 'on']);
+const falsyValues = new Set(['0', 'false', 'no', 'off']);
 
-const parseNumber = (value: string | null, fallback?: number): number | undefined => {
-  if (value == null) return fallback;
+const parseNumber = (value: string | null): number | undefined => {
+  if (!value) return undefined;
   const num = Number(value);
-  if (!Number.isFinite(num)) return fallback;
-  return num;
+  return Number.isFinite(num) ? num : undefined;
 };
 
-const parseArray = (params: URLSearchParams, key: string): string[] | undefined => {
-  const values = params.getAll(key).map((entry) => entry.trim()).filter(Boolean);
-  return values.length > 0 ? values : undefined;
-};
-
-const clamp = (value: number, min: number, max: number): number => {
-  return Math.min(max, Math.max(min, value));
-};
-
-let currentState: SearchState | null = null;
-
-export const readState = (): SearchState => {
-  const params = new URLSearchParams(window.location.search);
-  const q = params.get('q')?.trim() || undefined;
-  const classification = parseArray(params, 'classification');
-  const century = parseArray(params, 'century');
-  const sortParam = params.get('sort') as SearchState['sort'] | null;
-  const sort: SearchState['sort'] = sortParam && ['relevance', 'title', 'date', 'hasImage'].includes(sortParam)
-    ? sortParam
-    : DEFAULTS.sort;
-  const page = clamp(parseNumber(params.get('page'), DEFAULTS.page) ?? DEFAULTS.page, 1, 9999);
-  const size = clamp(parseNumber(params.get('size'), DEFAULTS.size) ?? DEFAULTS.size, 10, 100);
-  const hasImageParam = params.has('hasImage') ? params.get('hasImage') : null;
-  const hasImage = hasImageParam === null ? DEFAULTS.hasImage : isTruthy(hasImageParam);
-
-  const state: SearchState = {
-    q,
-    classification,
-    century,
-    sort,
-    page,
-    size,
-    hasImage,
-  };
-
-  currentState = state;
-  return state;
+const parseArray = (values: string[]): string[] | undefined => {
+  const all: string[] = [];
+  for (const value of values) {
+    const parts = value
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+    all.push(...parts);
+  }
+  if (all.length === 0) {
+    return undefined;
+  }
+  const unique = Array.from(new Set(all));
+  return unique.length > 0 ? unique : undefined;
 };
 
 const toSearchParams = (state: SearchState): URLSearchParams => {
   const params = new URLSearchParams();
   if (state.q) params.set('q', state.q);
-  for (const value of state.classification ?? []) {
-    params.append('classification', value);
+  const writeMulti = (key: 'classification' | 'century', values?: string[]) => {
+    if (!values || values.length === 0) return;
+    values.forEach((value) => params.append(key, value));
+  };
+  writeMulti('classification', state.classification);
+  writeMulti('century', state.century);
+  if (state.sort) params.set('sort', state.sort);
+  if (typeof state.page === 'number' && state.page > 1) {
+    params.set('page', String(Math.trunc(state.page)));
+  } else if (state.page === 1) {
+    params.set('page', '1');
   }
-  for (const value of state.century ?? []) {
-    params.append('century', value);
+  if (typeof state.size === 'number' && state.size > 0) {
+    params.set('size', String(Math.trunc(state.size)));
   }
-  const size = state.size ?? DEFAULTS.size;
-  if (size !== DEFAULTS.size) params.set('size', String(clamp(size, 10, 100)));
-  const page = state.page ?? DEFAULTS.page;
-  if (page !== DEFAULTS.page) params.set('page', String(Math.max(1, page)));
-  const sort = state.sort ?? DEFAULTS.sort;
-  if (sort !== DEFAULTS.sort) params.set('sort', sort);
-  const hasImage = state.hasImage ?? DEFAULTS.hasImage;
-  if (hasImage !== DEFAULTS.hasImage) params.set('hasImage', hasImage ? '1' : '0');
+  if (typeof state.hasImage === 'boolean') {
+    params.set('hasImage', state.hasImage ? '1' : '0');
+  }
   return params;
 };
 
-const notify = (state: SearchState): void => {
-  for (const listener of listeners) {
-    listener(state);
+export function readState(loc: Location = window.location): SearchState {
+  const params = new URLSearchParams(loc.search);
+  const classification = parseArray(params.getAll('classification'));
+  const century = parseArray(params.getAll('century'));
+  const sort = params.get('sort') as SearchState['sort'] | null;
+  const size = parseNumber(params.get('size'));
+  const page = parseNumber(params.get('page'));
+  const hasImageParam = params.get('hasImage');
+  let hasImage: boolean | undefined;
+  if (hasImageParam) {
+    const lower = hasImageParam.toLowerCase();
+    if (truthyValues.has(lower)) hasImage = true;
+    else if (falsyValues.has(lower)) hasImage = false;
   }
-};
 
-export const writeState = (state: SearchState, options: { replace?: boolean } = {}): void => {
+  const state: SearchState = {};
+  const q = params.get('q');
+  if (q && q.trim()) state.q = q.trim();
+  if (classification) state.classification = classification;
+  if (century) state.century = century;
+  if (sort && ['relevance', 'title', 'date', 'hasImage'].includes(sort)) {
+    state.sort = sort;
+  }
+  if (typeof size === 'number' && size > 0) state.size = size;
+  if (typeof page === 'number' && page > 0) state.page = page;
+  if (typeof hasImage === 'boolean') state.hasImage = hasImage;
+  return state;
+}
+
+export function writeState(state: SearchState, replace = false): void {
   const params = toSearchParams(state);
-  const query = params.toString();
-  const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
-  const method = options.replace ? 'replaceState' : 'pushState';
-  window.history[method](null, '', url);
-  currentState = { ...state };
-  notify(currentState);
-};
-
-window.addEventListener('popstate', () => {
-  const next = readState();
-  notify(next);
-});
-
-export const onStateChange = (listener: Listener): (() => void) => {
-  listeners.add(listener);
-  if (currentState == null) {
-    currentState = readState();
+  const search = params.toString();
+  const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+  if (replace) {
+    window.history.replaceState(null, '', url);
+  } else {
+    window.history.pushState(null, '', url);
   }
-  listener(currentState);
-  return () => {
-    listeners.delete(listener);
-  };
-};
+}
+
+export function onStateChange(cb: (s: SearchState) => void): () => void {
+  const handler = () => cb(readState());
+  window.addEventListener('popstate', handler);
+  cb(readState());
+  return () => window.removeEventListener('popstate', handler);
+}
+
+export { toSearchParams as _internalStateToSearchParams };

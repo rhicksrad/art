@@ -1,147 +1,101 @@
-import { SearchState } from '../lib/types';
+import type { SearchState } from '../lib/urlState';
 
 type FacetKey = 'classification' | 'century';
 
-type FacetDefinition = {
-  key: FacetKey;
-  label: string;
-};
+type FacetDef = { key: FacetKey; label: string };
 
 type FacetCounts = Record<string, Record<string, number>>;
 
-type OnChange = (state: SearchState) => void;
+const formatCount = (count: number): string => new Intl.NumberFormat().format(count);
 
-const getValues = (state: SearchState, key: FacetKey): string[] | undefined => {
-  return key === 'classification' ? state.classification : state.century;
-};
-
-const setValues = (state: SearchState, key: FacetKey, values: string[] | undefined): SearchState => {
-  if (key === 'classification') {
-    return { ...state, classification: values };
-  }
-  return { ...state, century: values };
-};
-
-const sortEntries = (entries: [string, number][]): [string, number][] => {
-  return entries.sort((a, b) => {
-    if (b[1] === a[1]) {
-      return a[0].localeCompare(b[0], undefined, { sensitivity: 'base' });
-    }
-    return b[1] - a[1];
-  });
-};
-
-const createOption = (
-  facet: FacetDefinition,
-  value: string,
-  count: number,
+export function Facets(
+  defs: FacetDef[],
+  counts: FacetCounts,
   state: SearchState,
-  onChange: OnChange,
-): HTMLLIElement => {
-  const li = document.createElement('li');
-  const id = `${facet.key}-${value}`.replace(/[^a-z0-9_-]/gi, '_');
-
-  const label = document.createElement('label');
-  label.className = 'facet-option';
-  label.setAttribute('for', id);
-
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.id = id;
-  input.name = facet.key;
-  input.value = value;
-  input.checked = getValues(state, facet.key)?.includes(value) ?? false;
-
-  input.addEventListener('change', () => {
-    const current = new Set(getValues(state, facet.key) ?? []);
-    if (input.checked) {
-      current.add(value);
-    } else {
-      current.delete(value);
-    }
-    const nextValues = current.size > 0 ? Array.from(current) : undefined;
-    const nextState = setValues({ ...state, page: 1 }, facet.key, nextValues);
-    onChange(nextState);
-  });
-
-  const text = document.createElement('span');
-  text.className = 'facet-option__label';
-  text.textContent = value;
-
-  const badge = document.createElement('span');
-  badge.className = 'facet-option__count';
-  badge.textContent = String(count);
-
-  label.append(input, text, badge);
-  li.appendChild(label);
-  return li;
-};
-
-const createClearButton = (facet: FacetDefinition, state: SearchState, onChange: OnChange): HTMLButtonElement => {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'facet__clear';
-  button.textContent = 'Clear';
-  button.disabled = !(getValues(state, facet.key)?.length);
-  button.addEventListener('click', () => {
-    if (!getValues(state, facet.key)?.length) return;
-    const nextState = setValues({ ...state, page: 1 }, facet.key, undefined);
-    onChange(nextState);
-  });
-  return button;
-};
-
-export const Facets = (
-  definitions: FacetDefinition[],
-  data: FacetCounts,
-  state: SearchState,
-  onChange: OnChange,
-): HTMLElement => {
-  const container = document.createElement('aside');
+  onChange: (s: SearchState) => void,
+): HTMLElement {
+  const container = document.createElement('section');
   container.className = 'facets';
+  container.setAttribute('aria-label', 'Filter results');
 
-  definitions.forEach((facet) => {
-    const wrapper = document.createElement('section');
-    wrapper.className = 'facet';
+  defs.forEach((def) => {
+    const group = document.createElement('fieldset');
+    group.className = 'facet-group';
 
-    const header = document.createElement('header');
-    header.className = 'facet__header';
+    const legend = document.createElement('legend');
+    legend.textContent = def.label;
+    group.appendChild(legend);
 
-    const title = document.createElement('h3');
-    title.textContent = facet.label;
-    header.appendChild(title);
+    const options = document.createElement('div');
+    options.className = 'facet-group__options';
 
-    header.appendChild(createClearButton(facet, state, onChange));
-    wrapper.appendChild(header);
+    const values = counts[def.key] ?? {};
+    const entries = Object.entries(values).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-    const list = document.createElement('ul');
-    list.className = 'facet__list';
-
-    const counts = data[facet.key] ?? {};
-    const selected = getValues(state, facet.key) ?? [];
-
-    const entries = sortEntries(Object.entries(counts));
-    for (const [value, count] of entries) {
-      list.appendChild(createOption(facet, value, count, state, onChange));
-    }
-
-    // Ensure selected values always visible even when count missing from page-level aggregation
-    for (const value of selected) {
-      if (counts[value] != null) continue;
-      list.appendChild(createOption(facet, value, 0, state, onChange));
-    }
-
-    if (!list.children.length) {
+    if (entries.length === 0) {
       const empty = document.createElement('p');
-      empty.className = 'facet__empty';
-      empty.textContent = 'No facet data yet';
-      wrapper.appendChild(empty);
-    } else {
-      wrapper.appendChild(list);
+      empty.className = 'facet-group__empty';
+      empty.textContent = 'No options available.';
+      group.appendChild(empty);
+      container.appendChild(group);
+      return;
     }
 
-    container.appendChild(wrapper);
+    const selected = new Set(state[def.key] ?? []);
+
+    entries.forEach(([value, count]) => {
+      const id = `facet-${def.key}-${value.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'facet-option';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = id;
+      checkbox.name = def.key;
+      checkbox.value = value;
+      checkbox.checked = selected.has(value);
+
+      checkbox.addEventListener('change', () => {
+        const next = new Set(state[def.key] ?? []);
+        if (checkbox.checked) {
+          next.add(value);
+        } else {
+          next.delete(value);
+        }
+        const updated = { ...state, page: 1, [def.key]: Array.from(next) } as SearchState;
+        onChange(updated);
+      });
+
+      const label = document.createElement('label');
+      label.htmlFor = id;
+      label.className = 'facet-option__label';
+      label.textContent = value;
+
+      const countEl = document.createElement('span');
+      countEl.className = 'facet-option__count';
+      countEl.textContent = formatCount(count);
+
+      wrapper.append(checkbox, label, countEl);
+      options.appendChild(wrapper);
+    });
+
+    if ((state[def.key] ?? []).length > 0) {
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'facet-group__clear';
+      clearBtn.textContent = 'Clear';
+      clearBtn.addEventListener('click', () => {
+        const updated = { ...state, page: 1, [def.key]: [] } as SearchState;
+        onChange(updated);
+      });
+      group.appendChild(clearBtn);
+    }
+
+    group.appendChild(options);
+    container.appendChild(group);
   });
 
   return container;
-};
+}
+
+export type { FacetDef };
