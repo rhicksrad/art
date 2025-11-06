@@ -1,3 +1,4 @@
+import { WORKER_BASE } from '../../../lib/config';
 import { NormalArt, SearchState } from '../types';
 
 const SEARCH_ENDPOINT = '/princeton-art/search';
@@ -191,11 +192,25 @@ const detailUrl = (id: string): string => {
   return `${OBJECT_ENDPOINT}/${encodeURIComponent(id)}`;
 };
 
+const withWorkerBase = (path: string, params?: URLSearchParams): URL => {
+  const url = new URL(path, WORKER_BASE);
+  if (params) {
+    params.forEach((value, key) => {
+      url.searchParams.set(key, value);
+    });
+  }
+  if (!url.searchParams.has('ttl')) {
+    url.searchParams.set('ttl', '3600');
+  }
+  return url;
+};
+
 const fetchDetail = async (id: string, signal?: AbortSignal): Promise<DetailRecord | null> => {
   if (detailCache.has(id)) {
     return detailCache.get(id);
   }
-  const res = await fetch(detailUrl(id), { signal });
+  const url = withWorkerBase(detailUrl(id));
+  const res = await fetch(url.toString(), { signal });
   if (!res.ok) {
     if (res.status === 404) {
       detailCache.set(id, null);
@@ -208,11 +223,9 @@ const fetchDetail = async (id: string, signal?: AbortSignal): Promise<DetailReco
   return json;
 };
 
-const fetchSearch = async (
-  params: URLSearchParams,
-  signal?: AbortSignal,
-): Promise<SearchResponse> => {
-  const res = await fetch(`${SEARCH_ENDPOINT}?${params.toString()}`, { signal });
+const fetchSearch = async (params: URLSearchParams, signal?: AbortSignal): Promise<SearchResponse> => {
+  const url = withWorkerBase(SEARCH_ENDPOINT, params);
+  const res = await fetch(url.toString(), { signal });
   if (!res.ok) {
     throw new Error(`Princeton search ${res.status}`);
   }
