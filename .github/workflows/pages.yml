@@ -27,14 +27,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Do NOT set cache: pnpm here; it requires pnpm to exist
 
-      - name: Ensure pnpm
+      - name: Ensure pnpm 9.12.3
         shell: bash
         run: |
           set -euxo pipefail
           corepack enable || true
-          corepack prepare pnpm@9 --activate || npm i -g pnpm@9
+          corepack prepare pnpm@9.12.3 --activate || npm i -g pnpm@9.12.3
           pnpm -v
           pnpm config set store-dir ~/.pnpm-store
 
