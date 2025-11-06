@@ -1,6 +1,8 @@
 import { WORKER_BASE } from "./config";
 
-type QueryParams = Record<string, string | number | boolean>;
+type QueryParamValue = string | number | boolean;
+
+type QueryParams = Record<string, QueryParamValue>;
 
 const toSearchParams = (params: QueryParams): URLSearchParams => {
   const searchParams = new URLSearchParams();
@@ -12,10 +14,7 @@ const toSearchParams = (params: QueryParams): URLSearchParams => {
   return searchParams;
 };
 
-export async function fetchJSON<T = unknown>(
-  path: string,
-  params: QueryParams = {}
-): Promise<T> {
+const buildUrl = (path: string, params: QueryParams = {}): URL => {
   const queryParams: QueryParams = { ...params };
 
   if (!Object.prototype.hasOwnProperty.call(queryParams, "ttl")) {
@@ -30,6 +29,15 @@ export async function fetchJSON<T = unknown>(
     url.search = queryString;
   }
 
+  return url;
+};
+
+const request = async <T>(
+  path: string,
+  params: QueryParams,
+  parse: (response: Response) => Promise<T>
+): Promise<T> => {
+  const url = buildUrl(path, params);
   const response = await fetch(url.toString());
 
   if (!response.ok) {
@@ -38,5 +46,19 @@ export async function fetchJSON<T = unknown>(
     );
   }
 
-  return response.json() as Promise<T>;
+  return parse(response);
+};
+
+export async function fetchJSON<T = unknown>(
+  path: string,
+  params: QueryParams = {}
+): Promise<T> {
+  return request<T>(path, params, (response) => response.json() as Promise<T>);
+}
+
+export async function fetchText(
+  path: string,
+  params: QueryParams = {}
+): Promise<string> {
+  return request(path, params, (response) => response.text());
 }
