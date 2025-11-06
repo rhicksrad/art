@@ -319,6 +319,368 @@ section {
   font-size: 0.85rem;
 }
 
+.dv-intro {
+  color: var(--muted);
+  margin-top: -0.5rem;
+}
+
+.dv-search {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.dv-search__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.dv-search__field span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.dv-search__field--split {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dv-search__group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dv-search__group legend {
+  padding: 0 0.25rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.dv-search__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.dv-search__checkbox {
+  width: 1rem;
+  height: 1rem;
+}
+
+.dv-search__input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: inherit;
+}
+
+.dv-search__input:focus-visible,
+.dv-search__checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dv-search__submit {
+  justify-self: flex-start;
+  padding: 0.65rem 1.6rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.dv-search__submit:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.dv-status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dv-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .dv-layout {
+    grid-template-columns: 1fr;
+  }
+  .dv-layout__facets {
+    order: 2;
+  }
+  .dv-layout__results {
+    order: 1;
+  }
+}
+
+.dv-layout__facets {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.dv-layout__results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dv-results {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.dv-card {
+  display: grid;
+  grid-template-columns: minmax(110px, 140px) 1fr;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 640px) {
+  .dv-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dv-card__media {
+  width: 100%;
+  border-radius: calc(var(--radius) - 0.25rem);
+  overflow: hidden;
+  background: rgba(17, 19, 24, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dv-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dv-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.dv-card__badge {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(48, 86, 211, 0.12);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dv-card__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.dv-card__title a {
+  color: inherit;
+}
+
+.dv-card__title a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.dv-card__description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.dv-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.dv-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.dv-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dv-card__action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: rgba(48, 86, 211, 0.08);
+}
+
+.dv-card__action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dv-facets {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dv-facet {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.dv-facet__title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+}
+
+.dv-facet__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dv-facet__item {
+  display: flex;
+}
+
+.dv-facet__label {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.dv-facet__label:hover,
+.dv-facet__label:focus-within {
+  background: rgba(48, 86, 211, 0.08);
+}
+
+.dv-facet__checkbox {
+  width: 1rem;
+  height: 1rem;
+}
+
+.dv-facet__name {
+  font-size: 0.85rem;
+}
+
+.dv-facet__count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  justify-self: flex-end;
+}
+
+.dv-facet__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dv-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.dv-empty h3 {
+  margin-bottom: 0.5rem;
+}
+
+.dv-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.dv-error__message {
+  margin: 0;
+  color: #7f1420;
+  font-size: 0.9rem;
+}
+
+.dv-error__retry {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  background: #7f1420;
+  color: white;
+  cursor: pointer;
+}
+
+.dv-error__retry:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+.dv-sentinel {
+  height: 1px;
+}
+
 .alert {
   border-radius: var(--radius);
   padding: 0.85rem 1rem;

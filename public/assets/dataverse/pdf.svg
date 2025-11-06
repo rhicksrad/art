@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-hidden="true">
+  <rect width="120" height="120" rx="20" fill="#fde8e8" />
+  <path d="M42 30h36l12 14v44a6 6 0 0 1-6 6H42a6 6 0 0 1-6-6V36a6 6 0 0 1 6-6z" fill="#d64045" />
+  <path d="M78 30v10a6 6 0 0 0 6 6h10z" fill="#b12a34" />
+  <text x="60" y="76" text-anchor="middle" font-family="'Inter', 'Segoe UI', sans-serif" font-size="28" font-weight="700" fill="#fff">PDF</text>
+</svg>
