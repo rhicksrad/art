@@ -1,4 +1,6 @@
 import { createAlert } from "../components/Alert";
+import { createCard, CardProps } from "../components/Card";
+import { createPager } from "../components/Pager";
 import { setSiteStatus } from "../components/SiteHeader";
 import { fetchJSON } from "../lib/http";
 
@@ -77,7 +79,45 @@ const mount = (el: HTMLElement): void => {
   statusContainer.textContent = "Loading status check…";
   section.appendChild(statusContainer);
 
+  const resultsSection = document.createElement("section");
+  resultsSection.className = "results";
+
+  const resultsHeading = document.createElement("h3");
+  resultsHeading.textContent = "Results";
+  resultsSection.appendChild(resultsHeading);
+
+  const resultsList = document.createElement("div");
+  resultsList.className = "results-list";
+  resultsSection.appendChild(resultsList);
+
+  const pager = createPager({
+    page: 1,
+    hasPrev: false,
+    hasNext: false,
+    onPrev: () => {},
+    onNext: () => {},
+  });
+  resultsSection.appendChild(pager);
+
+  const updateResults = (items: CardProps[]): void => {
+    resultsList.innerHTML = "";
+    if (items.length === 0) {
+      const placeholder = document.createElement("p");
+      placeholder.className = "results-placeholder";
+      placeholder.textContent = "No results yet.";
+      resultsList.appendChild(placeholder);
+      return;
+    }
+
+    items.forEach((item) => {
+      resultsList.appendChild(createCard(item));
+    });
+  };
+
+  updateResults([]);
+
   el.appendChild(section);
+  el.appendChild(resultsSection);
 
   setSiteStatus("loading");
 
@@ -85,6 +125,45 @@ const mount = (el: HTMLElement): void => {
     .then((data) => {
       renderStatus(statusContainer, data);
       setSiteStatus(data.ok ? "ok" : "error", data.ok ? "Online" : "Check service");
+
+      const endpointSummary = (data.endpoints ?? []).slice(0, 2).join(", ");
+      const keyEntries = Object.entries(data.keys ?? {}).slice(0, 2);
+
+      const results: CardProps[] = [
+        {
+          title: data.ok ? "Service online" : "Service issue detected",
+          sub: data.now ? `Reported ${data.now}` : undefined,
+          meta:
+            endpointSummary.length > 0
+              ? `Endpoints: ${endpointSummary}`
+              : undefined,
+        },
+      ];
+
+      if (endpointSummary.length === 0 && (data.endpoints ?? []).length > 0) {
+        const [firstEndpoint] = data.endpoints ?? [];
+        if (typeof firstEndpoint === "string" && firstEndpoint.length > 0) {
+          results.push({
+            title: firstEndpoint,
+            sub: "Endpoint",
+            meta: data.ok ? "Reachable" : "Check status",
+          });
+        }
+      }
+
+      if (keyEntries.length > 0) {
+        const [firstKey] = keyEntries[0];
+        const keyMeta = keyEntries
+          .map(([key, value]) => `${key}: ${String(value)}`)
+          .join(", ");
+        results.push({
+          title: `Key ${firstKey}`,
+          sub: `${keyEntries.length} key${keyEntries.length === 1 ? "" : "s"}`,
+          meta: keyMeta,
+        });
+      }
+
+      updateResults(results.slice(0, 3));
     })
     .catch((error: Error) => {
       statusContainer.innerHTML = "";
@@ -95,6 +174,7 @@ const mount = (el: HTMLElement): void => {
       section.insertBefore(alert, statusContainer);
       statusContainer.textContent = "Status information is unavailable.";
       setSiteStatus("error", "Unavailable");
+      updateResults([]);
     });
 };
 

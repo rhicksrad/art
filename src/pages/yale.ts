@@ -1,4 +1,6 @@
 import { createAlert } from "../components/Alert";
+import { createCard, CardProps } from "../components/Card";
+import { createPager } from "../components/Pager";
 import { fetchJSON } from "../lib/http";
 
 type ManifestResponse = {
@@ -75,6 +77,43 @@ const mount = (el: HTMLElement): void => {
   const resultLine = document.createElement("p");
   resultLine.textContent = "Enter a IIIF manifest URL to test the Yale endpoint.";
 
+  const resultsSection = document.createElement("section");
+  resultsSection.className = "results";
+
+  const resultsHeading = document.createElement("h3");
+  resultsHeading.textContent = "Results";
+  resultsSection.appendChild(resultsHeading);
+
+  const resultsList = document.createElement("div");
+  resultsList.className = "results-list";
+  resultsSection.appendChild(resultsList);
+
+  const pager = createPager({
+    page: 1,
+    hasPrev: false,
+    hasNext: false,
+    onPrev: () => {},
+    onNext: () => {},
+  });
+  resultsSection.appendChild(pager);
+
+  const updateResults = (items: CardProps[]): void => {
+    resultsList.innerHTML = "";
+    if (items.length === 0) {
+      const placeholder = document.createElement("p");
+      placeholder.className = "results-placeholder";
+      placeholder.textContent = "No results yet.";
+      resultsList.appendChild(placeholder);
+      return;
+    }
+
+    items.forEach((item) => {
+      resultsList.appendChild(createCard(item));
+    });
+  };
+
+  updateResults([]);
+
   const clearAlert = (): void => {
     if (currentAlert) {
       currentAlert.remove();
@@ -94,6 +133,7 @@ const mount = (el: HTMLElement): void => {
     }
 
     resultLine.textContent = "Testing manifest…";
+    updateResults([]);
 
     fetchJSON<ManifestResponse>("/yale-iiif", { url: manifestUrl })
       .then((data) => {
@@ -102,6 +142,18 @@ const mount = (el: HTMLElement): void => {
           ? manifestLabel
           : "Manifest loaded";
         resultLine.textContent = `Probe OK: ${detail}.`;
+
+        const cards: CardProps[] = [
+          {
+            title: manifestLabel && manifestLabel.length > 0 ? manifestLabel : "Result #1",
+            sub: "IIIF manifest",
+            meta: manifestUrl,
+            href: manifestUrl,
+            rawLink: true,
+          },
+        ];
+
+        updateResults(cards);
       })
       .catch((error: Error) => {
         resultLine.textContent = "";
@@ -110,10 +162,11 @@ const mount = (el: HTMLElement): void => {
           "error",
         );
         el.insertBefore(currentAlert, form);
+        updateResults([]);
       });
   });
 
-  el.append(form, resultLine);
+  el.append(form, resultLine, resultsSection);
 };
 
 export default mount;
