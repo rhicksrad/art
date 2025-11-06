@@ -10,10 +10,30 @@ const routes: Record<string, () => Promise<{ default: { mount: (el: HTMLElement)
   '/arxiv.html': () => import('./pages/arxiv'),
 };
 
+const normalizeBasePath = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '/') {
+    return '/';
+  }
+  const ensured = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return ensured.endsWith('/') ? ensured.slice(0, -1) || '/' : ensured;
+};
+
+const BASE_PATH = normalizeBasePath(import.meta.env.BASE_URL ?? '/');
+
+const stripBasePath = (pathname: string): string => {
+  if (BASE_PATH === '/' || !pathname.startsWith(BASE_PATH)) {
+    return pathname;
+  }
+  const stripped = pathname.slice(BASE_PATH.length) || '/';
+  return stripped.startsWith('/') ? stripped : `/${stripped}`;
+};
+
 const resolvePath = (): string => {
   const url = new URL(window.location.href);
-  const pathname = url.pathname.endsWith('/') && url.pathname.length > 1 ? url.pathname.slice(0, -1) : url.pathname;
-  return pathname === '' ? '/' : pathname;
+  const trimmed = url.pathname.endsWith('/') && url.pathname.length > 1 ? url.pathname.slice(0, -1) : url.pathname;
+  const normalized = stripBasePath(trimmed);
+  return normalized === '' ? '/' : normalized;
 };
 
 const mount = async (): Promise<void> => {
