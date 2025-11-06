@@ -1,116 +1,82 @@
-import { SearchState } from './types';
-
-type Listener = (state: SearchState) => void;
-
-const listeners = new Set<Listener>();
-
-const DEFAULTS: Required<Pick<SearchState, 'page' | 'size' | 'hasImage' | 'sort'>> = {
-  page: 1,
-  size: 30,
-  hasImage: true,
-  sort: 'relevance',
+export type ViewerState = {
+  manifest?: string;
+  canvas?: string;
+  xywh?: [number, number, number, number];
+  zoom?: number;
+  rotation?: 0 | 90 | 180 | 270;
 };
 
-const isTruthy = (value: string | null): boolean => {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+const ROTATION_VALUES: Array<0 | 90 | 180 | 270> = [0, 90, 180, 270];
+
+const clampRotation = (value: number | undefined): 0 | 90 | 180 | 270 | undefined => {
+  if (value === undefined || Number.isNaN(value)) {
+    return undefined;
+  }
+  const normalized = ((value % 360) + 360) % 360;
+  const match = ROTATION_VALUES.find((r) => r === normalized);
+  return match;
 };
 
-const parseNumber = (value: string | null, fallback?: number): number | undefined => {
-  if (value == null) return fallback;
-  const num = Number(value);
-  if (!Number.isFinite(num)) return fallback;
-  return num;
+const parseNumber = (value: string | null): number | undefined => {
+  if (value === null) return undefined;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const parseArray = (params: URLSearchParams, key: string): string[] | undefined => {
-  const values = params.getAll(key).map((entry) => entry.trim()).filter(Boolean);
-  return values.length > 0 ? values : undefined;
+const parseXYWH = (value: string | null): [number, number, number, number] | undefined => {
+  if (!value) return undefined;
+  const parts = value.split(',').map((part) => Number.parseFloat(part.trim()));
+  if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+    return undefined;
+  }
+  return [parts[0], parts[1], parts[2], parts[3]];
 };
 
-const clamp = (value: number, min: number, max: number): number => {
-  return Math.min(max, Math.max(min, value));
-};
+export function readViewerState(loc: Location = window.location): ViewerState {
+  const params = new URLSearchParams(loc.search);
 
-let currentState: SearchState | null = null;
+  const manifest = params.get('manifest') ?? undefined;
+  const canvas = params.get('canvas') ?? undefined;
+  const xywh = parseXYWH(params.get('xywh'));
+  const zoom = parseNumber(params.get('zoom'));
+  const rotation = clampRotation(parseNumber(params.get('rotation')));
 
-export const readState = (): SearchState => {
-  const params = new URLSearchParams(window.location.search);
-  const q = params.get('q')?.trim() || undefined;
-  const classification = parseArray(params, 'classification');
-  const century = parseArray(params, 'century');
-  const sortParam = params.get('sort') as SearchState['sort'] | null;
-  const sort: SearchState['sort'] = sortParam && ['relevance', 'title', 'date', 'hasImage'].includes(sortParam)
-    ? sortParam
-    : DEFAULTS.sort;
-  const page = clamp(parseNumber(params.get('page'), DEFAULTS.page) ?? DEFAULTS.page, 1, 9999);
-  const size = clamp(parseNumber(params.get('size'), DEFAULTS.size) ?? DEFAULTS.size, 10, 100);
-  const hasImageParam = params.has('hasImage') ? params.get('hasImage') : null;
-  const hasImage = hasImageParam === null ? DEFAULTS.hasImage : isTruthy(hasImageParam);
-
-  const state: SearchState = {
-    q,
-    classification,
-    century,
-    sort,
-    page,
-    size,
-    hasImage,
-  };
-
-  currentState = state;
+  const state: ViewerState = {};
+  if (manifest) state.manifest = manifest;
+  if (canvas) state.canvas = canvas;
+  if (xywh) state.xywh = xywh;
+  if (zoom !== undefined) state.zoom = zoom;
+  if (rotation !== undefined) state.rotation = rotation;
   return state;
+}
+
+const formatXYWH = (xywh: [number, number, number, number]): string => {
+  return xywh.map((value, index) => (index < 2 ? Math.round(value) : Math.max(Math.round(value), 1))).join(',');
 };
 
-const toSearchParams = (state: SearchState): URLSearchParams => {
-  const params = new URLSearchParams();
-  if (state.q) params.set('q', state.q);
-  for (const value of state.classification ?? []) {
-    params.append('classification', value);
-  }
-  for (const value of state.century ?? []) {
-    params.append('century', value);
-  }
-  const size = state.size ?? DEFAULTS.size;
-  if (size !== DEFAULTS.size) params.set('size', String(clamp(size, 10, 100)));
-  const page = state.page ?? DEFAULTS.page;
-  if (page !== DEFAULTS.page) params.set('page', String(Math.max(1, page)));
-  const sort = state.sort ?? DEFAULTS.sort;
-  if (sort !== DEFAULTS.sort) params.set('sort', sort);
-  const hasImage = state.hasImage ?? DEFAULTS.hasImage;
-  if (hasImage !== DEFAULTS.hasImage) params.set('hasImage', hasImage ? '1' : '0');
-  return params;
-};
+export function writeViewerState(state: ViewerState, replace = false): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
 
-const notify = (state: SearchState): void => {
-  for (const listener of listeners) {
-    listener(state);
-  }
-};
-
-export const writeState = (state: SearchState, options: { replace?: boolean } = {}): void => {
-  const params = toSearchParams(state);
-  const query = params.toString();
-  const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
-  const method = options.replace ? 'replaceState' : 'pushState';
-  window.history[method](null, '', url);
-  currentState = { ...state };
-  notify(currentState);
-};
-
-window.addEventListener('popstate', () => {
-  const next = readState();
-  notify(next);
-});
-
-export const onStateChange = (listener: Listener): (() => void) => {
-  listeners.add(listener);
-  if (currentState == null) {
-    currentState = readState();
-  }
-  listener(currentState);
-  return () => {
-    listeners.delete(listener);
+  const assign = (key: string, value: string | undefined) => {
+    if (value === undefined || value.length === 0) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
   };
-};
+
+  assign('manifest', state.manifest);
+  assign('canvas', state.canvas);
+  assign('zoom', state.zoom !== undefined ? state.zoom.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : undefined);
+  assign('rotation', state.rotation !== undefined ? String(state.rotation) : undefined);
+  assign('xywh', state.xywh ? formatXYWH(state.xywh) : undefined);
+
+  const nextUrl = `${url.pathname}${params.toString() ? `?${params.toString()}` : ''}${url.hash}`;
+  if (replace) {
+    window.history.replaceState(null, '', nextUrl);
+  } else {
+    window.history.pushState(null, '', nextUrl);
+  }
+}
