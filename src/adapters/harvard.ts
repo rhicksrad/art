@@ -3,33 +3,33 @@ import type { ItemCard } from '../lib/types';
 
 const HarvardImageSchema = z
   .object({
-    iiifbaseuri: z.string().trim().min(1).optional(),
-    baseimageurl: z.string().trim().min(1).optional(),
-    format: z.string().optional(),
+    iiifbaseuri: z.string().nullish(),
+    baseimageurl: z.string().nullish(),
+    format: z.string().nullish(),
   })
   .passthrough();
 
 const HarvardPersonSchema = z
   .object({
-    name: z.string().trim().optional(),
-    displayname: z.string().trim().optional(),
-    role: z.string().optional(),
+    name: z.string().nullish(),
+    displayname: z.string().nullish(),
+    role: z.string().nullish(),
   })
   .passthrough();
 
 export const HarvardRecordSchema = z
   .object({
     id: z.union([z.string(), z.number()]),
-    title: z.string().optional(),
-    objectnumber: z.string().optional(),
-    dated: z.string().optional(),
-    culture: z.string().optional(),
-    classification: z.string().optional(),
-    technique: z.string().optional(),
-    url: z.string().optional(),
-    primaryimageurl: z.string().optional(),
-    images: z.array(HarvardImageSchema).optional(),
-    people: z.array(HarvardPersonSchema).optional(),
+    title: z.string().nullish(),
+    objectnumber: z.string().nullish(),
+    dated: z.string().nullish(),
+    culture: z.string().nullish(),
+    classification: z.string().nullish(),
+    technique: z.string().nullish(),
+    url: z.string().nullish(),
+    primaryimageurl: z.string().nullish(),
+    images: z.array(HarvardImageSchema).nullish(),
+    people: z.array(HarvardPersonSchema).nullish(),
   })
   .passthrough();
 
