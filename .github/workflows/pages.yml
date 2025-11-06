@@ -1,4 +1,4 @@
-name: deploy
+name: pages
 
 on:
   push:
@@ -6,10 +6,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: pages-deploy-${{ github.ref }}
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -25,23 +27,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
 
-      # Ensure pnpm exists even if cache/actions are flaky
-      - name: Ensure pnpm is installed
+      # Ensure pnpm exists no matter what
+      - name: Ensure pnpm
         shell: bash
         run: |
           set -euxo pipefail
           if ! command -v pnpm >/dev/null 2>&1; then
             corepack enable || true
-            corepack prepare pnpm@9 --activate || true
-          fi
-          if ! command -v pnpm >/dev/null 2>&1; then
-            npm i -g pnpm@9
+            corepack prepare pnpm@9 --activate || npm i -g pnpm@9
           fi
           pnpm -v
-
-      - name: Improve cache hit rate
-        run: pnpm config set store-dir ~/.pnpm-store
+          pnpm config set store-dir ~/.pnpm-store
 
       - name: Install
         run: pnpm install --frozen-lockfile=false
@@ -55,12 +53,21 @@ jobs:
         env:
           CI: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: pnpm build
+        run: |
+          pnpm build
+          ls -R dist
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          force_orphan: true
+          path: ./dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
