@@ -1,7 +1,11 @@
-import { axisBottom, axisLeft } from "d3-axis";
-import { max } from "d3-array";
-import { scaleBand, scaleLinear } from "d3-scale";
-import { select } from "d3-selection";
+import {
+  axisBottom,
+  axisLeft,
+  max,
+  scaleBand,
+  scaleLinear,
+  select,
+} from "d3";
 import type { ChartDatum } from "../lib/analytics";
 
 export type BarChartProps = {

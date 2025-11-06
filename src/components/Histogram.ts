@@ -1,8 +1,13 @@
-import { axisBottom, axisLeft } from "d3-axis";
-import { bin, extent, max } from "d3-array";
-import type { Bin } from "d3-array";
-import { scaleLinear } from "d3-scale";
-import { select } from "d3-selection";
+import {
+  axisBottom,
+  axisLeft,
+  bin,
+  extent,
+  max,
+  scaleLinear,
+  select,
+  type Bin,
+} from "d3";
 
 export type HistogramProps = {
   values: number[];
