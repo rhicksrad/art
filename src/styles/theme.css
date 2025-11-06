@@ -259,6 +259,135 @@ section {
   object-fit: cover;
 }
 
+.page__intro {
+  margin: 0;
+  color: var(--muted);
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.result-list__empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.result-card--arxiv {
+  padding: 1.25rem 1.5rem;
+  gap: 1rem;
+}
+
+.result-card__header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.result-card__icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.result-card__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.result-card__authors {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.result-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgba(93, 104, 134, 0.2);
+  background: rgba(93, 104, 134, 0.12);
+  color: var(--muted);
+}
+
+.chip--accent {
+  background: rgba(48, 86, 211, 0.18);
+  border-color: rgba(48, 86, 211, 0.35);
+  color: var(--accent);
+}
+
+.chip--muted {
+  background: rgba(93, 104, 134, 0.12);
+  border-color: rgba(93, 104, 134, 0.2);
+  color: var(--muted);
+}
+
+.result-card__abstract {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.result-card__abstract summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+  list-style: none;
+}
+
+.result-card__abstract summary::-webkit-details-marker {
+  display: none;
+}
+
+.result-card__abstract summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.result-card__summary {
+  margin: 0.75rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}
+
+.result-card__actions {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.load-more {
+  margin: 1.5rem auto 0;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.load-more:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .card__body {
   padding: 1.25rem;
   display: flex;
