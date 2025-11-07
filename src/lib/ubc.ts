@@ -3,6 +3,7 @@ import { fetchJSON, HttpError, toQuery } from './http';
 const STORAGE_KEY = 'ubcIndex';
 const FALLBACK_INDEX = 'calendars';
 const UBC_DIRECT_BASE = 'https://oc-index.library.ubc.ca';
+const COLLECTIONS_PATH = '/collections';
 const ALPHA_PATTERN = /^[A-Za-z]/;
 
 type CollectionsResponse = {
@@ -121,6 +122,24 @@ const pickSlug = (response: CollectionsResponse | undefined): string => {
   return match ?? FALLBACK_INDEX;
 };
 
+const fetchCollectionsDirect = async (): Promise<CollectionsResponse | undefined> => {
+  const url = new URL(COLLECTIONS_PATH, UBC_DIRECT_BASE);
+  const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new HttpError(`Direct request to ${url.toString()} failed with status ${response.status}`, {
+      status: response.status,
+      url: url.toString(),
+      contentType: response.headers.get('content-type') ?? undefined,
+      sample: text,
+    });
+  }
+  if (!text) {
+    return undefined;
+  }
+  return JSON.parse(text) as CollectionsResponse;
+};
+
 export const setUbcIndex = (index: string): string => {
   const slug = normaliseSlug(index) ?? FALLBACK_INDEX;
   writeToStorage(slug);
@@ -128,10 +147,25 @@ export const setUbcIndex = (index: string): string => {
 };
 
 export const refreshUbcIndex = async (): Promise<string> => {
-  const response = await fetchJSON<CollectionsResponse>('/ubc/collections', { ttl: 0 });
-  const slug = pickSlug(response);
-  setUbcIndex(slug);
-  return slug;
+  try {
+    const response = await fetchJSON<CollectionsResponse>('/ubc/collections', { ttl: 0 });
+    const dataRecord = response && typeof response === 'object' ? (response as Record<string, unknown>).data : undefined;
+    const routeMessage =
+      typeof dataRecord === 'object' && dataRecord && 'route' in (dataRecord as Record<string, unknown>)
+        ? String((dataRecord as Record<string, unknown>).route ?? '')
+        : '';
+    if (routeMessage.toLowerCase().includes('missed route')) {
+      throw new Error(routeMessage);
+    }
+    const slug = pickSlug(response);
+    setUbcIndex(slug);
+    return slug;
+  } catch (error) {
+    const response = await fetchCollectionsDirect().catch(() => undefined);
+    const slug = pickSlug(response);
+    setUbcIndex(slug);
+    return slug;
+  }
 };
 
 export const getUbcIndex = async (): Promise<string> => {
@@ -281,7 +315,10 @@ export const searchUbc = async (
     }
     return response;
   } catch (error) {
-    if (error instanceof HttpError && error.status === 500) {
+    if (
+      error instanceof HttpError &&
+      [400, 401, 403, 404, 500, 502, 503, 504, 522, 523, 524].includes(error.status)
+    ) {
       return await fetchDirect(error);
     }
     throw error;
