@@ -1,8 +1,9 @@
 import { createAlert } from '../components/Alert';
 import { createCard, CardProps } from '../components/Card';
 import { setSiteStatus } from '../components/SiteHeader';
-import { fetchJSON, HttpError } from '../lib/http';
+import { HttpError } from '../lib/http';
 import { exportCsv } from '../lib/csv';
+import { isJsonTransport, requestUbcOai } from '../lib/oai';
 
 const DEFAULT_METADATA_PREFIX = 'oai_dc';
 
@@ -324,6 +325,78 @@ const createPlaceholder = (text: string): HTMLParagraphElement => {
   return placeholder;
 };
 
+const OAI_NS = 'http://www.openarchives.org/OAI/2.0/';
+
+const parseXml = (xml: string): Document => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'application/xml');
+  const parserError = doc.querySelector('parsererror');
+  if (parserError) {
+    throw new Error(parserError.textContent ?? 'Invalid XML response from OAI service.');
+  }
+  return doc;
+};
+
+const getFirstElement = (root: Element | Document, localName: string): Element | null => {
+  const candidates = root.getElementsByTagNameNS(OAI_NS, localName);
+  return candidates.length > 0 ? (candidates.item(0) as Element) : null;
+};
+
+const readText = (element: Element | null): string | undefined => {
+  if (!element) {
+    return undefined;
+  }
+  const text = element.textContent ?? '';
+  const trimmed = text.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const collectTexts = (root: Element | Document, localName: string): string[] => {
+  const nodes = root.getElementsByTagNameNS(OAI_NS, localName);
+  const results: string[] = [];
+  for (let index = 0; index < nodes.length; index += 1) {
+    const text = readText(nodes.item(index) as Element);
+    if (text) {
+      results.push(text);
+    }
+  }
+  return results;
+};
+
+const parseIdentifyXml = (xml: string): IdentifyResponse => {
+  const doc = parseXml(xml);
+  const error = readText(getFirstElement(doc, 'error'));
+  if (error) {
+    throw new Error(error);
+  }
+  const identify = getFirstElement(doc, 'Identify');
+  if (!identify) {
+    return {};
+  }
+  const repositoryName = readText(getFirstElement(identify, 'repositoryName'));
+  const baseURL = readText(getFirstElement(identify, 'baseURL'));
+  return { Identify: { repositoryName, baseURL }, repositoryName };
+};
+
+const parseListRecordsXml = (xml: string): ListRecordsResult => {
+  const doc = parseXml(xml);
+  const error = readText(getFirstElement(doc, 'error'));
+  if (error) {
+    throw new Error(error);
+  }
+  const recordNodes = Array.from(doc.getElementsByTagNameNS(OAI_NS, 'record')) as Element[];
+  const records: OaiRecord[] = recordNodes.map((recordEl, index) => {
+    const header = getFirstElement(recordEl, 'header') ?? recordEl;
+    const identifier =
+      readText(getFirstElement(header, 'identifier')) ?? `Record ${index + 1}`;
+    const datestamp = readText(getFirstElement(header, 'datestamp'));
+    const setSpecs = collectTexts(header, 'setSpec');
+    return { identifier, datestamp, setSpecs };
+  });
+  const resumptionToken = readText(getFirstElement(doc, 'resumptionToken')) ?? undefined;
+  return { records, resumptionToken };
+};
+
 const mount = (el: HTMLElement): void => {
   el.innerHTML = '';
 
@@ -461,13 +534,12 @@ const mount = (el: HTMLElement): void => {
     identifyStatus.textContent = 'Running Identify probe…';
     alertContainer.innerHTML = '';
     try {
-      const response = await fetchJSON<IdentifyResponse>(
-        '/ubc-oai',
-        { verb: 'Identify', ttl: '0' },
-        { cache: 'no-store' },
-      );
+      const transport = await requestUbcOai({ verb: 'Identify' }, { cache: 'no-store' });
+      const data: IdentifyResponse = isJsonTransport(transport)
+        ? (transport.data as IdentifyResponse)
+        : parseIdentifyXml(transport.xml);
       const repositoryName =
-        response.repositoryName ?? response.Identify?.repositoryName ?? 'Unknown repository';
+        data.repositoryName ?? data.Identify?.repositoryName ?? 'Unknown repository';
       identifyStatus.textContent = `Identify OK: ${repositoryName}`;
       setSiteStatus('ok', 'OAI online');
     } catch (error) {
@@ -494,14 +566,18 @@ const mount = (el: HTMLElement): void => {
     updateButtons();
 
     try {
-      const requestParams = { ...params, ttl: '0' };
-      const response = await fetchJSON<unknown>('/ubc-oai', requestParams, { cache: 'no-store' });
-      const errorMessage = findOaiError(response);
-      if (errorMessage) {
-        throw new Error(errorMessage);
-      }
-
-      const parsed = parseListRecords(response);
+      const requestParams = { ...params };
+      const transport = await requestUbcOai(requestParams, { cache: 'no-store' });
+      const parsed = isJsonTransport(transport)
+        ? (() => {
+            const response = transport.data;
+            const errorMessage = findOaiError(response);
+            if (errorMessage) {
+              throw new Error(errorMessage);
+            }
+            return parseListRecords(response);
+          })()
+        : parseListRecordsXml(transport.xml);
       nextToken = parsed.resumptionToken ?? null;
       records = append ? records.concat(parsed.records) : parsed.records;
 
