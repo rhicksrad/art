@@ -397,7 +397,7 @@ export const searchPrinceton = async (
   const start = (page - 1) * size;
   const end = start + size;
   const pageSlice = sorted.slice(start, end);
-  const facets = buildFacetCounts(pageSlice);
+  const facets = buildFacetCounts(sorted);
   const items = pageSlice.map((entry) => entry.item);
   const complete = offset >= totalAvailable;
   const total = complete ? sorted.length : Math.max(sorted.length, totalAvailable);

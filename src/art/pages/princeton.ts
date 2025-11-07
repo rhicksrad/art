@@ -30,14 +30,25 @@ type SearchPayload = {
 const cache = new Map<string, SearchPayload>();
 let inFlight: AbortController | null = null;
 
+const canonicalList = (values: string[] | undefined): string[] => {
+  if (!values || values.length === 0) {
+    return [];
+  }
+  return values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+};
+
 const stateKey = (state: SearchState): string => {
   const params = new URLSearchParams();
-  if (state.q) params.set('q', state.q);
-  for (const value of state.classification ?? []) params.append('classification', value);
-  for (const value of state.century ?? []) params.append('century', value);
+  const query = state.q?.trim();
+  if (query) params.set('q', query);
+  canonicalList(state.classification).forEach((value) => params.append('classification', value));
+  canonicalList(state.century).forEach((value) => params.append('century', value));
   if (state.sort) params.set('sort', state.sort);
-  if (state.page) params.set('page', String(state.page));
-  if (state.size) params.set('size', String(state.size));
+  if (state.page && state.page > 0) params.set('page', String(Math.floor(state.page)));
+  if (state.size && state.size > 0) params.set('size', String(Math.floor(state.size)));
   if (state.hasImage === false) params.set('hasImage', '0');
   if (state.hasImage === true) params.set('hasImage', '1');
   return params.toString();
