@@ -152,6 +152,36 @@ export const deriveIiifService = (hit: unknown): string | undefined => {
   return undefined;
 };
 
+const cleanDate = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const withoutEra = trimmed.replace(/\s+(AD|BC)$/i, '');
+  if (/^\d{4}-\d{2}-\d{2}T/.test(withoutEra)) {
+    return withoutEra.split('T')[0];
+  }
+  return withoutEra;
+};
+
+const parseHandle = (value: string | undefined): { repo: string; collection: string; key: string } | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const parts = value.split('.').filter((segment) => segment.trim().length > 0);
+  if (parts.length < 3) {
+    return undefined;
+  }
+  const [repo, collection, ...rest] = parts;
+  if (!repo || !collection || rest.length === 0) {
+    return undefined;
+  }
+  return { repo, collection, key: rest.join('.') };
+};
+
 const deriveImage = (hit: UnknownRecord): string | undefined => {
   const source = getSource(hit);
   const direct = extractFirstString(
@@ -172,7 +202,22 @@ const deriveImage = (hit: UnknownRecord): string | undefined => {
 };
 
 const deriveIdentifier = (hit: UnknownRecord): string => {
-  const candidates = [hit.id, hit.identifier, hit.url, hit.href, hit.source, hit.handle];
+  const source = getSource(hit);
+  const handle = extractFirstString(source.ubc_internal_handle ?? source.handle);
+  const parsedHandle = parseHandle(handle ?? undefined);
+  const handleKey = parsedHandle?.key;
+  const candidates = [
+    hit.id,
+    hit.identifier,
+    hit.url,
+    hit.href,
+    hit.source,
+    hit.handle,
+    source.identifier,
+    source.id,
+    typeof hit._id === 'string' ? hit._id : undefined,
+    handleKey,
+  ];
   for (const candidate of candidates) {
     const value = extractFirstString(candidate);
     if (value) {
@@ -182,9 +227,49 @@ const deriveIdentifier = (hit: UnknownRecord): string => {
   return `ubc-item-${Math.random().toString(36).slice(2)}`;
 };
 
+const deriveHref = (hit: UnknownRecord, source: UnknownRecord): string | undefined => {
+  const direct = extractFirstString(source.url ?? source.href ?? source.source ?? source.identifier);
+  if (direct && /^https?:/i.test(direct)) {
+    return direct;
+  }
+
+  const itemId =
+    extractFirstString(source.identifier ?? source.id) ?? (typeof hit._id === 'string' ? hit._id : undefined);
+  if (!itemId) {
+    return undefined;
+  }
+
+  const handle = extractFirstString(source.ubc_internal_handle ?? source.handle);
+  const parsedHandle = parseHandle(handle);
+  if (parsedHandle && parsedHandle.repo.toLowerCase() === 'cdm') {
+    return `https://open.library.ubc.ca/collections/${parsedHandle.collection}/items/${encodeURIComponent(itemId)}`;
+  }
+
+  if (parsedHandle && /^https?:/i.test(parsedHandle.key)) {
+    return parsedHandle.key;
+  }
+
+  if (parsedHandle && parsedHandle.collection) {
+    return `https://open.library.ubc.ca/collections/${parsedHandle.collection}/items/${encodeURIComponent(itemId)}`;
+  }
+
+  const indexName = typeof hit._index === 'string' ? hit._index : undefined;
+  if (indexName) {
+    const indexParts = indexName.split('.');
+    if (indexParts.length >= 2) {
+      const collectionPart = indexParts[1].split('-')[0];
+      if (collectionPart) {
+        return `https://open.library.ubc.ca/collections/${collectionPart}/items/${encodeURIComponent(itemId)}`;
+      }
+    }
+  }
+
+  return `https://open.library.ubc.ca/items/${encodeURIComponent(itemId)}`;
+};
+
 const toCard = (hit: UnknownRecord): ItemCard => {
   const source = getSource(hit);
-  const identifier = deriveIdentifier(source);
+  const identifier = deriveIdentifier(hit);
   const title =
     extractFirstString(source.title) ??
     extractFirstString(source.label) ??
@@ -193,13 +278,18 @@ const toCard = (hit: UnknownRecord): ItemCard => {
   const sub =
     extractFirstString(source.creator) ??
     extractFirstString(source.contributor) ??
-    extractFirstString(source.collection);
+    extractFirstString(source.collection) ??
+    extractFirstString(source.subject) ??
+    extractFirstString(source.geographicLocation);
   const date =
     extractFirstString(source.date) ??
     extractFirstString(source.issued) ??
     extractFirstString(source.displayDate) ??
-    extractFirstString(source.created);
+    extractFirstString(source.created) ??
+    cleanDate(extractFirstString(source.ubc_date_sort)) ??
+    cleanDate(extractFirstString(source.dateAvailable ?? source.date_available));
   const href =
+    deriveHref(hit, source) ??
     extractFirstString(source.url) ??
     extractFirstString(source.href) ??
     extractFirstString(source.source) ??
@@ -208,6 +298,7 @@ const toCard = (hit: UnknownRecord): ItemCard => {
   const tags = [
     ...collectStrings(source.collection),
     ...collectStrings(source.type ?? source.format),
+    ...collectStrings(source.genre),
   ];
   const uniqueTags = Array.from(new Set(tags.filter((value) => value.length > 0)));
 
@@ -217,7 +308,7 @@ const toCard = (hit: UnknownRecord): ItemCard => {
     sub,
     date,
     tags: uniqueTags.length > 0 ? uniqueTags : undefined,
-    img: deriveImage(source),
+    img: deriveImage(hit),
     href,
     source: 'UBC',
     raw: hit,
