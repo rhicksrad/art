@@ -1,4 +1,5 @@
 import { WORKER_BASE } from './config';
+import { fetchWithOfflineFallback } from './offlineFixtures';
 
 export type QueryValue = string | number | boolean | null | undefined;
 
@@ -116,7 +117,7 @@ export async function fetchJSON<T = unknown>(
   const url = buildUrl(path, params);
   const headers = mergeHeaders(init, { Accept: 'application/json' });
 
-  const response = await fetch(url.toString(), { ...init, headers });
+  const response = await fetchWithOfflineFallback(url, { ...init, headers });
   const contentType = response.headers.get('content-type') ?? undefined;
   const text = await response.text();
 
@@ -161,7 +162,7 @@ export async function fetchText(
   const url = buildUrl(path, params);
   const headers = mergeHeaders(init, { Accept: accept });
 
-  const response = await fetch(url.toString(), { ...init, headers });
+  const response = await fetchWithOfflineFallback(url, { ...init, headers });
   const contentType = response.headers.get('content-type') ?? undefined;
   const text = await response.text();
 

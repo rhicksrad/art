@@ -1,4 +1,5 @@
 import { fetchJSON, HttpError, toQuery } from './http';
+import { fetchWithOfflineFallback } from './offlineFixtures';
 
 const STORAGE_KEY = 'ubcIndex';
 const FALLBACK_INDEX = 'calendars';
@@ -124,7 +125,7 @@ const pickSlug = (response: CollectionsResponse | undefined): string => {
 
 const fetchCollectionsDirect = async (): Promise<CollectionsResponse | undefined> => {
   const url = new URL(COLLECTIONS_PATH, UBC_DIRECT_BASE);
-  const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  const response = await fetchWithOfflineFallback(url, { headers: { Accept: 'application/json' } });
   const text = await response.text();
   if (!response.ok) {
     throw new HttpError(`Direct request to ${url.toString()} failed with status ${response.status}`, {
@@ -290,7 +291,7 @@ export const searchUbc = async (
       });
     }
 
-    const response = await fetch(url.toString(), { ...init, headers });
+    const response = await fetchWithOfflineFallback(url, { ...init, headers });
     const contentType = response.headers.get('content-type') ?? undefined;
     const text = await response.text();
 

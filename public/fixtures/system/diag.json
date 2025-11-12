@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "version": "offline-sample",
+  "bindings": {
+    "HARVARD_ARTMUSEUMS_KEY": true,
+    "UBC_OC_API_KEY": true
+  },
+  "base": {
+    "DATAVERSE_BASE": "https://dataverse.harvard.edu"
+  }
+}

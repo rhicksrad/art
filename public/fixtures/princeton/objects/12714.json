@@ -1,0 +1,38 @@
+{
+  "objectid": 12714,
+  "displaytitle": "Haystack #4",
+  "displaymaker": "Roy Lichtenstein",
+  "displaydate": "1969",
+  "classification": "Prints",
+  "classifications": [
+    { "classification": "Prints" }
+  ],
+  "cultures": [
+    { "displayculture": "American" }
+  ],
+  "media": [
+    {
+      "uri": "https://media.artmuseum.princeton.edu/iiif/3/collection/x1974-2",
+      "isprimary": 1
+    }
+  ],
+  "primaryimage": [
+    "https://media.artmuseum.princeton.edu/iiif/3/collection/x1974-2"
+  ],
+  "hasimage": true,
+  "restrictions": "Public Domain",
+  "creditlinerepro": "",
+  "nowebuse": null,
+  "manifest": "https://data.artmuseum.princeton.edu/iiif/objects/12714/manifest",
+  "iiif": {
+    "service": "https://media.artmuseum.princeton.edu/iiif/3/collection/x1974-2"
+  },
+  "makers": [
+    {
+      "displaymaker": "Roy Lichtenstein",
+      "role": "Artist"
+    }
+  ],
+  "datebegin": 1969,
+  "dateend": 1969
+}

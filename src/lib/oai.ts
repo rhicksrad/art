@@ -1,6 +1,7 @@
 import { toQuery } from './http';
 import { UBC_OC_API_KEY, WORKER_BASE } from './config';
 import { HttpError } from './http';
+import { fetchWithOfflineFallback } from './offlineFixtures';
 
 const WORKER_OAI_PATH = '/ubc-oai';
 const UBC_OAI_DIRECT_BASE = 'https://oc-index.library.ubc.ca/oai';
@@ -32,7 +33,7 @@ const buildWorkerUrl = (params: QueryRecord): string => {
 const fetchWorker = async (params: QueryRecord, init?: RequestInit): Promise<unknown> => {
   const url = buildWorkerUrl(params);
   const headers = normaliseHeaders(init, { Accept: 'application/json' });
-  const response = await fetch(url, { ...init, headers });
+  const response = await fetchWithOfflineFallback(new URL(url), { ...init, headers });
   const contentType = response.headers.get('content-type') ?? undefined;
   const text = await response.text();
   if (!response.ok) {
@@ -60,7 +61,7 @@ const fetchDirect = async (params: QueryRecord, init?: RequestInit): Promise<str
   const headers = normaliseHeaders(init, {
     Accept: 'application/xml,text/xml;q=0.9,*/*;q=0.1',
   });
-  const response = await fetch(url.toString(), { ...init, headers });
+  const response = await fetchWithOfflineFallback(url, { ...init, headers });
   const contentType = response.headers.get('content-type') ?? undefined;
   const text = await response.text();
   if (!response.ok) {

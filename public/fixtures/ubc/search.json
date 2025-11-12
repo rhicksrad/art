@@ -1,0 +1,42 @@
+{
+  "hits": {
+    "hits": [
+      {
+        "_source": {
+          "id": "https://open.library.ubc.ca/collections/example/items/1",
+          "title": "Vancouver Street Scene",
+          "creator": "Unknown photographer",
+          "date": "1935",
+          "collection": "UBC Library Digitized Photographs",
+          "type": "Photograph",
+          "thumbnail": "https://example.org/ubc/iiif/1/full/600,/0/default.jpg"
+        }
+      },
+      {
+        "_source": {
+          "id": "https://open.library.ubc.ca/collections/example/items/2",
+          "title": "Festival Poster",
+          "creator": "City of Vancouver",
+          "date": "1967",
+          "collection": "Historical Calendars",
+          "type": "Poster",
+          "thumbnail": "https://example.org/ubc/iiif/2/full/600,/0/default.jpg"
+        }
+      },
+      {
+        "_source": {
+          "id": "https://open.library.ubc.ca/collections/example/items/3",
+          "title": "Architectural Drawing",
+          "creator": "Arthur Erickson",
+          "date": "1958",
+          "collection": "Canadian Architecture Collection",
+          "type": "Drawing",
+          "thumbnail": "https://example.org/ubc/iiif/3/full/600,/0/default.jpg"
+        }
+      }
+    ]
+  },
+  "aggregations": {
+    "total": 3
+  }
+}

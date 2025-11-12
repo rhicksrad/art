@@ -1,0 +1,81 @@
+{
+  "data": [
+    {
+      "id": "2000000",
+      "attributes": {
+        "title": "Illuminated Manuscript Folio",
+        "description_tesim": ["<p>Richly decorated manuscript page with gold leaf.</p>"],
+        "subjectTopic_tesim": ["Manuscripts", "Illumination"],
+        "ancestorTitles_tesim": ["Beinecke Rare Book and Manuscript Library > Rare Manuscripts"],
+        "resourceType_tesim": ["Still Image"],
+        "creator_tesim": ["Unknown"],
+        "date_ssim": ["c. 1450"],
+        "publisher_tesim": ["Yale University"],
+        "callNumber_tesim": ["MS 100"],
+        "containerGrouping_tesim": ["Box 1"],
+        "imageCount_isi": "6"
+      }
+    },
+    {
+      "id": "2000001",
+      "attributes": {
+        "title": "Architectural Drawing of Sterling Memorial Library",
+        "description_tesim": ["<p>Pencil drawing with annotations.</p>"],
+        "subjectTopic_tesim": ["Architecture", "Libraries"],
+        "ancestorTitles_tesim": ["Yale University Library > Buildings"],
+        "resourceType_tesim": ["Still Image"],
+        "creator_tesim": ["James Gamble Rogers"],
+        "date_ssim": ["1930"],
+        "publisher_tesim": ["Yale Facilities"],
+        "callNumber_tesim": ["DRW 245"],
+        "containerGrouping_tesim": ["Folder 2"],
+        "imageCount_isi": "4"
+      }
+    },
+    {
+      "id": "2000002",
+      "attributes": {
+        "title": "Photograph of the Yale Art Gallery",
+        "description_tesim": ["<p>Black and white photograph.</p>"],
+        "subjectTopic_tesim": ["Photography", "Museums"],
+        "ancestorTitles_tesim": ["Yale University Library > Photographs"],
+        "resourceType_tesim": ["Still Image"],
+        "creator_tesim": ["Yale News Bureau"],
+        "date_ssim": ["1955"],
+        "publisher_tesim": ["Yale University"],
+        "callNumber_tesim": ["PHO 512"],
+        "containerGrouping_tesim": ["Box 7"],
+        "imageCount_isi": "3"
+      }
+    }
+  ],
+  "meta": {
+    "pages": {
+      "total_count": 3,
+      "current_page": 1,
+      "total_pages": 1,
+      "limit_value": 12
+    }
+  },
+  "included": [
+    {
+      "id": "format",
+      "type": "facet",
+      "attributes": {
+        "items": [
+          { "attributes": { "value": "Still Image", "label": "Still Image", "hits": 3 } }
+        ]
+      }
+    },
+    {
+      "id": "repository_ssi",
+      "type": "facet",
+      "attributes": {
+        "items": [
+          { "attributes": { "value": "Beinecke Rare Book and Manuscript Library", "label": "Beinecke Rare Book and Manuscript Library", "hits": 1 } },
+          { "attributes": { "value": "Yale University Library", "label": "Yale University Library", "hits": 2 } }
+        ]
+      }
+    }
+  ]
+}

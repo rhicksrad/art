@@ -1,4 +1,5 @@
 import { WORKER_BASE } from '../../../lib/config';
+import { fetchWithOfflineFallback } from '../../../lib/offlineFixtures';
 import { NormalArt, SearchState } from '../types';
 
 const SEARCH_ENDPOINT = '/princeton-art/search';
@@ -210,7 +211,7 @@ const fetchDetail = async (id: string, signal?: AbortSignal): Promise<DetailReco
     return detailCache.get(id);
   }
   const url = withWorkerBase(detailUrl(id));
-  const res = await fetch(url.toString(), { signal });
+  const res = await fetchWithOfflineFallback(url, { signal });
   if (!res.ok) {
     if (res.status === 404) {
       detailCache.set(id, null);
@@ -225,7 +226,7 @@ const fetchDetail = async (id: string, signal?: AbortSignal): Promise<DetailReco
 
 const fetchSearch = async (params: URLSearchParams, signal?: AbortSignal): Promise<SearchResponse> => {
   const url = withWorkerBase(SEARCH_ENDPOINT, params);
-  const res = await fetch(url.toString(), { signal });
+  const res = await fetchWithOfflineFallback(url, { signal });
   if (!res.ok) {
     throw new Error(`Princeton search ${res.status}`);
   }

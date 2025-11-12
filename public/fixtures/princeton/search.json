@@ -1,0 +1,43 @@
+{
+  "hits": {
+    "total": 3,
+    "hits": [
+      {
+        "_id": "12714",
+        "_score": 65.59,
+        "_source": {
+          "objectid": 12714,
+          "displaytitle": "Haystack #4",
+          "displaymaker": "Roy Lichtenstein",
+          "primaryimage": [
+            "https://media.artmuseum.princeton.edu/iiif/3/collection/x1974-2"
+          ]
+        }
+      },
+      {
+        "_id": "11699",
+        "_score": 61.23,
+        "_source": {
+          "objectid": 11699,
+          "displaytitle": "View of the Pont Neuf",
+          "displaymaker": "Camille Pissarro",
+          "primaryimage": [
+            "https://media.artmuseum.princeton.edu/iiif/3/collections/12345"
+          ]
+        }
+      },
+      {
+        "_id": "7835",
+        "_score": 58.01,
+        "_source": {
+          "objectid": 7835,
+          "displaytitle": "Portrait of a Young Woman",
+          "displaymaker": "Élisabeth Vigée Le Brun",
+          "primaryimage": [
+            "https://media.artmuseum.princeton.edu/iiif/3/collection/portrait-7835"
+          ]
+        }
+      }
+    ]
+  }
+}

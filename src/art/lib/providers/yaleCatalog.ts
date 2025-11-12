@@ -1,3 +1,5 @@
+import { fetchWithOfflineFallback } from '../../../lib/offlineFixtures';
+
 const CATALOG_ENDPOINT = 'https://collections.library.yale.edu/catalog.json';
 
 const decodeHtml = (() => {
@@ -299,7 +301,8 @@ export async function searchYaleCatalog(
   signal?: AbortSignal,
 ): Promise<YaleCatalogSearchResponse> {
   const upstreamUrl = buildCatalogUrl(params);
-  const response = await fetch(buildProxyUrl(upstreamUrl), {
+  const proxyUrl = new URL(buildProxyUrl(upstreamUrl));
+  const response = await fetchWithOfflineFallback(proxyUrl, {
     signal,
     headers: {
       Accept: 'application/json',
@@ -327,3 +330,4 @@ export async function searchYaleCatalog(
 
   return parseResponse(data);
 }
+

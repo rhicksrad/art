@@ -210,7 +210,18 @@ export function IIIFViewer(
       osd = await loadOpenSeadragon();
     } catch (error) {
       console.error(error);
-      showMessage('Unable to load deep-zoom viewer.');
+      if (nextCanvas.image?.best) {
+        const img = document.createElement('img');
+        img.src = nextCanvas.image.best;
+        img.alt = `${nextCanvas.label} (static preview)`;
+        img.className = 'iiif-viewer__fallback';
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        stageWrapper.replaceChildren(img);
+        hideMessage();
+      } else {
+        showMessage('Unable to load deep-zoom viewer.');
+      }
       return;
     }
 

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+  <responseDate>2024-01-01T00:00:00Z</responseDate>
+  <request verb="ListRecords" metadataPrefix="oai_dc">https://open.library.ubc.ca/oai</request>
+  <ListRecords>
+    <record>
+      <header>
+        <identifier>oai:ubc.ca:example/1</identifier>
+        <datestamp>2023-09-01</datestamp>
+        <setSpec>photographs</setSpec>
+      </header>
+      <metadata>
+        <oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>UBC Campus Photograph</dc:title>
+          <dc:creator>University Photographer</dc:creator>
+          <dc:date>1950</dc:date>
+          <dc:type>Photograph</dc:type>
+        </oai_dc:dc>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ubc.ca:example/2</identifier>
+        <datestamp>2023-08-15</datestamp>
+        <setSpec>calendars</setSpec>
+      </header>
+      <metadata>
+        <oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>Community Festival Poster</dc:title>
+          <dc:creator>City of Vancouver</dc:creator>
+          <dc:date>1967</dc:date>
+          <dc:type>Poster</dc:type>
+        </oai_dc:dc>
+      </metadata>
+    </record>
+  </ListRecords>
+</OAI-PMH>
