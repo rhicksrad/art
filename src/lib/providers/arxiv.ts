@@ -1,4 +1,5 @@
 import { attr, parseXml, serializeElement, textContent } from '../atom';
+import { HttpError, fetchText } from '../http';
 import { fetchWithOfflineFallback } from '../offlineFixtures';
 import { ArxivState } from './types';
 
@@ -169,27 +170,50 @@ export const searchArxiv = async (state: ArxivState, signal?: AbortSignal): Prom
   const size = clampPageSize(state.max_results);
   const query = normalizeQuery(state.search_query);
 
-  const params = new URLSearchParams();
-  params.set('search_query', query);
-  params.set('start', String(start));
-  params.set('max_results', String(size));
-  if (state.sortBy) params.set('sortBy', state.sortBy);
-  if (state.sortOrder) params.set('sortOrder', state.sortOrder);
+  const params = {
+    search_query: query,
+    start,
+    max_results: size,
+    sortBy: state.sortBy,
+    sortOrder: state.sortOrder,
+  };
 
-  const url = `https://export.arxiv.org/api/query?${params.toString()}`;
+  const fetchWorker = async (): Promise<string> =>
+    fetchText('/arxiv/search', params, 'application/atom+xml', { signal });
 
-  const response = await fetchWithOfflineFallback(new URL(url), {
-    signal,
-    headers: {
-      Accept: 'application/atom+xml',
-    },
+  const fetchDirect = async (cause?: unknown): Promise<string> => {
+    const searchParams = new URLSearchParams();
+    searchParams.set('search_query', query);
+    searchParams.set('start', String(start));
+    searchParams.set('max_results', String(size));
+    if (state.sortBy) searchParams.set('sortBy', state.sortBy);
+    if (state.sortOrder) searchParams.set('sortOrder', state.sortOrder);
+
+    const url = new URL(`https://export.arxiv.org/api/query?${searchParams.toString()}`);
+    const response = await fetchWithOfflineFallback(url, {
+      signal,
+      headers: {
+        Accept: 'application/atom+xml',
+      },
+    });
+
+    if (!response.ok) {
+      const error = new Error(`arXiv request failed (${response.status})`);
+      if (cause !== undefined) {
+        (error as Error & { cause?: unknown }).cause = cause;
+      }
+      throw error;
+    }
+
+    return response.text();
+  };
+
+  const xml = await fetchWorker().catch((error) => {
+    if ((error as DOMException)?.name === 'AbortError') {
+      throw error;
+    }
+    return fetchDirect(error instanceof HttpError ? error : undefined);
   });
-
-  if (!response.ok) {
-    throw new Error(`arXiv request failed (${response.status})`);
-  }
-
-  const xml = await response.text();
   const { items, total } = parseAtom(xml);
   const filtered = applyLocalFilters(items, state);
   const nextStart = start + size < total ? start + size : undefined;
