@@ -268,6 +268,20 @@ export const mount = (root: HTMLElement): void => {
     pagination.bind(state);
   };
 
+  const idlePayload: SearchPayload = { items: [], total: 0, facets: {}, nextPage: undefined };
+
+  const showIdleState = (state: SearchState) => {
+    const prompt = document.createElement('p');
+    prompt.className = 'page__status';
+    prompt.textContent = 'Enter a search term to explore the collection.';
+    resultsRoot.replaceChildren(prompt);
+    facetsRoot.replaceChildren();
+    status.textContent = 'Enter a search term to begin.';
+    const normalizedState = { ...state, page: state.page ?? 1 };
+    pagination.update(normalizedState, idlePayload);
+    pagination.bind(normalizedState);
+  };
+
   const setLoading = () => {
     status.textContent = 'Loading…';
   };
@@ -302,6 +316,13 @@ export const mount = (root: HTMLElement): void => {
     fields.sizeSelect.value = String(state.size ?? 30);
     fields.imageCheckbox.checked = state.hasImage !== false;
     setState(state);
+
+    if (!state.q?.trim()) {
+      inFlight?.abort();
+      inFlight = null;
+      showIdleState(state);
+      return;
+    }
 
     const key = stateKey(state);
     const cached = cache.get(key);
