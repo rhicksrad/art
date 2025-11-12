@@ -1,0 +1,38 @@
+{
+  "objectid": 7835,
+  "displaytitle": "Portrait of a Young Woman",
+  "displaymaker": "Élisabeth Vigée Le Brun",
+  "displaydate": "1784",
+  "classification": "Paintings",
+  "classifications": [
+    { "classification": "Paintings" }
+  ],
+  "cultures": [
+    { "displayculture": "French" }
+  ],
+  "media": [
+    {
+      "uri": "https://media.artmuseum.princeton.edu/iiif/3/collection/portrait-7835",
+      "isprimary": 1
+    }
+  ],
+  "primaryimage": [
+    "https://media.artmuseum.princeton.edu/iiif/3/collection/portrait-7835"
+  ],
+  "hasimage": true,
+  "restrictions": "Public Domain",
+  "creditlinerepro": "",
+  "nowebuse": null,
+  "manifest": "https://data.artmuseum.princeton.edu/iiif/objects/7835/manifest",
+  "iiif": {
+    "service": "https://media.artmuseum.princeton.edu/iiif/3/collection/portrait-7835"
+  },
+  "makers": [
+    {
+      "displaymaker": "Élisabeth Vigée Le Brun",
+      "role": "Artist"
+    }
+  ],
+  "datebegin": 1784,
+  "dateend": 1784
+}

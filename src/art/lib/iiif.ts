@@ -1,3 +1,5 @@
+import { fetchWithOfflineFallback } from '../../lib/offlineFixtures';
+
 export type IIIFImage = {
   id: string;
   service?: string;
@@ -327,25 +329,30 @@ const buildCanvases = (manifest: Record<string, unknown>): IIIFCanvas[] => {
 };
 
 export async function loadManifest(url: string, signal?: AbortSignal): Promise<IIIFManifest> {
-  const response = await fetch(url, {
-    headers: { Accept: ACCEPT_HEADER },
-    mode: 'cors',
-    signal,
-  }).catch((error: unknown) => {
-    const origin = (() => {
-      try {
-        const parsed = new URL(url);
-        return parsed.origin;
-      } catch {
-        return url;
-      }
-    })();
+  const targetUrl = (() => {
+    try {
+      return new URL(url);
+    } catch {
+      const base = typeof window !== 'undefined' && window.location ? window.location.href : 'http://localhost/';
+      return new URL(url, base);
+    }
+  })();
+
+  let response: Response;
+  try {
+    response = await fetchWithOfflineFallback(targetUrl, {
+      headers: { Accept: ACCEPT_HEADER },
+      mode: 'cors',
+      signal,
+    });
+  } catch (error) {
+    const origin = targetUrl.origin || url;
     const message =
       error instanceof Error
         ? `Unable to fetch manifest. The server at ${origin} may be blocking CORS or is unreachable. (${error.message})`
         : `Unable to fetch manifest. The server at ${origin} may be blocking CORS.`;
     throw new Error(message);
-  });
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');

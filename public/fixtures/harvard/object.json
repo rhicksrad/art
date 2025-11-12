@@ -1,0 +1,94 @@
+{
+  "records": [
+    {
+      "objectid": 299843,
+      "title": "The Japanese Footbridge",
+      "dated": "1899",
+      "people": [
+        { "displayname": "Claude Monet", "role": "Artist" }
+      ],
+      "classification": "Paintings",
+      "culture": "French",
+      "primaryimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV279843_dynmc?width=600",
+      "images": [
+        {
+          "iiifbaseuri": "https://nrs.harvard.edu/urn-3:HUAM:INV279843",
+          "baseimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV279843_dynmc"
+        }
+      ],
+      "url": "https://www.harvardartmuseums.org/collections/object/299843",
+      "iiifmanifest": "https://iiif.harvardartmuseums.org/manifests/object/299843",
+      "hasimage": 1,
+      "imagecount": 1,
+      "imagepermissionlevel": 0,
+      "copyright": "Public Domain"
+    },
+    {
+      "objectid": 201091,
+      "title": "Portrait of a Lady",
+      "dated": "c. 1775",
+      "people": [
+        { "displayname": "John Singleton Copley", "role": "Artist" }
+      ],
+      "classification": "Paintings",
+      "culture": "American",
+      "primaryimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV201091_dynmc?width=600",
+      "images": [
+        {
+          "iiifbaseuri": "https://nrs.harvard.edu/urn-3:HUAM:INV201091",
+          "baseimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV201091_dynmc"
+        }
+      ],
+      "url": "https://www.harvardartmuseums.org/collections/object/201091",
+      "iiifmanifest": "https://iiif.harvardartmuseums.org/manifests/object/201091",
+      "hasimage": 1,
+      "imagecount": 1,
+      "imagepermissionlevel": 0,
+      "copyright": "Public Domain"
+    },
+    {
+      "objectid": 54691,
+      "title": "Landscape with Cottages",
+      "dated": "1640",
+      "people": [
+        { "displayname": "Rembrandt Harmensz. van Rijn", "role": "Artist" }
+      ],
+      "classification": "Prints",
+      "culture": "Dutch",
+      "primaryimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV54691_dynmc?width=600",
+      "images": [
+        {
+          "iiifbaseuri": "https://nrs.harvard.edu/urn-3:HUAM:INV54691",
+          "baseimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV54691_dynmc"
+        }
+      ],
+      "url": "https://www.harvardartmuseums.org/collections/object/54691",
+      "iiifmanifest": "https://iiif.harvardartmuseums.org/manifests/object/54691",
+      "hasimage": 1,
+      "imagecount": 1,
+      "imagepermissionlevel": 0,
+      "copyright": "Public Domain"
+    }
+  ],
+  "aggregations": {
+    "classifications": {
+      "buckets": [
+        { "key": "Paintings", "doc_count": 2 },
+        { "key": "Prints", "doc_count": 1 }
+      ]
+    },
+    "centuries": {
+      "buckets": [
+        { "key": "17th century", "doc_count": 1 },
+        { "key": "18th century", "doc_count": 1 },
+        { "key": "19th century", "doc_count": 1 }
+      ]
+    }
+  },
+  "info": {
+    "totalrecordsperquery": 3,
+    "totalrecords": 3,
+    "page": 1,
+    "pages": 1
+  }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>arXiv Sample Feed</title>
+  <id>http://arxiv.org/api/sample</id>
+  <updated>2024-01-01T00:00:00Z</updated>
+  <entry>
+    <id>http://arxiv.org/abs/2401.00001</id>
+    <updated>2024-01-01T00:00:00Z</updated>
+    <published>2024-01-01T00:00:00Z</published>
+    <title>Advances in Art Analysis</title>
+    <summary>This sample entry highlights how computer vision assists art historians.</summary>
+    <author>
+      <name>Jane Researcher</name>
+    </author>
+    <category term="cs.CV"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2401.00002</id>
+    <updated>2024-01-02T00:00:00Z</updated>
+    <published>2024-01-02T00:00:00Z</published>
+    <title>Machine Learning for Cultural Heritage</title>
+    <summary>Explores machine learning techniques applied to museum collections.</summary>
+    <author>
+      <name>John Archivist</name>
+    </author>
+    <category term="cs.AI"/>
+  </entry>
+</feed>

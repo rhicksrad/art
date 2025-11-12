@@ -1,5 +1,22 @@
 const DEFAULT_WORKER_BASE = 'https://art.hicksrch.workers.dev';
 
+const detectLocalWorkerBase = (): string | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const { protocol, hostname, port } = window.location;
+  if (!protocol.startsWith('http')) {
+    return undefined;
+  }
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+  }
+
+  return undefined;
+};
+
 type RuntimeConfig = {
   WORKER_BASE?: string;
   UBC_OC_API_KEY?: string;
@@ -37,7 +54,10 @@ const resolveConfigValue = (
   return resolveFromWindow(key) ?? resolveFromEnv(envKey) ?? fallback;
 };
 
+const localWorkerBase = detectLocalWorkerBase();
+
 export const WORKER_BASE: string =
-  resolveConfigValue('WORKER_BASE', 'VITE_WORKER_BASE', DEFAULT_WORKER_BASE) ?? DEFAULT_WORKER_BASE;
+  resolveConfigValue('WORKER_BASE', 'VITE_WORKER_BASE', localWorkerBase ?? DEFAULT_WORKER_BASE) ??
+  DEFAULT_WORKER_BASE;
 
 export const UBC_OC_API_KEY: string | undefined = resolveConfigValue('UBC_OC_API_KEY', 'VITE_UBC_OC_API_KEY');

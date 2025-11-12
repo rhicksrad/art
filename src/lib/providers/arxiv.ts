@@ -1,4 +1,5 @@
 import { attr, parseXml, serializeElement, textContent } from '../atom';
+import { fetchWithOfflineFallback } from '../offlineFixtures';
 import { ArxivState } from './types';
 
 export type ArxivLink = { rel: string; href: string; type?: string };
@@ -177,7 +178,7 @@ export const searchArxiv = async (state: ArxivState, signal?: AbortSignal): Prom
 
   const url = `https://export.arxiv.org/api/query?${params.toString()}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithOfflineFallback(new URL(url), {
     signal,
     headers: {
       Accept: 'application/atom+xml',

@@ -1,0 +1,34 @@
+{
+  "data": {
+    "items": [
+      {
+        "global_id": "doi:10.7910/DVN/EXAMPLE1",
+        "name": "Global Climate Observations",
+        "type": "dataset",
+        "published_at": "2023-05-12",
+        "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/EXAMPLE1",
+        "subjects": ["Climate", "Earth Sciences"],
+        "keywords": ["temperature", "precipitation"]
+      },
+      {
+        "global_id": "doi:10.7910/DVN/EXAMPLE2",
+        "name": "Art History Image Archive",
+        "type": "dataset",
+        "published_at": "2022-11-03",
+        "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/EXAMPLE2",
+        "subjects": ["Arts"],
+        "keywords": ["painting", "photography"]
+      },
+      {
+        "global_id": "doi:10.7910/DVN/EXAMPLE3",
+        "name": "Urban Planning Surveys",
+        "type": "dataset",
+        "published_at": "2021-08-19",
+        "url": "https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/EXAMPLE3",
+        "subjects": ["Social Sciences"],
+        "keywords": ["infrastructure", "transport"]
+      }
+    ],
+    "total_count": 3
+  }
+}

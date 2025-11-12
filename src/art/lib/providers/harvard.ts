@@ -1,4 +1,5 @@
 import { WORKER_BASE } from '../../../lib/config';
+import { fetchWithOfflineFallback } from '../../../lib/offlineFixtures';
 import type { NormalArt, SearchState } from '../types';
 
 const ENDPOINT = '/harvard-art/object';
@@ -308,7 +309,7 @@ export async function searchHarvard(state: SearchState, abort?: AbortSignal): Pr
     url.searchParams.set(key, value);
   });
 
-  const response = await fetch(url.toString(), { signal: abort });
+  const response = await fetchWithOfflineFallback(url, { signal: abort });
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);
     throw new Error(`Harvard search failed: ${response.status} ${response.statusText} ${text}`);

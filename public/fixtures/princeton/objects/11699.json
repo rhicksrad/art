@@ -1,0 +1,38 @@
+{
+  "objectid": 11699,
+  "displaytitle": "View of the Pont Neuf",
+  "displaymaker": "Camille Pissarro",
+  "displaydate": "1902",
+  "classification": "Paintings",
+  "classifications": [
+    { "classification": "Paintings" }
+  ],
+  "cultures": [
+    { "displayculture": "French" }
+  ],
+  "media": [
+    {
+      "uri": "https://media.artmuseum.princeton.edu/iiif/3/collections/12345",
+      "isprimary": 1
+    }
+  ],
+  "primaryimage": [
+    "https://media.artmuseum.princeton.edu/iiif/3/collections/12345"
+  ],
+  "hasimage": true,
+  "restrictions": "Public Domain",
+  "creditlinerepro": "",
+  "nowebuse": null,
+  "manifest": "https://data.artmuseum.princeton.edu/iiif/objects/11699/manifest",
+  "iiif": {
+    "service": "https://media.artmuseum.princeton.edu/iiif/3/collections/12345"
+  },
+  "makers": [
+    {
+      "displaymaker": "Camille Pissarro",
+      "role": "Artist"
+    }
+  ],
+  "datebegin": 1902,
+  "dateend": 1902
+}
