@@ -280,11 +280,46 @@ const parseResponse = (data: unknown): YaleCatalogSearchResponse => {
   };
 };
 
-const buildProxyUrl = (url: string): string => {
+declare global {
+  interface Window {
+    __ART_WORKER_BASE__?: string;
+  }
+}
+
+const DEFAULT_WORKER_ORIGIN = 'https://art.hicksrch.workers.dev';
+
+const resolveWorkerOrigin = (): string => {
   if (typeof window === 'undefined') {
     throw new Error('Yale catalog proxy requires a browser environment.');
   }
-  const proxy = new URL('/yale-iiif', window.location.origin);
+
+  const override = window.__ART_WORKER_BASE__;
+  if (override) {
+    try {
+      return new URL(override).origin;
+    } catch {
+      console.warn('Invalid __ART_WORKER_BASE__ override; falling back to detected origin.');
+    }
+  }
+
+  try {
+    const current = new URL(window.location.origin);
+    if (
+      current.hostname === 'localhost' ||
+      current.hostname === '127.0.0.1' ||
+      current.hostname.endsWith('.workers.dev')
+    ) {
+      return current.origin;
+    }
+  } catch {
+    // ignore and fall back to default worker origin
+  }
+
+  return DEFAULT_WORKER_ORIGIN;
+};
+
+const buildProxyUrl = (url: string): string => {
+  const proxy = new URL('/yale-iiif', resolveWorkerOrigin());
   proxy.searchParams.set('url', url);
   proxy.searchParams.set('ttl', '3600');
   return proxy.toString();
