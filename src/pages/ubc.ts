@@ -8,6 +8,7 @@ import { toItemCards, extractTotal, deriveIiifManifest, deriveIiifService } from
 import { getUbcIndex, refreshUbcIndex, searchUbc, setUbcIndex } from '../lib/ubc';
 
 const DEFAULT_PAGE_SIZE = 24;
+const DEFAULT_QUERY = 'newspaper';
 const FALLBACK_INDEX = 'calendars';
 
 type SearchState = {
@@ -197,8 +198,9 @@ const mount = (el: HTMLElement): void => {
   pagerContainer.className = 'page__pager';
 
   const searchParams = new URLSearchParams(window.location.search);
+  const hasInitialQuery = searchParams.has('q');
   let state: SearchState = {
-    q: searchParams.get('q') ?? '',
+    q: hasInitialQuery ? searchParams.get('q') ?? '' : DEFAULT_QUERY,
     size: parsePositiveInt(searchParams.get('size'), DEFAULT_PAGE_SIZE),
     sort: searchParams.get('sort') ?? '',
     page: parsePage(searchParams.get('page')),
@@ -389,7 +391,29 @@ const mount = (el: HTMLElement): void => {
     },
   });
 
-  controlsRow.append(form, indexControls);
+  const runExampleSearch = (): void => {
+    state = { ...state, q: DEFAULT_QUERY, page: 1 };
+    setValues({ q: state.q, size: String(state.size), sort: state.sort });
+    updateDocumentTitle();
+    updateLocation();
+    void load();
+  };
+
+  const exampleButton = document.createElement('button');
+  exampleButton.type = 'button';
+  exampleButton.className = 'chip';
+  exampleButton.textContent = 'Try "newspaper"';
+  exampleButton.setAttribute('aria-label', 'Run example search for "newspaper"');
+  exampleButton.addEventListener('click', runExampleSearch);
+
+  controlsRow.append(form, exampleButton, indexControls);
+
+  const renderSearchPrompt = (): void => {
+    const prompt = document.createElement('p');
+    prompt.className = 'page__status';
+    prompt.textContent = 'Enter a search term to explore this collection.';
+    resultsContainer.replaceChildren(prompt);
+  };
 
   const load = async (): Promise<void> => {
     if (abortController) {
@@ -416,6 +440,21 @@ const mount = (el: HTMLElement): void => {
     const { signal } = controller;
 
     alertContainer.innerHTML = '';
+    updateDocumentTitle();
+
+    const trimmedQuery = state.q.trim();
+
+    if (!trimmedQuery) {
+      status.textContent = 'Waiting for search input.';
+      renderSearchPrompt();
+      updateRequestDisplay();
+      pager.update({ page: 1, hasPrev: false, hasNext: false });
+      if (abortController === controller) {
+        abortController = null;
+      }
+      return;
+    }
+
     status.textContent = 'Searching…';
     resultsContainer.replaceChildren(createSpinner('Searching…'));
 
@@ -428,17 +467,15 @@ const mount = (el: HTMLElement): void => {
       const from = (state.page - 1) * state.size;
       const requestUrl = buildRequestUrl({
         index,
-        q: state.q.trim() || null,
+        q: trimmedQuery || null,
         size: state.size,
         from,
         sort: state.sort.trim() || null,
       });
       updateRequestDisplay(requestUrl);
 
-      updateDocumentTitle();
-
       const response = await searchUbc(
-        state.q,
+        trimmedQuery,
         { size: state.size, from, sort: state.sort, index },
         { signal },
       );
