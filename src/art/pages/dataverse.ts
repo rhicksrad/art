@@ -520,11 +520,30 @@ export const mount = (root: HTMLElement): void => {
     status.textContent = 'Loading…';
   };
 
+  const showIdleState = (state: DVSearchState) => {
+    clearError();
+    const message = createEmptyState('Enter a keyword to start searching.');
+    resultsRoot.replaceChildren(message);
+    facetsRoot.replaceChildren();
+    status.textContent = 'Enter a search term to begin.';
+    lastQuerySignature = baseSignature(state);
+    pendingKey = null;
+  };
+
   const run = async (state: DVSearchState) => {
     currentState = state;
     toolbar.update(state);
 
     const signature = baseSignature(state);
+    const hasQuery = Boolean(state.q && state.q.trim().length > 0);
+
+    if (!hasQuery) {
+      inFlight?.abort();
+      inFlight = null;
+      showIdleState(state);
+      return;
+    }
+
     if (signature !== lastQuerySignature && state.page !== 1) {
       writeState({ ...state, page: 1 }, { replace: true });
       return;

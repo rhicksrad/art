@@ -328,6 +328,17 @@ export const mount = (root: HTMLElement): void => {
     status.textContent = `${total} result${total === 1 ? '' : 's'}`;
   };
 
+  const renderIdleState = () => {
+    currentPayload = null;
+    resultsRoot.replaceChildren();
+    const message = document.createElement('p');
+    message.className = 'page__status';
+    message.textContent = 'Enter a search term to explore the collection.';
+    resultsRoot.appendChild(message);
+    facetsRoot.replaceChildren();
+    status.textContent = 'Enter a search term to begin.';
+  };
+
   const setLoading = (state: SearchState) => {
     if ((state.page ?? 1) > 1) {
       status.textContent = 'Loading more…';
@@ -366,6 +377,15 @@ export const mount = (root: HTMLElement): void => {
     toolbar.update(state);
 
     clearError();
+
+    if (!state.q) {
+      inFlight?.abort();
+      inFlight = null;
+      loadingMore = false;
+      renderIdleState();
+      return;
+    }
+
     setLoading(state);
 
     inFlight?.abort();

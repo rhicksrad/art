@@ -335,6 +335,18 @@ const mount = (el: HTMLElement): void => {
     }
   };
 
+  const showIdleState = (): void => {
+    alertContainer.innerHTML = '';
+    cardsList.innerHTML = '';
+    const prompt = document.createElement('p');
+    prompt.className = 'page__status';
+    prompt.textContent = 'Enter a keyword to search UBC collections.';
+    resultsContainer.replaceChildren(prompt);
+    status.textContent = 'Enter a keyword to begin.';
+    pager.update({ page: state.page > 0 ? state.page : 1, hasPrev: false, hasNext: false });
+    updateRequestDisplay();
+  };
+
   const pager = createPager({
     page: state.page,
     hasPrev: state.page > 1,
@@ -383,6 +395,22 @@ const mount = (el: HTMLElement): void => {
     if (abortController) {
       abortController.abort();
     }
+
+    const query = state.q.trim();
+    if (!query) {
+      abortController = null;
+      if (state.page !== 1) {
+        state = { ...state, page: 1 };
+        updateLocation();
+      }
+      if (!currentIndex) {
+        void ensureIndex();
+      }
+      updateDocumentTitle();
+      showIdleState();
+      return;
+    }
+
     const controller = new AbortController();
     abortController = controller;
     const { signal } = controller;

@@ -51,7 +51,7 @@ type CanonicalArxivState = {
 };
 
 const DEFAULT_STATE: CanonicalArxivState = {
-  search_query: 'all:*',
+  search_query: '',
   start: 0,
   max_results: 12,
   sortBy: 'relevance',
@@ -88,7 +88,7 @@ const dedupeNumbers = (values: number[]): number[] => {
 
 const normalizeState = (input: ArxivState): CanonicalArxivState => {
   const search = (input.search_query ?? '').trim();
-  const search_query = search.length > 0 ? search : DEFAULT_STATE.search_query;
+  const search_query = search;
   const start = normalizeStart(input.start);
   const max_results = clampPageSize(input.max_results);
   const sortBy = input.sortBy ?? DEFAULT_STATE.sortBy;
@@ -118,11 +118,22 @@ const parseState = (params: URLSearchParams): CanonicalArxivState => {
 
 const serializeState = (state: CanonicalArxivState): URLSearchParams => {
   const params = new URLSearchParams();
-  params.set('search_query', state.search_query);
-  params.set('start', String(state.start));
-  params.set('max_results', String(state.max_results));
-  params.set('sortBy', state.sortBy);
-  params.set('sortOrder', state.sortOrder);
+  const hasQuery = state.search_query.length > 0;
+  if (hasQuery) {
+    params.set('search_query', state.search_query);
+  }
+  if (hasQuery || state.start !== DEFAULT_STATE.start) {
+    params.set('start', String(state.start));
+  }
+  if (hasQuery || state.max_results !== DEFAULT_STATE.max_results) {
+    params.set('max_results', String(state.max_results));
+  }
+  if (hasQuery || state.sortBy !== DEFAULT_STATE.sortBy) {
+    params.set('sortBy', state.sortBy);
+  }
+  if (hasQuery || state.sortOrder !== DEFAULT_STATE.sortOrder) {
+    params.set('sortOrder', state.sortOrder);
+  }
   state.primary_cat.forEach((value) => params.append('primary_cat', value));
   state.year.forEach((value) => params.append('year', String(value)));
   state.author.forEach((value) => params.append('author', value));
@@ -136,6 +147,10 @@ const { readState, writeState, onStateChange } = createUrlState<CanonicalArxivSt
 
 const stateCacheKey = (state: CanonicalArxivState): string => {
   return serializeState(state).toString();
+};
+
+const hasSearchQuery = (state: CanonicalArxivState): boolean => {
+  return state.search_query.length > 0;
 };
 
 type FacetKey = 'primary_cat' | 'year' | 'author';
@@ -425,9 +440,38 @@ export const mount = (root: HTMLElement): void => {
       });
   };
 
+  const showIdleState = (state: CanonicalArxivState) => {
+    inFlight?.abort();
+    inFlight = null;
+    cancelPrefetch();
+    appendTarget = null;
+    pendingNext = null;
+    isLoadingNext = false;
+    loadedKeys.clear();
+    aggregated = [];
+    total = 0;
+    baseStart = state.start;
+    resultList.replaceChildren();
+    const prompt = document.createElement('p');
+    prompt.className = 'result-list__empty';
+    prompt.textContent = 'Enter a search query to begin.';
+    resultList.appendChild(prompt);
+    loadMore.hidden = true;
+    loadMore.disabled = true;
+    loadMore.textContent = 'Load more results';
+    observer.unobserve(loadMore);
+    status.textContent = 'Enter a search query to begin.';
+    alertHost.replaceChildren();
+    facetsRoot.replaceChildren();
+  };
+
   const updateStatus = () => {
     if (aggregated.length === 0) {
-      status.textContent = 'No results for this combination.';
+      if (hasSearchQuery(currentState)) {
+        status.textContent = 'No results for this combination.';
+      } else {
+        status.textContent = 'Enter a search query to begin.';
+      }
       return;
     }
     const range = formatRange(baseStart, aggregated.length);
@@ -558,7 +602,7 @@ export const mount = (root: HTMLElement): void => {
   };
 
   const updateControls = (state: CanonicalArxivState) => {
-    searchInput.value = state.search_query === DEFAULT_STATE.search_query ? '' : state.search_query;
+    searchInput.value = state.search_query;
     sortBySelect.value = state.sortBy;
     sortOrderSelect.value = state.sortOrder;
     if (!Array.from(pageSizeSelect.options).some((option) => Number(option.value) === state.max_results)) {
@@ -582,6 +626,12 @@ export const mount = (root: HTMLElement): void => {
 
     currentState = next;
     updateControls(next);
+
+    if (!hasSearchQuery(next)) {
+      showIdleState(next);
+      return;
+    }
+
     void run(next, mode);
   };
 
@@ -679,7 +729,7 @@ export const mount = (root: HTMLElement): void => {
     const query = searchInput.value.trim();
     const next = normalizeState({
       ...currentState,
-      search_query: query.length > 0 ? query : DEFAULT_STATE.search_query,
+      search_query: query,
       start: 0,
     });
     appendTarget = null;
