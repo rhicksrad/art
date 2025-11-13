@@ -30,9 +30,18 @@ export const createSiteHeader = (): HTMLElement => {
   const header = document.createElement('header');
   header.className = 'site-header';
 
+  const copy = document.createElement('div');
+  copy.className = 'site-header__copy';
+
   const title = document.createElement('h1');
   title.className = 'site-title';
-  title.textContent = 'Academic Resource Toolkit';
+  title.textContent = 'Art API Explorer';
+
+  const subtitle = document.createElement('p');
+  subtitle.className = 'site-subtitle';
+  subtitle.textContent = 'Unified worker + visual console for open art data.';
+
+  copy.append(title, subtitle);
 
   statusElement = document.createElement('span');
   statusElement.className = 'status-pill';
@@ -45,7 +54,7 @@ export const createSiteHeader = (): HTMLElement => {
   statusLabel.textContent = 'Status';
   statusWrapper.append(statusLabel, statusElement);
 
-  header.append(title, statusWrapper);
+  header.append(copy, statusWrapper);
 
   setSiteStatus('loading');
 

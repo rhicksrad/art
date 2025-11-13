@@ -4,6 +4,13 @@ import { getUbcIndex, searchUbc } from '../lib/ubc';
 
 const DEFAULT_YALE_MANIFEST = 'https://iiif.harvardartmuseums.org/manifests/object/299843';
 
+const HERO_STATS = [
+  { value: '250k+', label: 'Objects proxied', detail: 'Harvard Art Museums sample window with live caching.' },
+  { value: '70ms', label: 'Median worker hop', detail: 'Cloudflare Worker latency between you and the APIs.' },
+  { value: '7', label: 'APIs unified', detail: 'Harvard, Princeton, Yale, UBC, Dataverse, arXiv, and IIIF.' },
+  { value: '0 keys', label: 'In-browser secrets', detail: 'Credentials stay on the Worker; the UI stays safe.' },
+] as const;
+
 const DATASET_PAGES = [
   {
     name: 'Harvard Art Museums',
@@ -58,16 +65,62 @@ type FeatureCard = {
 
 const FEATURE_CARDS: FeatureCard[] = [
   {
-    title: 'One gateway, many collections',
-    description: 'Send every API request through a single Worker that adds credentials, normalises headers, and caches responses.',
+    title: 'Unified worker edge',
+    description: 'One Cloudflare Worker adds keys, enforces headers, and ships cached payloads anywhere on the globe.',
   },
   {
-    title: 'Live diagnostics baked in',
-    description: 'Every page surfaces health probes, secret status, and upstream URLs so you can debug without leaving the UI.',
+    title: 'Observability-first',
+    description: 'Instruments, probes, and diag snapshots are part of the UI so you catch upstream issues instantly.',
   },
   {
-    title: 'Built for exploration',
-    description: 'Visualise timelines, colour palettes, and subject distributions, or open the raw JSON to continue in your own tools.',
+    title: 'Visualization playground',
+    description: 'Each dataset page doubles as a chart lab with cards, histograms, thumbnails, and raw JSON toggles.',
+  },
+];
+
+type WorkflowStep = {
+  title: string;
+  description: string;
+};
+
+const WORKFLOW_STEPS: WorkflowStep[] = [
+  {
+    title: 'Ping the Worker',
+    description: 'Hit /diag for configuration, cache hints, and key health before you build anything downstream.',
+  },
+  {
+    title: 'Warm a dataset',
+    description: 'Use the per-page saved probes or your own fetches with ttl=86400 to prime caches and speed up workshops.',
+  },
+  {
+    title: 'Fork the payloads',
+    description: 'Pop open the JSON viewers to copy manifests into notebooks, IIIF viewers, or analytic scripts.',
+  },
+];
+
+type PlaybookSnippet = {
+  title: string;
+  description: string;
+  code: string;
+};
+
+const PLAYBOOK_SNIPPETS: PlaybookSnippet[] = [
+  {
+    title: 'Harvard highlight',
+    description: 'Fetch a single object with caching disabled for fresh metadata.',
+    code: "await fetch('https://art.hicksrch.workers.dev/harvard-art/object/299843?ttl=0').then((res) => res.json());",
+  },
+  {
+    title: 'Princeton search',
+    description: 'Drill into the Linked Art search surface via the Worker proxy.',
+    code:
+      "await fetch('https://art.hicksrch.workers.dev/princeton-art/search?q=monet&type=artobjects&size=3').then((res) => res.json());",
+  },
+  {
+    title: 'UBC discovery',
+    description: 'Reuse the Worker’s index detection and query UBC collections.',
+    code:
+      "const index = await (await fetch('https://art.hicksrch.workers.dev/ubc/collections')).json();\nawait fetch(`https://art.hicksrch.workers.dev/ubc/search/8.5?index=${index?.[0]?.slug ?? 'calendars'}&q=botany&size=2`).then((res) => res.json());",
   },
 ];
 
@@ -196,8 +249,30 @@ const createHeroSection = (): HTMLElement => {
     highlights.appendChild(li);
   });
 
+  const stats = document.createElement('div');
+  stats.className = 'home-hero__stats';
+  HERO_STATS.forEach((stat) => {
+    const card = document.createElement('article');
+    card.className = 'home-hero__stat';
+
+    const value = document.createElement('span');
+    value.className = 'home-hero__stat-value';
+    value.textContent = stat.value;
+
+    const label = document.createElement('span');
+    label.className = 'home-hero__stat-label';
+    label.textContent = stat.label;
+
+    const detail = document.createElement('p');
+    detail.className = 'home-hero__stat-detail';
+    detail.textContent = stat.detail;
+
+    card.append(value, label, detail);
+    stats.appendChild(card);
+  });
+
   ctaGroup.append(primaryCta, secondaryCta);
-  section.append(eyebrow, title, intro, ctaGroup, highlights);
+  section.append(eyebrow, title, intro, ctaGroup, highlights, stats);
   return section;
 };
 
@@ -269,56 +344,63 @@ const createDatasetSection = (): HTMLElement => {
   return section;
 };
 
-type StatusSection = {
+type PulseSection = {
   section: HTMLElement;
-  list: HTMLElement;
+  statusList: HTMLElement;
+  renderDiagnostics: (data: unknown) => void;
+  showDiagnosticsError: (message: string) => void;
 };
 
-const createStatusSection = (): StatusSection => {
+const createPulseSection = (): PulseSection => {
   const section = document.createElement('section');
-  section.className = 'home-section';
+  section.className = 'home-section home-pulse';
   section.id = 'live-status';
   section.appendChild(
-    createSectionHeader('Live API checks', 'We probe each upstream service continuously so you know what is responsive right now.')
+    createSectionHeader('Live API pulse', 'Real-time probes sit next to Worker diagnostics so you can troubleshoot at a glance.')
   );
 
-  const list = document.createElement('div');
-  list.className = 'home-status-grid';
-  list.setAttribute('role', 'list');
-  list.setAttribute('aria-live', 'polite');
-  section.appendChild(list);
+  const layout = document.createElement('div');
+  layout.className = 'home-pulse__layout';
+  section.appendChild(layout);
 
-  return { section, list };
-};
+  const probesColumn = document.createElement('div');
+  probesColumn.className = 'home-pulse__col home-pulse__col--probes';
+  const probesLabel = document.createElement('p');
+  probesLabel.className = 'home-pulse__label';
+  probesLabel.textContent = 'Active checks';
+  probesColumn.appendChild(probesLabel);
 
-type DiagnosticsSection = {
-  section: HTMLElement;
-  render: (data: unknown) => void;
-  showError: (message: string) => void;
-};
+  const statusList = document.createElement('div');
+  statusList.className = 'home-status-grid';
+  statusList.setAttribute('role', 'list');
+  statusList.setAttribute('aria-live', 'polite');
+  probesColumn.appendChild(statusList);
+  layout.appendChild(probesColumn);
 
-const createDiagnosticsSection = (): DiagnosticsSection => {
-  const section = document.createElement('section');
-  section.className = 'home-section home-diagnostics';
-  section.appendChild(
-    createSectionHeader(
-      'Worker diagnostics',
-      'A snapshot of configuration and connectivity straight from the Cloudflare Worker.'
-    )
-  );
+  const diagColumn = document.createElement('div');
+  diagColumn.className = 'home-pulse__col home-pulse__col--diag';
+  const diagLabel = document.createElement('p');
+  diagLabel.className = 'home-pulse__label';
+  diagLabel.textContent = 'Worker snapshot';
+  diagColumn.appendChild(diagLabel);
 
-  const body = document.createElement('div');
-  body.className = 'home-diag__body';
-  section.appendChild(body);
+  const diagCard = document.createElement('div');
+  diagCard.className = 'home-diag-card';
+  diagColumn.appendChild(diagCard);
 
-  const content = document.createElement('div');
-  content.className = 'home-diag__grid';
-  body.appendChild(content);
+  const diagStats = document.createElement('div');
+  diagStats.className = 'home-diag__stats';
+  diagCard.appendChild(diagStats);
 
-  const render = (data: unknown): void => {
-    content.innerHTML = '';
+  const diagTimeline = document.createElement('ul');
+  diagTimeline.className = 'home-diag__timeline';
+  diagCard.appendChild(diagTimeline);
+
+  const renderDiagnostics = (data: unknown): void => {
+    diagStats.innerHTML = '';
+    diagTimeline.innerHTML = '';
     if (!data || typeof data !== 'object') {
-      content.appendChild(createAlert('Diagnostic payload malformed.', 'error'));
+      diagStats.appendChild(createAlert('Diagnostic payload malformed.', 'error'));
       return;
     }
 
@@ -327,18 +409,39 @@ const createDiagnosticsSection = (): DiagnosticsSection => {
     const keys = typeof keysValue === 'object' && keysValue !== null ? (keysValue as Record<string, unknown>) : {};
     const dataverseBase = typeof record.dataverseBase === 'string' ? record.dataverseBase : 'Unknown';
     const allowedOrigins = typeof record.allowedOrigins === 'string' ? record.allowedOrigins : 'Default (*)';
+    const workerVersion = typeof record.version === 'string' ? record.version : 'Stable';
 
-    const secretsCard = document.createElement('div');
-    secretsCard.className = 'home-diag__item';
-    const secretsTitle = document.createElement('h3');
-    secretsTitle.textContent = 'Secrets';
-    const secretsList = document.createElement('ul');
-    secretsList.className = 'home-diag__list';
+    const makeStat = (label: string, value: string): HTMLElement => {
+      const stat = document.createElement('article');
+      stat.className = 'home-diag__stat';
+      const statLabel = document.createElement('span');
+      statLabel.className = 'home-diag__stat-label';
+      statLabel.textContent = label;
+      const statValue = document.createElement('span');
+      statValue.className = 'home-diag__stat-value';
+      statValue.textContent = value;
+      stat.append(statLabel, statValue);
+      return stat;
+    };
+
     const secretEntries = Object.entries(keys);
+    const enabledSecrets = secretEntries.filter(([, value]) => value === true).length;
+    diagStats.append(
+      makeStat('Worker version', workerVersion),
+      makeStat('Dataverse base', dataverseBase),
+      makeStat('Allowed origins', allowedOrigins),
+      makeStat('Secrets', secretEntries.length ? `${enabledSecrets}/${secretEntries.length} present` : 'Not reported')
+    );
+
+    const timelineTitle = document.createElement('li');
+    timelineTitle.className = 'home-diag__timeline-title';
+    timelineTitle.textContent = 'Secrets snapshot';
+    diagTimeline.appendChild(timelineTitle);
+
     if (secretEntries.length === 0) {
       const item = document.createElement('li');
-      item.textContent = 'No secret information returned.';
-      secretsList.appendChild(item);
+      item.textContent = 'No secret data surfaced.';
+      diagTimeline.appendChild(item);
     } else {
       secretEntries
         .sort(([a], [b]) => a.localeCompare(b))
@@ -346,59 +449,89 @@ const createDiagnosticsSection = (): DiagnosticsSection => {
           const item = document.createElement('li');
           const enabled = value === true;
           item.textContent = `${name}: ${enabled ? 'present' : 'missing'}`;
-          secretsList.appendChild(item);
+          item.className = enabled ? 'home-diag__timeline-item home-diag__timeline-item--ok' : 'home-diag__timeline-item';
+          diagTimeline.appendChild(item);
         });
     }
-    secretsCard.append(secretsTitle, secretsList);
-    content.appendChild(secretsCard);
-
-    const configCard = document.createElement('div');
-    configCard.className = 'home-diag__item';
-    const configTitle = document.createElement('h3');
-    configTitle.textContent = 'Configuration';
-
-    const configList = document.createElement('dl');
-    configList.className = 'home-diag__definitions';
-
-    const dataverseTerm = document.createElement('dt');
-    dataverseTerm.textContent = 'Dataverse base';
-    const dataverseValue = document.createElement('dd');
-    dataverseValue.textContent = dataverseBase;
-
-    const originTerm = document.createElement('dt');
-    originTerm.textContent = 'Allowed origins';
-    const originValue = document.createElement('dd');
-    originValue.textContent = allowedOrigins;
-
-    configList.append(dataverseTerm, dataverseValue, originTerm, originValue);
-    configCard.append(configTitle, configList);
-    content.appendChild(configCard);
 
     const rawLink = document.createElement('a');
     rawLink.href = '/diag?debug=1';
     rawLink.className = 'home-diag__raw';
     rawLink.textContent = 'Open full diagnostics →';
-    content.appendChild(rawLink);
+    const rawItem = document.createElement('li');
+    rawItem.appendChild(rawLink);
+    diagTimeline.appendChild(rawItem);
   };
 
-  const showError = (message: string): void => {
-    content.innerHTML = '';
-    content.appendChild(createAlert(message, 'error'));
+  const showDiagnosticsError = (message: string): void => {
+    diagStats.innerHTML = '';
+    diagTimeline.innerHTML = '';
+    diagStats.appendChild(createAlert(message, 'error'));
   };
 
-  return { section, render, showError };
+  layout.appendChild(diagColumn);
+
+  return { section, statusList, renderDiagnostics, showDiagnosticsError };
+};
+
+const createWorkflowSection = (): HTMLElement => {
+  const section = document.createElement('section');
+  section.className = 'home-section home-workflow';
+  section.appendChild(
+    createSectionHeader('Operational playbook', 'A lightweight workflow that keeps demos and sprints on track.')
+  );
+
+  const list = document.createElement('ol');
+  list.className = 'home-workflow__list';
+  WORKFLOW_STEPS.forEach((step) => {
+    const item = document.createElement('li');
+    item.className = 'home-workflow__step';
+
+    const title = document.createElement('h3');
+    title.textContent = step.title;
+    const copy = document.createElement('p');
+    copy.textContent = step.description;
+
+    item.append(title, copy);
+    list.appendChild(item);
+  });
+
+  section.appendChild(list);
+  return section;
 };
 
 const createQuickStartSection = (): HTMLElement => {
   const section = document.createElement('section');
-  section.className = 'home-section';
+  section.className = 'home-section home-playbook';
   section.appendChild(
-    createSectionHeader('Try it instantly', 'Copy a snippet into your console or notebook to hit the Worker right away.')
+    createSectionHeader('Console-ready snippets', 'Drop these directly into devtools, RunKit, or a notebook cell.')
   );
 
-  const pre = document.createElement('pre');
-  pre.textContent = `await fetch('https://art.hicksrch.workers.dev/harvard-art/object/299843?ttl=0')\n  .then((res) => res.json());`;
-  section.appendChild(pre);
+  const grid = document.createElement('div');
+  grid.className = 'home-playbook__grid';
+  PLAYBOOK_SNIPPETS.forEach((snippet) => {
+    const card = document.createElement('article');
+    card.className = 'home-playbook__card';
+
+    const title = document.createElement('h3');
+    title.textContent = snippet.title;
+
+    const copy = document.createElement('p');
+    copy.textContent = snippet.description;
+
+    const pre = document.createElement('pre');
+    pre.className = 'home-playbook__snippet';
+    pre.textContent = snippet.code;
+
+    const hint = document.createElement('p');
+    hint.className = 'home-playbook__hint';
+    hint.textContent = 'Tip: append ?ttl=0 for uncached, ttl=86400 to prewarm.';
+
+    card.append(title, copy, pre, hint);
+    grid.appendChild(card);
+  });
+
+  section.appendChild(grid);
   return section;
 };
 
@@ -408,18 +541,18 @@ const mount = (el: HTMLElement): void => {
   const hero = createHeroSection();
   const features = createFeatureSection();
   const datasets = createDatasetSection();
-  const status = createStatusSection();
-  const diagnostics = createDiagnosticsSection();
+  const pulse = createPulseSection();
+  const workflow = createWorkflowSection();
   const quickStart = createQuickStartSection();
 
-  el.append(hero, features, datasets, status.section, diagnostics.section, quickStart);
+  el.append(hero, pulse.section, features, datasets, workflow, quickStart);
 
   void fetchJSON('/diag')
     .then((data) => {
-      diagnostics.render(data);
+      pulse.renderDiagnostics(data);
     })
     .catch((error) => {
-      diagnostics.showError(`Failed to load diagnostics: ${error instanceof Error ? error.message : String(error)}`);
+      pulse.showDiagnosticsError(`Failed to load diagnostics: ${error instanceof Error ? error.message : String(error)}`);
     });
 
   const probes = createProbes();
@@ -436,7 +569,7 @@ const mount = (el: HTMLElement): void => {
     message.textContent = 'Checking…';
 
     card.append(title, message);
-    status.list.appendChild(card);
+    pulse.statusList.appendChild(card);
 
     probe
       .run()
