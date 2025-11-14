@@ -71,27 +71,27 @@ const applyImageFilter = (items: ItemCard[], showImagesOnly: boolean): ItemCard[
 
 const createUnifiedSearchSection = (): HTMLElement => {
   const section = document.createElement('section');
-  section.className = 'home-section home-section--search';
+  section.className = 'home-search home-search--landing';
 
-  const header = document.createElement('div');
-  header.className = 'home-search__header';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Search the art APIs';
-  const intro = document.createElement('p');
-  intro.textContent = 'One box, six sources. Type a keyword or paste a IIIF manifest and press enter.';
-  header.append(heading, intro);
-  section.appendChild(header);
+  const hero = document.createElement('div');
+  hero.className = 'home-search__hero';
 
   const form = document.createElement('form');
-  form.className = 'home-search-form';
+  form.className = 'home-search-form home-search-form--hero';
+
+  const srLabel = document.createElement('label');
+  srLabel.className = 'sr-only';
+  srLabel.textContent = 'Search across every art API';
 
   const surface = document.createElement('div');
   surface.className = 'home-search__surface';
 
   const queryInput = document.createElement('input');
   queryInput.type = 'search';
+  queryInput.id = 'home-search-input';
+  srLabel.setAttribute('for', queryInput.id);
   queryInput.className = 'home-search__input home-search__input--main';
-  queryInput.placeholder = 'e.g. impressionism, textiles, https://iiif.example/manifest';
+  queryInput.placeholder = 'Search art objects, manifests, or datasets…';
   queryInput.autocomplete = 'off';
 
   const searchButton = document.createElement('button');
@@ -100,21 +100,75 @@ const createUnifiedSearchSection = (): HTMLElement => {
   searchButton.textContent = 'Search';
 
   surface.append(queryInput, searchButton);
+  form.append(srLabel, surface);
+  hero.appendChild(form);
+  section.appendChild(hero);
 
-  const filters = document.createElement('details');
-  filters.className = 'home-search__filters';
-  const summary = document.createElement('summary');
-  summary.className = 'home-search__filters-summary';
-  summary.textContent = 'Filters & sources';
-  const summaryHint = document.createElement('span');
-  summaryHint.className = 'home-search__filters-hint';
-  summaryHint.textContent = 'Adjust limits, layouts, images, and feeds.';
-  summary.appendChild(summaryHint);
-  filters.appendChild(summary);
+  const resultsContainer = document.createElement('div');
+  resultsContainer.className = 'home-results';
+  resultsContainer.hidden = true;
+
+  const resultsHeader = document.createElement('div');
+  resultsHeader.className = 'home-results__header';
+  const resultsTitle = document.createElement('p');
+  resultsTitle.className = 'home-results__title';
+  resultsTitle.textContent = 'Unified results';
+
+  const filtersToggle = document.createElement('button');
+  filtersToggle.type = 'button';
+  filtersToggle.className = 'home-filter-toggle';
+  filtersToggle.setAttribute('aria-expanded', 'false');
+  const hamburger = document.createElement('span');
+  hamburger.className = 'home-filter-toggle__icon';
+  hamburger.setAttribute('aria-hidden', 'true');
+  hamburger.textContent = '☰';
+  const toggleLabel = document.createElement('span');
+  toggleLabel.className = 'sr-only';
+  toggleLabel.textContent = 'Open filters';
+  filtersToggle.append(hamburger, toggleLabel);
+  filtersToggle.hidden = true;
+  filtersToggle.disabled = true;
+
+  resultsHeader.append(resultsTitle, filtersToggle);
+
+  const resultsWrapper = document.createElement('div');
+  resultsWrapper.className = 'home-source-grid';
+  resultsContainer.append(resultsHeader, resultsWrapper);
+  section.appendChild(resultsContainer);
+
+  const filtersOverlay = document.createElement('div');
+  filtersOverlay.className = 'home-filter-panel__overlay';
+  filtersOverlay.hidden = true;
+
+  const filtersPanel = document.createElement('aside');
+  filtersPanel.className = 'home-filter-panel';
+  filtersPanel.setAttribute('role', 'dialog');
+  filtersPanel.setAttribute('aria-modal', 'true');
+  filtersPanel.setAttribute('aria-label', 'Search filters');
+  filtersPanel.setAttribute('aria-hidden', 'true');
+  filtersPanel.dataset.open = 'false';
+  filtersPanel.tabIndex = -1;
+
+  const filtersHeader = document.createElement('header');
+  filtersHeader.className = 'home-filter-panel__header';
+  const filtersHeading = document.createElement('h2');
+  filtersHeading.textContent = 'Filters';
+  const filtersClose = document.createElement('button');
+  filtersClose.type = 'button';
+  filtersClose.className = 'home-filter-panel__close';
+  const closeIcon = document.createElement('span');
+  closeIcon.setAttribute('aria-hidden', 'true');
+  closeIcon.textContent = '×';
+  const closeLabel = document.createElement('span');
+  closeLabel.className = 'sr-only';
+  closeLabel.textContent = 'Close filters';
+  filtersClose.append(closeIcon, closeLabel);
+  filtersHeader.append(filtersHeading, filtersClose);
 
   const filtersBody = document.createElement('div');
   filtersBody.className = 'home-search__filters-body';
-  filters.appendChild(filtersBody);
+  const filtersBodyWrapper = document.createElement('div');
+  filtersBodyWrapper.className = 'home-filter-panel__body';
 
   const controlsRow = document.createElement('div');
   controlsRow.className = 'home-search__controls';
@@ -203,18 +257,9 @@ const createUnifiedSearchSection = (): HTMLElement => {
   actionRow.appendChild(resetButton);
 
   filtersBody.append(controlsRow, sourcesSubtitle, sourcesGrid, actionRow);
-
-  form.append(surface, filters);
-  section.appendChild(form);
-
-  const idleMessage = document.createElement('p');
-  idleMessage.className = 'home-search__idle';
-  idleMessage.textContent = 'Start typing to search every API at once.';
-  section.appendChild(idleMessage);
-
-  const resultsWrapper = document.createElement('div');
-  resultsWrapper.className = 'home-source-grid';
-  section.appendChild(resultsWrapper);
+  filtersBodyWrapper.appendChild(filtersBody);
+  filtersPanel.append(filtersHeader, filtersBodyWrapper);
+  section.append(filtersOverlay, filtersPanel);
 
   const state: UnifiedSearchState = {
     q: new URLSearchParams(window.location.search).get('q')?.trim() ?? '',
@@ -264,10 +309,27 @@ const createUnifiedSearchSection = (): HTMLElement => {
     entry.error = undefined;
   };
 
-  const updateIdleState = (): void => {
+  const setFiltersOpen = (open: boolean): void => {
+    filtersPanel.dataset.open = open ? 'true' : 'false';
+    filtersPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    filtersOverlay.hidden = !open;
+    filtersToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      filtersPanel.focus();
+    }
+  };
+
+  const closeFilters = (): void => setFiltersOpen(false);
+
+  const updateResultsVisibility = (): void => {
     const hasQuery = state.q.trim().length > 0;
-    idleMessage.hidden = hasQuery;
-    resultsWrapper.hidden = !hasQuery;
+    resultsContainer.hidden = !hasQuery;
+    filtersToggle.hidden = !hasQuery;
+    filtersToggle.disabled = !hasQuery;
+    resultsTitle.textContent = hasQuery ? `Results for “${state.q}”` : 'Unified results';
+    if (!hasQuery) {
+      closeFilters();
+    }
   };
 
   const updateSourceView = (key: UnifiedSource): void => {
@@ -354,7 +416,7 @@ const createUnifiedSearchSection = (): HTMLElement => {
   const runUnifiedSearch = (): void => {
     state.q = queryInput.value.trim();
     updateUrl();
-    updateIdleState();
+    updateResultsVisibility();
     const query = state.q.trim();
     if (!query) {
       SOURCE_DEFINITIONS.forEach((def) => {
@@ -372,17 +434,36 @@ const createUnifiedSearchSection = (): HTMLElement => {
     runUnifiedSearch();
   });
 
+  filtersToggle.addEventListener('click', () => {
+    const isOpen = filtersPanel.dataset.open === 'true';
+    setFiltersOpen(!isOpen);
+  });
+
+  filtersClose.addEventListener('click', () => {
+    closeFilters();
+  });
+
+  filtersOverlay.addEventListener('click', () => {
+    closeFilters();
+  });
+
+  section.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && filtersPanel.dataset.open === 'true') {
+      closeFilters();
+    }
+  });
+
   resetButton.addEventListener('click', () => {
     queryInput.value = '';
     state.q = '';
     updateUrl();
-    updateIdleState();
+    updateResultsVisibility();
     SOURCE_DEFINITIONS.forEach((def) => {
       abortSource(def.key);
       resetSource(def.key);
     });
     updateAllViews();
-    filters.open = false;
+    closeFilters();
   });
 
   limitSelect.addEventListener('change', () => {
@@ -463,7 +544,7 @@ const createUnifiedSearchSection = (): HTMLElement => {
     views.set(source.key, { section: block, status, list, error: errorContainer, count: countChip });
   });
 
-  updateIdleState();
+  updateResultsVisibility();
   updateAllViews();
   if (state.q) {
     runUnifiedSearch();
@@ -472,29 +553,11 @@ const createUnifiedSearchSection = (): HTMLElement => {
   return section;
 };
 
-const createMinimalHero = (): HTMLElement => {
-  const section = document.createElement('section');
-  section.className = 'home-hero home-hero--minimal';
-
-  const title = document.createElement('h1');
-  title.textContent = 'Art API Explorer';
-
-  const intro = document.createElement('p');
-  intro.textContent = 'A calm front door to Harvard, Princeton, Yale, UBC, Dataverse, and arXiv.';
-
-  const hint = document.createElement('p');
-  hint.className = 'home-hero__hint';
-  hint.textContent = 'No fluff—just search when you are ready.';
-
-  section.append(title, intro, hint);
-  return section;
-};
-
 const mount = (el: HTMLElement): void => {
+  document.body.classList.add('home-minimal');
   el.innerHTML = '';
-  const hero = createMinimalHero();
   const search = createUnifiedSearchSection();
-  el.append(hero, search);
+  el.append(search);
 };
 
 export default { mount };
