@@ -1,6 +1,6 @@
 @layer components {
   svg {
-    font: var(--fs-md) system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font: var(--fs-md) var(--font-sans);
     color: var(--text);
   }
 
@@ -8,7 +8,7 @@
   .chart__axis line,
   .axis path,
   .axis line {
-    stroke: var(--border);
+    stroke: color-mix(in srgb, var(--border) 70%, transparent);
     shape-rendering: crispEdges;
   }
 
@@ -20,7 +20,7 @@
 
   .chart__grid line,
   .grid line {
-    stroke: var(--surface-2);
+    stroke: color-mix(in srgb, var(--border) 45%, transparent);
   }
 
   .chart__line,
@@ -74,13 +74,14 @@
   .tooltip {
     position: fixed;
     z-index: 10;
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 70%, var(--surface-2) 30%);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     padding: 0.4rem 0.6rem;
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);
     pointer-events: none;
     color: var(--text);
     font-size: var(--fs-sm);
+    backdrop-filter: blur(10px);
   }
 }
