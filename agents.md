@@ -22,7 +22,6 @@ The project’s goal: one endpoint space and one UI where users can browse, quer
 | ------------------ | ------------------------------------------------------- | -------------------------------------- |
 | `/harvard-art/*`   | Harvard Art Museums API (JSON, requires key)            | `https://api.harvardartmuseums.org`    |
 | `/princeton-art/*` | Princeton University Art Museum (open, JSON)            | `https://data.artmuseum.princeton.edu` |
-| `/yale-iiif?url=`  | IIIF / LinkedArt proxy (Yale manifests or any IIIF URL) | Any IIIF manifest URL                  |
 | `/dataverse/*`     | Harvard Dataverse API (set via `DATAVERSE_BASE`)        | `https://dataverse.harvard.edu`        |
 | `/ubc/*`           | UBC Open Collections API (REST, OAI, IIIF)              | `https://oc-index.library.ubc.ca`      |
 | `/ubc-oai?verb=`   | UBC OAI-PMH feed                                        | `https://oce-index.library.ubc.ca/oai` |
@@ -96,13 +95,6 @@ ALLOWED_ORIGINS="*"
 * `/arxiv/search?search_query=cat:cs.AI&max_results=1`
 * Returns Atom XML feed; parsed successfully.
 
-### ✅ Yale IIIF
-
-* `/yale-iiif?url=https://iiif.harvardartmuseums.org/manifests/object/299843`
-* Returns a full manifest JSON.
-
----
-
 ## Cache + Debug
 
 * `ttl` param controls Cloudflare cache (default 3600 s, up to 86400).
@@ -133,7 +125,6 @@ fetch("https://art.hicksrch.workers.dev/dataverse/search?q=data&type=dataset&per
 fetch("https://art.hicksrch.workers.dev/ubc/collections").then(r=>r.json());
 fetch("https://art.hicksrch.workers.dev/ubc/search/8.5?index=calendars&q=newspaper&size=1").then(r=>r.json());
 fetch("https://art.hicksrch.workers.dev/arxiv/search?search_query=cat:cs.AI&max_results=1").then(r=>r.text());
-fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmuseums.org/manifests/object/299843").then(r=>r.json());
 ```
 
 ---
@@ -146,7 +137,6 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 | ----------------- | -------------------- | ------------------------------------------------ |
 | `/harvard.html`   | Harvard Art Museums  | Histogram of objects per decade; color analytics |
 | `/princeton.html` | Princeton Art Museum | Maker networks                                   |
-| `/yale.html`      | IIIF manifests       | Thumbnail gallery                                |
 | `/dataverse.html` | Dataverse            | Subject bar charts; dataset counts               |
 | `/ubc.html`       | UBC Collections      | Per-year bars; IIIF image previews               |
 | `/arxiv.html`     | arXiv                | Category growth sparkline                        |
@@ -154,7 +144,7 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 
 ### Unified search UX
 
-* The homepage hosts a multi-source search console. Users pick sources (Harvard, Princeton, Yale manifests, Dataverse, UBC, arXiv), set the per-source limit, toggle layout (grid vs. list), and optionally require image thumbnails.
+* The homepage hosts a multi-source search console. Users pick sources (Harvard, Princeton, Dataverse, UBC, arXiv), set the per-source limit, toggle layout (grid vs. list), and optionally require image thumbnails.
 * Each source renders `ItemCard`s from the adapters; loading and error states surface inside the section via `Alert` components.
 * The header search box rewrites the URL to `/?q=<term>` so the unified search auto-runs with shared state pulled from `window.location.search`.
 
@@ -182,7 +172,6 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 ## Future Work
 
 * Add auto-index discovery in Worker for UBC when `index` missing (default to `calendars`).
-* Merge IIIF endpoints into a unified `/iiif/*` namespace with manifest parsing.
 * Build data visualizations for temporal and geographic dimensions.
 * Add CLI smoke-test script for all endpoints.
 * Publish `agents.md` knowledge to repo for contributors.

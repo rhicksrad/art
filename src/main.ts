@@ -8,7 +8,6 @@ const routes: Record<string, () => Promise<{ default: { mount: (el: HTMLElement)
   '/index.html': () => import('./pages/home'),
   '/harvard.html': () => import('./pages/harvard'),
   '/princeton.html': () => import('./pages/princeton'),
-  '/yale.html': () => import('./pages/yale'),
   '/dataverse.html': () => import('./pages/dataverse'),
   '/ubc.html': () => import('./pages/ubc'),
   '/ubc-oai.html': () => import('./pages/ubcOai'),
