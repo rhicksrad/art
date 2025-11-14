@@ -13,6 +13,31 @@ const STATUS_CONFIG: Record<SiteStatusVariant, StatusConfig> = {
 
 let statusElement: HTMLSpanElement | null = null;
 
+const resolveBasePath = (): string => {
+  const raw = import.meta.env.BASE_URL ?? '/';
+  if (!raw || raw === '/') {
+    return '/';
+  }
+  return raw.endsWith('/') ? raw : `${raw}/`;
+};
+
+const navigateToUnifiedSearch = (value: string): void => {
+  try {
+    const url = new URL(window.location.href);
+    url.pathname = resolveBasePath();
+    if (value) {
+      url.searchParams.set('q', value);
+    } else {
+      url.searchParams.delete('q');
+    }
+    window.location.href = url.toString();
+  } catch {
+    const base = resolveBasePath();
+    const query = value ? `?q=${encodeURIComponent(value)}` : '';
+    window.location.href = `${base}${query}`;
+  }
+};
+
 export const setSiteStatus = (variant: SiteStatusVariant, text?: string): void => {
   if (!statusElement) {
     return;
@@ -54,7 +79,28 @@ export const createSiteHeader = (): HTMLElement => {
   statusLabel.textContent = 'Status';
   statusWrapper.append(statusLabel, statusElement);
 
-  header.append(copy, statusWrapper);
+  const searchForm = document.createElement('form');
+  searchForm.className = 'site-header__search';
+  const searchInput = document.createElement('input');
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search all sources';
+  searchInput.setAttribute('aria-label', 'Search across all APIs');
+  searchInput.value = new URLSearchParams(window.location.search).get('q') ?? '';
+  const searchButton = document.createElement('button');
+  searchButton.type = 'submit';
+  searchButton.textContent = 'Search';
+  searchForm.append(searchInput, searchButton);
+
+  searchForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    navigateToUnifiedSearch(searchInput.value.trim());
+  });
+
+  const controls = document.createElement('div');
+  controls.className = 'site-header__controls';
+  controls.append(statusWrapper, searchForm);
+
+  header.append(copy, controls);
 
   setSiteStatus('loading');
 

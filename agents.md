@@ -152,6 +152,12 @@ fetch("https://art.hicksrch.workers.dev/yale-iiif?url=https://iiif.harvardartmus
 | `/arxiv.html`     | arXiv                | Category growth sparkline                        |
 | `/home.html`      | All                  | Combined timeline, saved searches, diagnostics   |
 
+### Unified search UX
+
+* The homepage hosts a multi-source search console. Users pick sources (Harvard, Princeton, Yale manifests, Dataverse, UBC, arXiv), set the per-source limit, toggle layout (grid vs. list), and optionally require image thumbnails.
+* Each source renders `ItemCard`s from the adapters; loading and error states surface inside the section via `Alert` components.
+* The header search box rewrites the URL to `/?q=<term>` so the unified search auto-runs with shared state pulled from `window.location.search`.
+
 ---
 
 ## Lessons Learned
