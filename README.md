@@ -2,6 +2,16 @@
 
 A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker at `https://art.hicksrch.workers.dev`. The Worker fans out to each upstream API, handles caching, adds required keys, and exposes a consistent surface for the browser.
 
+## Unified search
+
+The homepage acts like a "Google for academic APIs". A single form fans a query out to Harvard Art Museums, Princeton, Yale IIIF,
+Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
+
+- Pick which sources participate (Yale is opt-in because it expects a manifest URL).
+- Control the max results per source, toggle a grid/list layout, and filter down to cards with images.
+- See per-source loading state, error alerts, and normalized cards rendered via shared adapters.
+- Jump into the unified experience from the header search bar, which rewrites the URL to `/?q=<term>`.
+
 ## Architecture
 
 - **Worker endpoints** – All browser requests use relative URLs that the Worker serves:
@@ -13,6 +23,16 @@ A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker 
 - **Adapters** – `src/adapters/*` normalise each API into a shared `ItemCard` shape so the UI can render cards consistently.
 - **Styling** – A layered design system lives in `src/styles/`, with tokens, base, components, charts, and utility layers imported through `src/styles/index.ts`.
 - **Debugging** – `debug.html` runs smoke tests against the Worker and logs PASS/FAIL with short samples. Append `?debug=1` to any request for upstream traces.
+
+## Included services
+
+- **Harvard Art Museums** – `/harvard-art/object` search with people, classification, and IIIF imagery.
+- **Princeton University Art Museum** – `/princeton-art/search` Linked Art responses rendered as ItemCards.
+- **Yale / IIIF** – `/yale-iiif?url=` manifest parsing with canvas cards and thumbnail previews.
+- **Harvard Dataverse** – `/dataverse/search` dataset explorer with subject and keyword tags.
+- **UBC Open Collections** – `/ubc/search/8.5/{index}` discovery with automatic index resolution and IIIF helpers.
+- **UBC OAI-PMH** – `/ubc-oai` verb runner for harvesting metadata.
+- **arXiv** – `/arxiv/search` Atom feed parser for category-aware research cards.
 
 ## UBC index discovery
 

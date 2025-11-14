@@ -39,6 +39,12 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 
+  .cards.cards--list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
   .form-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -67,6 +73,12 @@
     .grid.cards {
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: var(--space-3);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .cards.cards--list .card {
+      flex-direction: column;
     }
   }
 }
