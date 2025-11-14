@@ -134,7 +134,6 @@ const createUnifiedSearchSection = (): HTMLElement => {
   const resultsWrapper = document.createElement('div');
   resultsWrapper.className = 'home-source-grid';
   resultsContainer.append(resultsHeader, resultsWrapper);
-  section.appendChild(resultsContainer);
 
   const filtersOverlay = document.createElement('div');
   filtersOverlay.className = 'home-filter-panel__overlay';
@@ -261,6 +260,23 @@ const createUnifiedSearchSection = (): HTMLElement => {
   filtersPanel.append(filtersHeader, filtersBodyWrapper);
   section.append(filtersOverlay, filtersPanel);
 
+  let resultsMounted = false;
+  const mountResultsContainer = (): void => {
+    if (resultsMounted) {
+      return;
+    }
+    section.insertBefore(resultsContainer, filtersOverlay);
+    resultsMounted = true;
+  };
+
+  const unmountResultsContainer = (): void => {
+    if (!resultsMounted) {
+      return;
+    }
+    resultsContainer.remove();
+    resultsMounted = false;
+  };
+
   const state: UnifiedSearchState = {
     q: new URLSearchParams(window.location.search).get('q')?.trim() ?? '',
     perSourceLimit: LIMIT_OPTIONS[1],
@@ -323,6 +339,11 @@ const createUnifiedSearchSection = (): HTMLElement => {
 
   const updateResultsVisibility = (): void => {
     const hasQuery = state.q.trim().length > 0;
+    if (hasQuery) {
+      mountResultsContainer();
+    } else {
+      unmountResultsContainer();
+    }
     resultsContainer.hidden = !hasQuery;
     filtersToggle.hidden = !hasQuery;
     filtersToggle.disabled = !hasQuery;
