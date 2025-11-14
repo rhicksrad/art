@@ -32,6 +32,12 @@ Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
 - **UBC Open Collections** – `/ubc/search/8.5/{index}` discovery with automatic index resolution and IIIF helpers.
 - **UBC OAI-PMH** – `/ubc-oai` verb runner for harvesting metadata.
 - **arXiv** – `/arxiv/search` Atom feed parser for category-aware research cards.
+- **Northwestern Digital Collections** – `/northwestern/api/v2/search` for posters, ephemera, and recordings with IIIF image helpers.
+- **Stanford PURL / Embed** – `/stanford-purl/*` + `/stanford-embed/*` lookup for any 11-character PURL id.
+- **HathiTrust Catalog** – `/hathi-catalog/api/volumes/full/{type}/{id}.json` identifier search for digitized volumes.
+- **HTRC Analytics** – `/htrc/api/metadata/volume/{htid}` metadata probes for the HathiTrust Research Center.
+- **Leipzig IIIF** – `/leipzig-iiif/*` proxy for iiif.ub.uni-leipzig.de collections and manifests.
+- **Bern IIIF** – `/bern-iiif/*` proxy for iiif.ub.unibe.ch collections and manifests.
 
 ## UBC index discovery
 

@@ -27,6 +27,13 @@ The project’s goal: one endpoint space and one UI where users can browse, quer
 | `/ubc-oai?verb=`   | UBC OAI-PMH feed                                        | `https://oce-index.library.ubc.ca/oai` |
 | `/ubc-iiif/*`      | UBC IIIF service passthrough                            | `https://iiif.library.ubc.ca`          |
 | `/arxiv/search`    | arXiv Atom feed proxy                                   | `https://export.arxiv.org/api/query`   |
+| `/northwestern/*`  | Northwestern Digital Collections API                    | `https://api.dc.library.northwestern.edu` |
+| `/stanford-purl/*` | Stanford PURL JSON + IIIF manifests                     | `https://purl.stanford.edu`            |
+| `/stanford-embed/*`| Stanford oEmbed summaries                               | `https://embed.stanford.edu`           |
+| `/hathi-catalog/*` | HathiTrust catalog identifier search                    | `https://catalog.hathitrust.org/api/volumes` |
+| `/htrc/*`          | HathiTrust Research Center metadata                     | `https://analytics.hathitrust.org`     |
+| `/leipzig-iiif/*`  | Leipzig University Library IIIF                         | `https://iiif.ub.uni-leipzig.de`       |
+| `/bern-iiif/*`     | Bern University Library IIIF                            | `https://iiif.ub.unibe.ch`             |
 | `/diag`            | Worker health report and environment keys               | local                                  |
 | `/favicon.ico`     | 1×1 transparent PNG to silence browser errors           | local                                  |
 
@@ -140,6 +147,17 @@ fetch("https://art.hicksrch.workers.dev/arxiv/search?search_query=cat:cs.AI&max_
 | `/dataverse.html` | Dataverse            | Subject bar charts; dataset counts               |
 | `/ubc.html`       | UBC Collections      | Per-year bars; IIIF image previews               |
 | `/arxiv.html`     | arXiv                | Category growth sparkline                        |
+| `/northwestern.html` | Northwestern Digital Collections | Keyword search + IIIF cards                  |
+| `/stanford.html`  | Stanford PURL        | PURL lookup with oEmbed + manifest preview       |
+| `/hathi.html`     | HathiTrust Catalog   | Identifier search for catalog volumes            |
+| `/htrc.html`      | HTRC Analytics       | HTID lookup + worker diagnostics                 |
+| `/leipzig.html`   | Leipzig IIIF         | Manifest listing for iiif.ub.uni-leipzig.de      |
+| `/bern.html`      | Bern IIIF            | Manifest listing for iiif.ub.unibe.ch            |
+
+New sources (Northwestern, HathiTrust Catalog, Stanford PURL, HTRC, Leipzig IIIF, Bern IIIF) participate in the homepage’s unified
+search. Identifier-based sources (Hathi, Stanford, HTRC, Leipzig, Bern) default to disabled in the filter list so they only fire
+when users intentionally enable them and enter a compatible ID/path. Each source also has a dedicated explorer page (listed above)
+for focused workflows and debugging.
 | `/home.html`      | All                  | Combined timeline, saved searches, diagnostics   |
 
 ### Unified search UX
