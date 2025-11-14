@@ -30,6 +30,9 @@ type SourceView = {
   list: HTMLElement;
   error: HTMLElement;
   count: HTMLElement;
+  card: HTMLButtonElement;
+  body: HTMLElement;
+  chevron: HTMLElement;
 };
 
 const formatError = (error: unknown): string => {
@@ -60,6 +63,13 @@ const createSourceStateMap = (): Record<UnifiedSource, SourceEntry> => {
 
 const getLayoutClass = (mode: LayoutMode): string => {
   return mode === 'list' ? 'cards cards--list' : 'grid cards';
+};
+
+const formatResultCount = (count: number): string => {
+  if (count === 0) {
+    return '0 results';
+  }
+  return count === 1 ? '1 result' : `${count} results`;
 };
 
 const applyImageFilter = (items: ItemCard[], showImagesOnly: boolean): ItemCard[] => {
@@ -325,6 +335,27 @@ const createUnifiedSearchSection = (): HTMLElement => {
     entry.error = undefined;
   };
 
+  const setSourceCollapsed = (key: UnifiedSource, collapsed: boolean): void => {
+    const view = views.get(key);
+    if (!view) {
+      return;
+    }
+    view.body.hidden = collapsed;
+    view.body.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    view.card.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    view.section.classList.toggle('home-source--collapsed', collapsed);
+    view.section.classList.toggle('home-source--expanded', !collapsed);
+  };
+
+  const toggleSourceCollapsed = (key: UnifiedSource): void => {
+    const view = views.get(key);
+    if (!view) {
+      return;
+    }
+    const isCollapsed = view.body.hidden;
+    setSourceCollapsed(key, !isCollapsed);
+  };
+
   const setFiltersOpen = (open: boolean): void => {
     filtersPanel.dataset.open = open ? 'true' : 'false';
     filtersPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
@@ -367,24 +398,27 @@ const createUnifiedSearchSection = (): HTMLElement => {
     if (!hasQuery || !enabled) {
       view.section.hidden = true;
       view.status.textContent = hasQuery ? 'Source disabled via filters.' : 'Awaiting query…';
-      view.count.textContent = '0';
+      view.count.textContent = formatResultCount(0);
       view.list.replaceChildren();
+      setSourceCollapsed(key, true);
       return;
     }
 
     view.section.hidden = false;
     if (entry.loading) {
       view.status.textContent = 'Searching…';
+      view.count.textContent = 'Searching…';
     } else if (entry.error) {
       view.status.textContent = 'Error';
+      view.count.textContent = 'Error';
       view.error.appendChild(createAlert(entry.error, 'error'));
       view.list.replaceChildren();
     } else {
       const filtered = applyImageFilter(entry.cards, state.showImagesOnly);
       view.status.textContent = filtered.length > 0 ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : 'No results';
       view.list.replaceChildren(...filtered.map((card) => renderItemCard(card)));
+      view.count.textContent = formatResultCount(filtered.length);
     }
-    view.count.textContent = String(entry.cards.length);
   };
 
   const updateAllViews = (): void => {
@@ -530,19 +564,34 @@ const createUnifiedSearchSection = (): HTMLElement => {
     block.className = 'home-source';
     block.hidden = true;
 
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'home-source__card';
+
+    const cardHead = document.createElement('div');
+    cardHead.className = 'home-source__card-head';
+
     const blockHeader = document.createElement('header');
     blockHeader.className = 'home-source__header';
 
     const heading = document.createElement('div');
+    heading.className = 'home-source__title';
     const title = document.createElement('h3');
     title.textContent = source.label;
     heading.appendChild(title);
 
     const countChip = document.createElement('span');
     countChip.className = 'home-source__count';
-    countChip.textContent = '0';
+    countChip.textContent = formatResultCount(0);
 
     blockHeader.append(heading, countChip);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'home-source__chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '›';
+
+    cardHead.append(blockHeader, chevron);
 
     const description = document.createElement('p');
     description.className = 'home-source__description';
@@ -552,6 +601,12 @@ const createUnifiedSearchSection = (): HTMLElement => {
     status.className = 'home-source__status';
     status.textContent = 'Awaiting query…';
 
+    card.append(cardHead, description, status);
+
+    const body = document.createElement('div');
+    body.className = 'home-source__body';
+    body.hidden = true;
+
     const errorContainer = document.createElement('div');
     errorContainer.className = 'home-source__error';
 
@@ -559,10 +614,32 @@ const createUnifiedSearchSection = (): HTMLElement => {
     list.className = getLayoutClass(state.layout);
     list.setAttribute('aria-live', 'polite');
 
-    block.append(blockHeader, description, status, errorContainer, list);
+    body.append(errorContainer, list);
+
+    card.addEventListener('click', () => {
+      toggleSourceCollapsed(source.key);
+    });
+
+    const bodyId = `home-source-body-${source.key}`;
+    body.id = bodyId;
+    body.setAttribute('aria-hidden', 'true');
+    card.setAttribute('aria-controls', bodyId);
+    card.setAttribute('aria-expanded', 'false');
+
+    block.append(card, body);
     resultsWrapper.appendChild(block);
 
-    views.set(source.key, { section: block, status, list, error: errorContainer, count: countChip });
+    views.set(source.key, {
+      section: block,
+      status,
+      list,
+      error: errorContainer,
+      count: countChip,
+      card,
+      body,
+      chevron,
+    });
+    setSourceCollapsed(source.key, true);
   });
 
   updateResultsVisibility();

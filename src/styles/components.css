@@ -741,13 +741,42 @@
   }
 
   .home-source {
-    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    background: color-mix(in srgb, var(--surface) 65%, var(--surface-2) 35%);
-    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .home-source__card {
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--surface) 80%, var(--surface-2) 20%);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .home-source__card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .home-source--expanded .home-source__card {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    box-shadow: var(--shadow-md);
+    background: color-mix(in srgb, var(--surface) 70%, var(--surface-2) 30%);
+  }
+
+  .home-source__card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--space-3);
   }
 
@@ -757,12 +786,27 @@
     align-items: center;
     gap: var(--space-3);
     flex-wrap: wrap;
+    flex: 1;
   }
 
-  .home-source__meta {
-    display: inline-flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
+  .home-source__title h3 {
+    margin: 0;
+  }
+
+  .home-source__count {
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .home-source__chevron {
+    font-size: 1.25rem;
+    color: var(--text-subtle);
+    transition: transform 0.2s ease;
+  }
+
+  .home-source--expanded .home-source__chevron {
+    transform: rotate(90deg);
   }
 
   .home-source__description {
@@ -773,6 +817,20 @@
   .home-source__status {
     margin: 0;
     font-weight: 600;
+  }
+
+  .home-source__body {
+    border: 1px dashed color-mix(in srgb, var(--border) 70%, transparent);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    background: color-mix(in srgb, var(--surface) 85%, var(--surface-2) 15%);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .home-source__body[hidden] {
+    display: none;
   }
 
   .home-source__error {
