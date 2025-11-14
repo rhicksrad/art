@@ -6,6 +6,12 @@ const ROUTES = [
   { href: 'ubc.html', label: 'UBC' },
   { href: 'ubc-oai.html', label: 'UBC OAI' },
   { href: 'arxiv.html', label: 'arXiv' },
+  { href: 'northwestern.html', label: 'Northwestern' },
+  { href: 'stanford.html', label: 'Stanford' },
+  { href: 'hathi.html', label: 'HathiTrust' },
+  { href: 'htrc.html', label: 'HTRC' },
+  { href: 'leipzig.html', label: 'Leipzig IIIF' },
+  { href: 'bern.html', label: 'Bern IIIF' },
 ];
 
 const normalizePath = (value: string): string => {

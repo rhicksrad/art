@@ -12,6 +12,12 @@ const routes: Record<string, () => Promise<{ default: { mount: (el: HTMLElement)
   '/ubc.html': () => import('./pages/ubc'),
   '/ubc-oai.html': () => import('./pages/ubcOai'),
   '/arxiv.html': () => import('./pages/arxiv'),
+  '/northwestern.html': () => import('./pages/northwestern'),
+  '/stanford.html': () => import('./pages/stanford'),
+  '/hathi.html': () => import('./pages/hathi'),
+  '/leipzig.html': () => import('./pages/leipzig'),
+  '/bern.html': () => import('./pages/bern'),
+  '/htrc.html': () => import('./pages/htrc'),
 };
 
 const normalizeBasePath = (value: string): string => {

@@ -6,6 +6,17 @@ export type ItemCard = {
   tags?: string[];
   img?: string;
   href?: string;
-  source: 'Harvard' | 'Princeton' | 'UBC' | 'Dataverse' | 'arXiv';
+  source:
+    | 'Harvard'
+    | 'Princeton'
+    | 'UBC'
+    | 'Dataverse'
+    | 'arXiv'
+    | 'Northwestern'
+    | 'Stanford'
+    | 'HathiCatalog'
+    | 'HTRC'
+    | 'LeipzigIIIF'
+    | 'BernIIIF';
   raw: unknown;
 };
