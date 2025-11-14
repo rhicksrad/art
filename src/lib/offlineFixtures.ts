@@ -26,28 +26,6 @@ const OFFLINE_FIXTURES: FixtureResolver[] = [
   createResolver((url) => url.pathname.startsWith('/ubc/collections'), '/fixtures/ubc/collections.json'),
   createResolver((url) => url.pathname.startsWith('/ubc/search/8.5'), '/fixtures/ubc/search.json'),
   createResolver((url) => url.pathname.startsWith('/ubc-oai'), '/fixtures/ubc/oai.xml'),
-  withDynamicResolver((url) => {
-    if (!url.pathname.startsWith('/yale-iiif')) {
-      return null;
-    }
-    const upstream = url.searchParams.get('url') ?? '';
-    if (upstream.includes('catalog.json')) {
-      return '/fixtures/yale/catalog.json';
-    }
-    return '/fixtures/yale/manifest.json';
-  }),
-  withDynamicResolver((url) => {
-    if (/iiif\.harvardartmuseums\.org$/i.test(url.hostname) || url.href.includes('manifests/object/299843')) {
-      return '/fixtures/yale/manifest.json';
-    }
-    return null;
-  }),
-  withDynamicResolver((url) => {
-    if (/collections\.library\.yale\.edu$/i.test(url.hostname) && url.pathname.includes('/manifests/')) {
-      return '/fixtures/yale/manifest.json';
-    }
-    return null;
-  }),
   createResolver((url) => url.pathname.startsWith('/diag'), '/fixtures/system/diag.json'),
   withDynamicResolver((url) => {
     if (url.hostname === 'export.arxiv.org' || url.pathname.startsWith('/arxiv/search')) {

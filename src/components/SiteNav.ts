@@ -2,7 +2,6 @@ const ROUTES = [
   { href: '', label: 'Home' },
   { href: 'harvard.html', label: 'Harvard' },
   { href: 'princeton.html', label: 'Princeton' },
-  { href: 'yale.html', label: 'Yale' },
   { href: 'dataverse.html', label: 'Dataverse' },
   { href: 'ubc.html', label: 'UBC' },
   { href: 'ubc-oai.html', label: 'UBC OAI' },

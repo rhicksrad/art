@@ -4,7 +4,6 @@ import { toItemCards as princetonToCards } from '../adapters/princeton';
 import { toItemCards as dataverseToCards } from '../adapters/dataverse';
 import { toItemCards as ubcToCards } from '../adapters/ubc';
 import { toItemCards as arxivToCards } from '../adapters/arxiv';
-import { toItemCards as yaleToCards } from '../adapters/yale';
 import type { ItemCard } from './types';
 import { searchUbc } from './ubc';
 
@@ -71,15 +70,6 @@ const searchArxiv = async (q: string, limit: number, signal: AbortSignal): Promi
   return arxivToCards(text);
 };
 
-const searchYale = async (value: string, _limit: number, signal: AbortSignal): Promise<ItemCard[]> => {
-  const trimmed = normalizeQuery(value);
-  if (!/^https?:/i.test(trimmed)) {
-    return [];
-  }
-  const manifest = await fetchJSON('/yale-iiif', { url: trimmed }, { signal });
-  return yaleToCards(manifest);
-};
-
 export type UnifiedSource = ItemCard['source'];
 
 export type UnifiedSourceDefinition = {
@@ -130,15 +120,6 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     typeLabel: 'Papers',
     description: 'Atom feed for art-adjacent research output.',
     search: searchArxiv,
-  },
-  {
-    key: 'Yale',
-    label: 'Yale / IIIF manifests',
-    typeLabel: 'Canvases',
-    description: 'Paste a manifest URL to list canvases and imagery.',
-    search: searchYale,
-    defaultEnabled: false,
-    supportsImages: true,
   },
 ];
 

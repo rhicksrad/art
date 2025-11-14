@@ -307,7 +307,7 @@ const mount = (el: HTMLElement): void => {
         iiifLink.target = '_blank';
         iiifLink.rel = 'noreferrer';
         if (manifest) {
-          iiifLink.href = `/yale.html?manifest=${encodeURIComponent(manifest)}`;
+          iiifLink.href = manifest;
         } else if (service) {
           iiifLink.href = toIiifImageUrl(service, '!1200,1200');
         }

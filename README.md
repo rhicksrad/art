@@ -4,10 +4,10 @@ A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker 
 
 ## Unified search
 
-The homepage acts like a "Google for academic APIs". A single form fans a query out to Harvard Art Museums, Princeton, Yale IIIF,
+The homepage acts like a "Google for academic APIs". A single form fans a query out to Harvard Art Museums, Princeton,
 Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
 
-- Pick which sources participate (Yale is opt-in because it expects a manifest URL).
+- Pick which sources participate.
 - Control the max results per source, toggle a grid/list layout, and filter down to cards with images.
 - See per-source loading state, error alerts, and normalized cards rendered via shared adapters.
 - Jump into the unified experience from the header search bar, which rewrites the URL to `/?q=<term>`.
@@ -15,7 +15,7 @@ Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
 ## Architecture
 
 - **Worker endpoints** – All browser requests use relative URLs that the Worker serves:
-  - `/harvard-art/*`, `/princeton-art/*`, `/dataverse/*`, `/ubc/*`, `/arxiv/search`, `/yale-iiif`, `/ubc-oai`, and `/diag`.
+  - `/harvard-art/*`, `/princeton-art/*`, `/dataverse/*`, `/ubc/*`, `/arxiv/search`, `/ubc-oai`, and `/diag`.
   - The Worker appends API keys, manages caching via a `ttl` query parameter, and returns JSON diagnostics for any error path.
 - **No client-side secrets** – Keys live in Cloudflare Secrets. The browser resolves the Worker base URL from `window.__CONFIG__`, `import.meta.env.VITE_WORKER_BASE`, or defaults to `https://art.hicksrch.workers.dev`.
 - **HTTP helpers** – `src/lib/http.ts` centralises fetch logic: JSON/text helpers, strong `Accept` headers, query-string building, and typed `HttpError` instances with response samples.
@@ -28,7 +28,6 @@ Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
 
 - **Harvard Art Museums** – `/harvard-art/object` search with people, classification, and IIIF imagery.
 - **Princeton University Art Museum** – `/princeton-art/search` Linked Art responses rendered as ItemCards.
-- **Yale / IIIF** – `/yale-iiif?url=` manifest parsing with canvas cards and thumbnail previews.
 - **Harvard Dataverse** – `/dataverse/search` dataset explorer with subject and keyword tags.
 - **UBC Open Collections** – `/ubc/search/8.5/{index}` discovery with automatic index resolution and IIIF helpers.
 - **UBC OAI-PMH** – `/ubc-oai` verb runner for harvesting metadata.
