@@ -88,18 +88,27 @@ const detectHathiIdentifier = (q: string): { type: HathiIdType; id: string } | n
   const lower = trimmed.toLowerCase();
   const prefixMatch = lower.match(/^(oclc|isbn|lccn|htid)[:=](.+)$/i);
   if (prefixMatch) {
-    return { type: prefixMatch[1].toLowerCase() as HathiIdType, id: prefixMatch[2].trim() };
+    const id = prefixMatch[2].trim();
+    return id ? { type: prefixMatch[1].toLowerCase() as HathiIdType, id } : null;
   }
-  if (lower.startsWith('ocn') || lower.startsWith('ocm')) {
-    return { type: 'oclc', id: trimmed };
-  }
-  if (/^[0-9]+$/.test(trimmed)) {
-    return { type: 'oclc', id: trimmed };
-  }
+
   if (trimmed.includes('.')) {
     return { type: 'htid', id: trimmed };
   }
-  return { type: 'oclc', id: trimmed };
+
+  const normalizedIsbn = trimmed.replace(/[-\s]/g, '');
+  if (/^(?:\d{9}[\dXx]|\d{13})$/.test(normalizedIsbn)) {
+    return { type: 'isbn', id: normalizedIsbn };
+  }
+
+  if (lower.startsWith('ocn') || lower.startsWith('ocm')) {
+    return { type: 'oclc', id: trimmed };
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return { type: 'oclc', id: trimmed };
+  }
+
+  return null;
 };
 
 const searchHathi = async (q: string, limit: number, signal: AbortSignal): Promise<ItemCard[]> => {
@@ -134,6 +143,15 @@ const shouldUseIiif = (value: string): boolean => {
   return trimmed.startsWith('http') || trimmed.includes('/') || trimmed.endsWith('.json');
 };
 
+const expectsHathiIdentifier = (value: string): boolean => detectHathiIdentifier(value) !== null;
+
+const expectsStanfordPurl = (value: string): boolean => normalizePurlId(value) !== null;
+
+const expectsHtrcId = (value: string): boolean => {
+  const trimmed = value.trim();
+  return Boolean(trimmed && /[.:]/.test(trimmed));
+};
+
 const searchLeipzig = async (q: string, limit: number, signal: AbortSignal): Promise<ItemCard[]> => {
   if (!shouldUseIiif(q)) {
     return [];
@@ -159,6 +177,8 @@ export type UnifiedSourceDefinition = {
   defaultEnabled?: boolean;
   supportsImages?: boolean;
   description: string;
+  isCompatibleQuery?: (q: string) => string | null;
+  sampleQueries?: string[];
   search: (q: string, limit: number, signal: AbortSignal) => Promise<ItemCard[]>;
 };
 
@@ -170,6 +190,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'Objects, people, and color data with IIIF links.',
     search: searchHarvard,
     supportsImages: true,
+    sampleQueries: ['impressionism', 'portrait'],
   },
   {
     key: 'Princeton',
@@ -178,6 +199,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'Linked Art search surface for makers and media.',
     search: searchPrinceton,
     supportsImages: true,
+    sampleQueries: ['monet', 'etching'],
   },
   {
     key: 'Dataverse',
@@ -185,6 +207,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     typeLabel: 'Datasets',
     description: 'Research datasets, keywords, and publication info.',
     search: searchDataverse,
+    sampleQueries: ['museum data', 'art history'],
   },
   {
     key: 'UBC',
@@ -193,6 +216,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'Elasticsearch-backed collections with IIIF previews.',
     search: searchUbcCards,
     supportsImages: true,
+    sampleQueries: ['newspaper', 'postcard'],
   },
   {
     key: 'arXiv',
@@ -200,6 +224,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     typeLabel: 'Papers',
     description: 'Atom feed for art-adjacent research output.',
     search: searchArxiv,
+    sampleQueries: ['cat:cs.CV', 'digital heritage'],
   },
   {
     key: 'Northwestern',
@@ -208,6 +233,7 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'Works, posters, and recordings via api.dc.library.northwestern.edu.',
     search: searchNorthwestern,
     supportsImages: true,
+    sampleQueries: ['poster', 'photograph'],
   },
   {
     key: 'HathiCatalog',
@@ -216,6 +242,9 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'Enter an OCLC/ISBN/LCCN/HTID to resolve cataloged volumes.',
     search: searchHathi,
     defaultEnabled: false,
+    isCompatibleQuery: (q) =>
+      expectsHathiIdentifier(q) ? null : 'Enter an OCLC, ISBN, LCCN, or HTID to search HathiTrust.',
+    sampleQueries: ['isbn:9780140449112', 'oclc:123456'],
   },
   {
     key: 'Stanford',
@@ -225,6 +254,8 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     search: searchStanford,
     defaultEnabled: false,
     supportsImages: true,
+    isCompatibleQuery: (q) => (expectsStanfordPurl(q) ? null : 'Paste an 11-character Stanford PURL id.'),
+    sampleQueries: ['bb112zx3193'],
   },
   {
     key: 'HTRC',
@@ -233,6 +264,8 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     description: 'HathiTrust Research Center volume metadata by HTID.',
     search: searchHtrc,
     defaultEnabled: false,
+    isCompatibleQuery: (q) => (expectsHtrcId(q) ? null : 'Enter a HathiTrust volume id (e.g. mdp.39015012345678).'),
+    sampleQueries: ['mdp.39015012345678'],
   },
   {
     key: 'LeipzigIIIF',
@@ -242,6 +275,8 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     search: searchLeipzig,
     defaultEnabled: false,
     supportsImages: true,
+    isCompatibleQuery: (q) => (shouldUseIiif(q) ? null : 'Paste an IIIF manifest URL or collection path.'),
+    sampleQueries: ['/iiif/collection/hsa'],
   },
   {
     key: 'BernIIIF',
@@ -251,6 +286,8 @@ export const SOURCE_DEFINITIONS: UnifiedSourceDefinition[] = [
     search: searchBern,
     defaultEnabled: false,
     supportsImages: true,
+    isCompatibleQuery: (q) => (shouldUseIiif(q) ? null : 'Paste an IIIF manifest URL or collection path.'),
+    sampleQueries: ['/iiif/collection/collection.json'],
   },
 ];
 
