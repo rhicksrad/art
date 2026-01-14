@@ -1,6 +1,7 @@
 import { createAlert } from '../components/Alert';
 import { renderItemCard } from '../components/Card';
 import { HttpError } from '../lib/http';
+import { getExploreCards, getSampleCards } from '../lib/sampleData';
 import type { ItemCard } from '../lib/types';
 import { SOURCE_DEFINITIONS } from '../lib/unifiedSearch';
 import type { UnifiedSource } from '../lib/unifiedSearch';
@@ -22,6 +23,7 @@ type SourceEntry = {
   cards: ItemCard[];
   loading: boolean;
   error?: string;
+  notice?: string;
 };
 
 type SourceView = {
@@ -79,6 +81,8 @@ const applyImageFilter = (items: ItemCard[], showImagesOnly: boolean): ItemCard[
   return items.filter((item) => typeof item.img === 'string' && item.img.trim().length > 0);
 };
 
+const FALLBACK_NOTICE = 'Live results are unavailable right now. Showing sample items instead.';
+
 const createUnifiedSearchSection = (): HTMLElement => {
   const section = document.createElement('section');
   section.className = 'home-search home-search--landing';
@@ -113,6 +117,48 @@ const createUnifiedSearchSection = (): HTMLElement => {
   form.append(srLabel, surface);
   hero.appendChild(form);
   section.appendChild(hero);
+
+  const exploreSection = document.createElement('section');
+  exploreSection.className = 'home-explore';
+
+  const exploreHeader = document.createElement('div');
+  exploreHeader.className = 'home-explore__header';
+  const exploreTitle = document.createElement('h2');
+  exploreTitle.textContent = 'Explore highlights';
+  const exploreCopy = document.createElement('p');
+  exploreCopy.textContent = 'Jump into curated samples and instant searches while the live feeds load.';
+  exploreHeader.append(exploreTitle, exploreCopy);
+
+  const quickSearches = SOURCE_DEFINITIONS.flatMap((def) => def.sampleQueries ?? []);
+  const quickSearchRow = document.createElement('div');
+  quickSearchRow.className = 'home-explore__quick';
+  const quickLabel = document.createElement('span');
+  quickLabel.className = 'home-explore__label';
+  quickLabel.textContent = 'Quick searches';
+  const quickList = document.createElement('div');
+  quickList.className = 'home-explore__chips';
+  quickSearches.slice(0, 8).forEach((term) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chip home-explore__chip';
+    button.textContent = term;
+    button.addEventListener('click', () => {
+      queryInput.value = term;
+      runUnifiedSearch();
+    });
+    quickList.appendChild(button);
+  });
+  quickSearchRow.append(quickLabel, quickList);
+
+  const exploreGrid = document.createElement('div');
+  exploreGrid.className = 'home-explore__grid';
+  const exploreCards = getExploreCards(8);
+  exploreCards.forEach((card) => {
+    exploreGrid.appendChild(renderItemCard(card));
+  });
+
+  exploreSection.append(exploreHeader, quickSearchRow, exploreGrid);
+  section.appendChild(exploreSection);
 
   const resultsContainer = document.createElement('div');
   resultsContainer.className = 'home-results';
@@ -333,6 +379,7 @@ const createUnifiedSearchSection = (): HTMLElement => {
     entry.cards = [];
     entry.loading = false;
     entry.error = undefined;
+    entry.notice = undefined;
   };
 
   const setSourceCollapsed = (key: UnifiedSource, collapsed: boolean): void => {
@@ -375,6 +422,7 @@ const createUnifiedSearchSection = (): HTMLElement => {
     } else {
       unmountResultsContainer();
     }
+    exploreSection.hidden = hasQuery;
     resultsContainer.hidden = !hasQuery;
     filtersToggle.hidden = !hasQuery;
     filtersToggle.disabled = !hasQuery;
@@ -413,6 +461,11 @@ const createUnifiedSearchSection = (): HTMLElement => {
       view.count.textContent = 'Error';
       view.error.appendChild(createAlert(entry.error, 'error'));
       view.list.replaceChildren();
+    } else if (entry.notice) {
+      view.status.textContent = entry.notice;
+      view.count.textContent = '—';
+      view.error.appendChild(createAlert(entry.notice, 'info'));
+      view.list.replaceChildren();
     } else {
       const filtered = applyImageFilter(entry.cards, state.showImagesOnly);
       view.status.textContent = filtered.length > 0 ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : 'No results';
@@ -443,7 +496,16 @@ const createUnifiedSearchSection = (): HTMLElement => {
     const entry = perSource[key];
     entry.loading = true;
     entry.error = undefined;
+    entry.notice = undefined;
     updateSourceView(key);
+    const notice = def.isCompatibleQuery?.(query) ?? null;
+    if (notice) {
+      entry.loading = false;
+      entry.notice = notice;
+      updateSourceView(key);
+      controllers[key] = undefined;
+      return;
+    }
     def
       .search(query, state.perSourceLimit, controller.signal)
       .then((cards) => {
@@ -456,7 +518,14 @@ const createUnifiedSearchSection = (): HTMLElement => {
         if (controller.signal.aborted) {
           return;
         }
-        entry.error = formatError(error);
+        const fallback = getSampleCards(key, state.perSourceLimit);
+        if (fallback.length > 0) {
+          entry.cards = fallback;
+          entry.notice = FALLBACK_NOTICE;
+          entry.error = undefined;
+        } else {
+          entry.error = formatError(error);
+        }
       })
       .finally(() => {
         if (controller.signal.aborted) {
