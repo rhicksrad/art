@@ -7,7 +7,8 @@ const OBJECT_ENDPOINT = '/princeton-art/objects';
 
 const MAX_BATCH = 100;
 
-const detailCache = new Map<string, any>();
+const detailCache = new Map<string, DetailRecord | null>();
+const detailInFlight = new Map<string, Promise<DetailRecord | null>>();
 
 type SearchHit = {
   _id?: string;
@@ -129,11 +130,19 @@ const mapRights = (record: DetailRecord): NormalArt['rights'] => {
   if (restrictions.includes('public domain')) return 'PD';
   if (credit.includes('public domain')) return 'PD';
   if (restrictions.includes('creative commons') || credit.includes('creative commons')) return 'CC';
-  if (restrictions.includes('restricted') || restrictions.includes('copyright') || noWebUse === 'true') {
+  if (restrictions.includes('restricted') || restrictions.includes('copyright') || noWebUse === 'true' || noWebUse === '1') {
     return 'Restricted';
   }
   if (credit.includes('©') || credit.includes('copyright')) return 'Restricted';
   return 'Unknown';
+};
+
+const isTruthyFlag = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes';
 };
 
 const extractIiifService = (record: DetailRecord): string | undefined => {
@@ -208,20 +217,32 @@ const withWorkerBase = (path: string, params?: URLSearchParams): URL => {
 
 const fetchDetail = async (id: string, signal?: AbortSignal): Promise<DetailRecord | null> => {
   if (detailCache.has(id)) {
-    return detailCache.get(id);
+    return detailCache.get(id) ?? null;
   }
+  const inFlight = detailInFlight.get(id);
+  if (inFlight) return await inFlight;
+
   const url = withWorkerBase(detailUrl(id));
-  const res = await fetchWithOfflineFallback(url, { signal });
-  if (!res.ok) {
-    if (res.status === 404) {
-      detailCache.set(id, null);
-      return null;
+  const request = (async (): Promise<DetailRecord | null> => {
+    const res = await fetchWithOfflineFallback(url, { signal });
+    if (!res.ok) {
+      if (res.status === 404) {
+        detailCache.set(id, null);
+        return null;
+      }
+      throw new Error(`Princeton detail ${res.status}`);
     }
-    throw new Error(`Princeton detail ${res.status}`);
+    const json = (await res.json()) as DetailRecord;
+    detailCache.set(id, json);
+    return json;
+  })();
+
+  detailInFlight.set(id, request);
+  try {
+    return await request;
+  } finally {
+    detailInFlight.delete(id);
   }
-  const json = (await res.json()) as DetailRecord;
-  detailCache.set(id, json);
-  return json;
 };
 
 const fetchSearch = async (params: URLSearchParams, signal?: AbortSignal): Promise<SearchResponse> => {
@@ -249,7 +270,7 @@ const toNormalized = (hit: SearchHit, detail: DetailRecord | null): Normalized |
   const iiifService = extractIiifService(detail);
   const primaryImage = extractPrimaryImage(detail);
   const renditions = extractRenditions(detail);
-  const hasImage = Boolean(iiifService || primaryImage || renditions.length > 0 || detail.hasimage === 'true' || detail.hasimage === true);
+  const hasImage = Boolean(iiifService || primaryImage || renditions.length > 0 || isTruthyFlag(detail.hasimage));
 
   const item: NormalArt = {
     id,
