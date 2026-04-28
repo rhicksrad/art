@@ -4,30 +4,105 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Worker Debug</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='none'/%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='none'/%3E%3C/svg%3E"
+    />
     <style>
       body {
         font-family: system-ui, sans-serif;
+        margin: 0;
         padding: 1rem;
       }
-      pre {
-        background: #111;
-        color: #eee;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        overflow-x: auto;
+      .summary {
+        margin: 0.5rem 0 1rem;
+        font-size: 0.95rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        text-align: left;
+        padding: 0.5rem;
+        vertical-align: top;
+      }
+      th {
+        background: #f7f7f7;
+      }
+      td code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.82rem;
+        white-space: nowrap;
+      }
+      .sample {
+        max-width: 56ch;
+        white-space: normal;
+        word-break: break-word;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .badge.pass {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge.fail {
+        background: #fee2e2;
+        color: #991b1b;
       }
     </style>
   </head>
   <body>
-    <h1>Smoke tests</h1>
-    <pre id="log">Running tests…
-</pre>
+    <h1>Worker Diagnostics</h1>
+    <p id="summary" class="summary">Running health probes…</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Endpoint tested</th>
+          <th>HTTP status</th>
+          <th>Result</th>
+          <th>Response sample / error</th>
+        </tr>
+      </thead>
+      <tbody id="results"></tbody>
+    </table>
+
     <script type="module">
-      const log = (message) => {
-        const el = document.getElementById('log');
-        el.textContent += `\n${message}`;
-        console.log(message);
+      const tableBody = document.getElementById('results');
+      const summary = document.getElementById('summary');
+
+      const trimSample = (text, max = 180) =>
+        text.replace(/\s+/g, ' ').slice(0, max) || '(empty response)';
+
+      const setSummary = (done, passed, failed) => {
+        summary.textContent = `Probes complete: ${done} total • ${passed} passing • ${failed} failing`;
+      };
+
+      const addResultRow = ({ provider, endpoint, status, ok, sample }) => {
+        const row = document.createElement('tr');
+
+        const statusText = typeof status === 'number' ? String(status) : status;
+        const badgeClass = ok ? 'pass' : 'fail';
+        const badgeText = ok ? 'PASS' : 'FAIL';
+
+        row.innerHTML = `
+          <td>${provider}</td>
+          <td><code>${endpoint}</code></td>
+          <td>${statusText}</td>
+          <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+          <td class="sample">${sample}</td>
+        `;
+        tableBody.appendChild(row);
       };
 
       const resolveUbcIndex = async () => {
@@ -39,42 +114,86 @@
           const values = data && typeof data === 'object' ? Object.values(data.data ?? {}) : [];
           const slug = values.find((value) => typeof value === 'string' && /^[A-Za-z]/.test(value));
           return slug || 'calendars';
-        } catch (error) {
-          log(`Failed to resolve UBC index: ${error}`);
+        } catch {
           return 'calendars';
+        }
+      };
+
+      const runProbe = async (probe) => {
+        try {
+          const response = await fetch(probe.endpoint, {
+            headers: probe.accept ? { Accept: probe.accept } : undefined,
+          });
+          const bodyText = await response.text();
+          const sample = trimSample(bodyText);
+          return {
+            provider: probe.provider,
+            endpoint: probe.endpoint,
+            status: response.status,
+            ok: response.ok,
+            sample: response.ok ? sample : `${response.statusText || 'Request failed'} — ${sample}`,
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return {
+            provider: probe.provider,
+            endpoint: probe.endpoint,
+            status: 'network-error',
+            ok: false,
+            sample: trimSample(message),
+          };
         }
       };
 
       const run = async () => {
         const ubcIndex = await resolveUbcIndex();
-        const tests = [
-          { name: 'diag', url: '/diag' },
-          { name: 'harvard', url: '/harvard-art/object?size=1' },
-          { name: 'princeton', url: '/princeton-art/search?q=monet&type=artobjects&size=1' },
-          { name: 'dataverse', url: '/dataverse/search?q=data&type=dataset&per_page=1' },
-          { name: 'ubc collections', url: '/ubc/collections?ttl=3600' },
-          { name: 'ubc search', url: `/ubc/search/8.5?index=${encodeURIComponent(ubcIndex)}&q=newspaper&size=1` },
-          { name: 'arxiv', url: '/arxiv/search?search_query=cat:cs.AI&max_results=1' },
+        const probes = [
+          { provider: 'diag', endpoint: '/diag' },
+          { provider: 'harvard-art', endpoint: '/harvard-art/object?size=1' },
+          {
+            provider: 'princeton-art',
+            endpoint: '/princeton-art/search?q=monet&type=artobjects&size=1',
+          },
+          { provider: 'dataverse', endpoint: '/dataverse/search?q=data&type=dataset&per_page=1' },
+          { provider: 'ubc collections', endpoint: '/ubc/collections?ttl=3600' },
+          {
+            provider: 'ubc search',
+            endpoint: `/ubc/search/8.5?index=${encodeURIComponent(ubcIndex)}&q=newspaper&size=1`,
+          },
+          { provider: 'ubc oai', endpoint: '/ubc-oai?verb=Identify' },
+          { provider: 'arxiv', endpoint: '/arxiv/search?search_query=cat:cs.AI&max_results=1' },
+          { provider: 'northwestern', endpoint: '/northwestern/api/v2/search?q=poster&size=1' },
+          { provider: 'stanford purl', endpoint: '/stanford-purl/bb112zx3193' },
+          {
+            provider: 'stanford embed',
+            endpoint: '/stanford-embed/oembed?url=https%3A%2F%2Fpurl.stanford.edu%2Fbb112zx3193',
+          },
+          {
+            provider: 'hathi catalog',
+            endpoint: '/hathi-catalog/api/volumes/full/oclc/3185585.json',
+          },
+          { provider: 'htrc', endpoint: '/htrc/api/metadata/volume/mdp.39015078572457' },
+          { provider: 'leipzig iiif', endpoint: '/leipzig-iiif/iiif/0000001/manifest.json' },
+          { provider: 'bern iiif', endpoint: '/bern-iiif/IIIF/Presentation/v2/1234/manifest' },
         ];
 
-        for (const test of tests) {
-          try {
-            const resp = await fetch(test.url);
-            const contentType = resp.headers.get('content-type') || 'unknown';
-            const sample = contentType.includes('json') ? await resp.text() : await resp.text();
-            const snippet = sample.slice(0, 120).replace(/\s+/g, ' ');
-            if (!resp.ok) {
-              log(`FAIL ${test.name}: ${resp.status} ${resp.statusText} (${snippet})`);
-            } else {
-              log(`PASS ${test.name}: ${resp.status} ${resp.statusText} [${contentType}] ${snippet}`);
-            }
-          } catch (error) {
-            log(`FAIL ${test.name}: ${error instanceof Error ? error.message : error}`);
+        let passed = 0;
+        let failed = 0;
+
+        for (const probe of probes) {
+          const result = await runProbe(probe);
+          if (result.ok) {
+            passed += 1;
+          } else {
+            failed += 1;
           }
+          addResultRow(result);
         }
+
+        setSummary(probes.length, passed, failed);
       };
 
-      run();
+      void run();
     </script>
   </body>
 </html>
