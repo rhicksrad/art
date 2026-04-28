@@ -53,6 +53,9 @@ jobs:
           mkdir -p public
           echo 'window.__CONFIG__ = { WORKER_BASE: "https://art.hicksrch.workers.dev" };' > public/config.js
 
+      - name: Check routes
+        run: pnpm check:routes
+
       - name: Build
         env:
           CI: 'true'
