@@ -26,7 +26,7 @@
   .chart__line,
   .line {
     fill: none;
-    stroke-width: 2.5px;
+    stroke-width: 3px;
     stroke: var(--accent);
   }
 
@@ -83,5 +83,6 @@
     color: var(--text);
     font-size: var(--fs-sm);
     backdrop-filter: blur(10px);
+    max-width: min(280px, 90vw);
   }
 }

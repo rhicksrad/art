@@ -59,13 +59,14 @@
   }
 
   body::before {
-    background: linear-gradient(140deg, rgba(9, 12, 32, 0.9), rgba(4, 7, 20, 0.95)), var(--bg-muted);
+    background:
+      linear-gradient(140deg, rgba(9, 12, 32, 0.9), rgba(4, 7, 20, 0.95)), var(--bg-muted);
   }
 
   body::after {
-    background: var(--gradient-1), var(--gradient-2);
+    background: var(--gradient-mesh), var(--gradient-1), var(--gradient-2);
     mix-blend-mode: screen;
-    opacity: 0.8;
+    opacity: 0.86;
   }
 
   #app {
@@ -77,7 +78,9 @@
   a {
     color: var(--accent);
     text-decoration: none;
-    transition: color var(--transition-fast), text-decoration-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      text-decoration-color var(--transition-fast);
   }
 
   a:hover,
@@ -116,7 +119,7 @@
   }
 
   h1 {
-    font-size: var(--fs-xxl);
+    font-size: var(--fs-display);
     line-height: 1.15;
   }
 
@@ -181,7 +184,7 @@
   }
 
   .container {
-    width: min(1180px, 100% - 2 * clamp(1rem, 6vw, 3.5rem));
+    width: min(var(--content-max), 100% - 2 * var(--content-pad));
     margin-inline: auto;
     padding-block: clamp(1.5rem, 3vw, 3rem);
   }
@@ -209,6 +212,22 @@
     border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
     background: var(--surface);
     box-shadow: var(--shadow-sm);
+  }
+
+  .glass-panel {
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 80%, var(--surface-2) 20%);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(16px);
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
   }
 
   .table-scroll table {
