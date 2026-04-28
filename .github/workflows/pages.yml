@@ -60,9 +60,10 @@ jobs:
         env:
           CI: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          pnpm build
-          ls -R dist
+        run: pnpm build
+
+      - name: Smoke test built pages
+        run: pnpm smoke:pages
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
