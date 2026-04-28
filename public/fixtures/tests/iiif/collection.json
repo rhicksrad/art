@@ -1,0 +1,19 @@
+{
+  "id": "https://example.org/iiif/collection/top",
+  "type": "Collection",
+  "items": [
+    {
+      "id": "https://example.org/iiif/manifest/1",
+      "type": "Manifest",
+      "label": {
+        "en": ["Specimen Album"]
+      },
+      "summary": {
+        "none": ["Representative IIIF fixture"]
+      },
+      "thumbnail": {
+        "id": "https://example.org/iiif/image/1"
+      }
+    }
+  ]
+}
