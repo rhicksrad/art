@@ -39,6 +39,14 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 
+  .panel {
+    border-radius: var(--radius-lg);
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    background: color-mix(in srgb, var(--surface) 80%, var(--surface-2) 20%);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-4);
+  }
+
   .cards.cards--list {
     display: flex;
     flex-direction: column;
@@ -58,6 +66,10 @@
 
   .mb-4 {
     margin-bottom: var(--space-4);
+  }
+
+  .mt-4 {
+    margin-top: var(--space-4);
   }
 
   .visually-hidden {
