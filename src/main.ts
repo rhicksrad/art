@@ -2,23 +2,28 @@ import './styles';
 
 import { createSiteHeader, setSiteStatus } from './components/SiteHeader';
 import { createSiteNav } from './components/SiteNav';
+import { routeRegistry } from './lib/routes';
 
-const routes: Record<string, () => Promise<{ default: { mount: (el: HTMLElement) => void } | ((el: HTMLElement) => void) }>> = {
-  '/': () => import('./pages/home'),
-  '/index.html': () => import('./pages/home'),
-  '/harvard.html': () => import('./pages/harvard'),
-  '/princeton.html': () => import('./pages/princeton'),
-  '/dataverse.html': () => import('./pages/dataverse'),
-  '/ubc.html': () => import('./pages/ubc'),
-  '/ubc-oai.html': () => import('./pages/ubcOai'),
-  '/arxiv.html': () => import('./pages/arxiv'),
-  '/northwestern.html': () => import('./pages/northwestern'),
-  '/stanford.html': () => import('./pages/stanford'),
-  '/hathi.html': () => import('./pages/hathi'),
-  '/leipzig.html': () => import('./pages/leipzig'),
-  '/bern.html': () => import('./pages/bern'),
-  '/htrc.html': () => import('./pages/htrc'),
+type PageModule = {
+  default: { mount: (el: HTMLElement) => void } | ((el: HTMLElement) => void);
 };
+
+const pageModules = import.meta.glob<PageModule>('./pages/*.ts');
+
+const routes = routeRegistry.reduce<Record<string, () => Promise<PageModule>>>((acc, route) => {
+  const modulePath = `${route.moduleKey}.ts`;
+  const loader = pageModules[modulePath];
+  if (!loader) {
+    throw new Error(`Missing page module for route ${route.path}: ${modulePath}`);
+  }
+
+  acc[route.path] = loader;
+  route.aliases?.forEach((alias) => {
+    acc[alias] = loader;
+  });
+
+  return acc;
+}, {});
 
 const normalizeBasePath = (value: string): string => {
   const trimmed = value.trim();

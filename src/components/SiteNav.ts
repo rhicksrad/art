@@ -1,18 +1,4 @@
-const ROUTES = [
-  { href: '', label: 'Home' },
-  { href: 'harvard.html', label: 'Harvard' },
-  { href: 'princeton.html', label: 'Princeton' },
-  { href: 'dataverse.html', label: 'Dataverse' },
-  { href: 'ubc.html', label: 'UBC' },
-  { href: 'ubc-oai.html', label: 'UBC OAI' },
-  { href: 'arxiv.html', label: 'arXiv' },
-  { href: 'northwestern.html', label: 'Northwestern' },
-  { href: 'stanford.html', label: 'Stanford' },
-  { href: 'hathi.html', label: 'HathiTrust' },
-  { href: 'htrc.html', label: 'HTRC' },
-  { href: 'leipzig.html', label: 'Leipzig IIIF' },
-  { href: 'bern.html', label: 'Bern IIIF' },
-];
+import { navigableRoutes } from '../lib/routes';
 
 const normalizePath = (value: string): string => {
   if (!value) return '/';
@@ -29,12 +15,12 @@ const normalizePath = (value: string): string => {
   return ensured;
 };
 
-const joinBase = (basePath: string, routeHref: string): string => {
+const joinBase = (basePath: string, routePath: string): string => {
   const normalizedBase = basePath === '/' ? '' : basePath.replace(/\/+$/, '');
-  if (!routeHref) {
+  if (routePath === '/') {
     return normalizedBase || '/';
   }
-  const trimmedRoute = routeHref.startsWith('/') ? routeHref.slice(1) : routeHref;
+  const trimmedRoute = routePath.startsWith('/') ? routePath.slice(1) : routePath;
   const joined = `${normalizedBase}/${trimmedRoute}`;
   if (joined.endsWith('/') && joined !== '/') {
     return joined.slice(0, -1);
@@ -53,11 +39,11 @@ export const createSiteNav = (basePath: string): HTMLElement => {
   nav.className = 'site-nav';
   nav.setAttribute('aria-label', 'Primary navigation');
 
-  ROUTES.forEach((route) => {
+  navigableRoutes.forEach((route) => {
     const link = document.createElement('a');
-    const normalizedHref = joinBase(basePath, route.href);
+    const normalizedHref = joinBase(basePath, route.path);
     link.setAttribute('href', normalizedHref);
-    link.textContent = route.label;
+    link.textContent = route.navLabel;
     link.className = 'site-nav__link';
 
     if (isCurrentPath(normalizedHref)) {
