@@ -1,16 +1,33 @@
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
 import { defineConfig } from 'vite';
-
-import { routeRegistry } from './src/lib/routes';
 
 const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
 const isCI = !!process.env.CI;
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
+const activeHtmlEntries = [
+  'index.html',
+  'harvard.html',
+  'princeton.html',
+  'dataverse.html',
+  'ubc.html',
+  'ubc-oai.html',
+  'arxiv.html',
+  'northwestern.html',
+  'stanford.html',
+  'hathi.html',
+  'htrc.html',
+  'leipzig.html',
+  'bern.html',
+] as const;
+
 const rollupInput = Object.fromEntries(
-  routeRegistry.map((route) => [route.htmlShell, resolve(rootDir, `${route.htmlShell}.html`)]),
+  activeHtmlEntries
+    .filter((entry) => existsSync(resolve(rootDir, entry)))
+    .map((entry) => [entry.replace(/\.html$/, ''), resolve(rootDir, entry)]),
 );
 
 const workerProxyTarget = 'https://art.hicksrch.workers.dev';
