@@ -24,6 +24,17 @@ Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
 - **Styling** – A layered design system lives in `src/styles/`, with tokens, base, components, charts, and utility layers imported through `src/styles/index.ts`.
 - **Debugging** – `debug.html` runs smoke tests against the Worker and logs PASS/FAIL with short samples. Append `?debug=1` to any request for upstream traces.
 
+### Canonical app tree (active vs. legacy)
+
+Edit these paths for active runtime behavior:
+
+- `src/main.ts` – runtime entry and route mount orchestration.
+- `src/pages/*` – page entry modules loaded by `import.meta.glob`.
+- `src/components/*`, `src/lib/*`, `src/adapters/*` – shared UI, data, and adapter layers.
+- `src/art/pages/{harvard,princeton}.ts` plus their direct deps under `src/art/components` and `src/art/lib` are **retained active modules** still used by `src/pages/harvard.ts` and `src/pages/princeton.ts`.
+
+Do not extend `legacy/src-art/*` for new work; that tree is archived legacy code moved out of the active runtime graph.
+
 ## Included services
 
 - **Harvard Art Museums** – `/harvard-art/object` search with people, classification, and IIIF imagery.
