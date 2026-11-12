@@ -1,0 +1,66 @@
+name: ci
+
+# Fast PR gate plus a build job. Both run on Ryan's self-hosted runners when the repo
+# variable CI_RUNNER is 'local' AND the event is trusted (a push, a manual run, or a PR
+# from a branch of this repo). Fork PRs always run on GitHub-hosted runners. Delete the
+# variable to send everything back to ubuntu-latest (e.g. when every PC is off).
+# See ci/runner/README.md for the runners and the safety layers around them.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate (lint, typecheck, tests, routes)
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ${{ vars.CI_RUNNER == 'local' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","web-trusted"]') || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Self-hosted runners keep a warm pnpm store on disk; the GitHub cache is for hosted only.
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm check:routes
+      - name: Clean workspace
+        if: always() && runner.environment == 'self-hosted'
+        run: rm -rf node_modules dist
+
+  build:
+    name: build and smoke
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ${{ vars.CI_RUNNER == 'local' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","web-trusted"]') || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build
+        env:
+          CI: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm build
+      - run: pnpm smoke:pages
+      - name: Clean workspace
+        if: always() && runner.environment == 'self-hosted'
+        run: rm -rf node_modules dist
