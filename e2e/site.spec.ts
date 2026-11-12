@@ -85,6 +85,12 @@ test('a facet filters the results in place', async ({ page }) => {
   await page.goto('./harvard.html?q=study');
   const cards = page.locator('button.card');
   await expect(cards).toHaveCount(24);
+  // A phone shows results first and keeps the charts behind a button.
+  const charts = page.locator('.filters__toggle');
+  if (await charts.isVisible()) {
+    await expect(page.locator('.insights')).toBeHidden();
+    await charts.click();
+  }
   await page.locator('.barlist__row', { hasText: 'Prints' }).first().click();
   await expect(cards).toHaveCount(12);
 });
