@@ -175,3 +175,15 @@ describe('successful responses never carry keys either', () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
   });
 });
+
+describe('slow upstreams', () => {
+  it('answers 504 when the upstream does not respond in time', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new DOMException('timed out', 'TimeoutError'))),
+    );
+    const res = await call('/leipzig-iiif/0000000001/manifest.json?ttl=0');
+    expect(res.status).toBe(504);
+    expect((await res.json()).error).toBe('Upstream timed out');
+  });
+});

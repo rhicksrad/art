@@ -4,7 +4,8 @@ const PORT = 4173;
 // Mirrors vite.config.ts: CI builds and previews under the GitHub Pages base path, so the tests
 // exercise the artifact that ships.
 const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
-const BASE = process.env.CI && repo ? `/${repo}/` : '/';
+const BASE =
+  process.env.DEPLOY_TARGET !== 'cloudflare' && process.env.CI && repo ? `/${repo}/` : '/';
 
 /**
  * Browser tests run against the production build served by `vite preview`.
