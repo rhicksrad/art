@@ -610,8 +610,10 @@ button.row:hover .label__title {
 
 .empty {
   grid-column: 1 / -1;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
   padding: 3rem 1rem;
-  background: var(--surface-2);
   color: var(--ink-2);
   text-align: center;
 }
@@ -902,6 +904,19 @@ button.row:hover .label__title {
   background: var(--surface);
   font-size: var(--text-sm);
   min-width: 0;
+}
+
+.error-panel > .emblem {
+  float: right;
+  margin: -0.25rem 0 0.5rem 1rem;
+}
+
+.error-panel {
+  display: block !important;
+}
+
+.error-panel > * + * {
+  margin-top: 0.6rem;
 }
 
 .error-panel__head {

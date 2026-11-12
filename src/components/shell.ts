@@ -1,3 +1,4 @@
+import { sourceEmblem } from '../lib/emblems';
 import { h, icon } from '../lib/dom';
 import { applyTheme, resolveTheme, restoreAccent } from '../lib/prefs';
 import { currentRoute, pageHref } from '../lib/routes';
@@ -31,6 +32,7 @@ const sourcesMenu = (route: string): HTMLElement => {
               class: 'menu__item',
               'aria-current': route === source.page ? 'page' : undefined,
             },
+            sourceEmblem(source.key, 40),
             h('span', { class: 'menu__label' }, source.label),
             h('span', { class: 'menu__hint' }, source.holds),
           ),

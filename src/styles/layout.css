@@ -127,6 +127,9 @@ summary.nav__link::after {
 
 .menu__item {
   display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 0.7rem;
+  align-items: center;
   padding: 0.35rem 0;
   color: var(--ink);
   text-decoration: none;
@@ -138,12 +141,18 @@ summary.nav__link::after {
   text-underline-offset: 0.2em;
 }
 
+.menu__item .emblem {
+  grid-row: 1 / span 2;
+}
+
 .menu__label {
+  align-self: end;
   font-weight: 600;
   font-size: var(--text-sm);
 }
 
 .menu__hint {
+  align-self: start;
   font-size: var(--text-xs);
   color: var(--ink-3);
 }
@@ -209,6 +218,21 @@ summary.nav__link::after {
   padding-bottom: 0.5rem;
 }
 
+.page-head--emblem {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 2rem;
+}
+
+.page-head--emblem > * {
+  grid-column: 1;
+}
+
+.page-head--emblem > .emblem {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+
 .endpoint {
   display: flex;
   flex-wrap: wrap;
@@ -241,12 +265,38 @@ summary.nav__link::after {
   gap: 2.5rem;
 }
 
+/*
+ * The landing view is a room: a photographed gallery wall runs edge to edge with a strip of
+ * floor beneath it, and today's painting hangs on that wall. Both images were generated for
+ * this site. Search results drop the room and use the plain page.
+ */
 .hero {
+  --bleed: max(var(--gutter), calc(50vw - var(--page-width) / 2 + var(--gutter)));
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   align-items: start;
   gap: clamp(2rem, 5vw, 5rem);
-  padding-top: clamp(0.5rem, 3vh, 2.5rem);
+  margin: calc(clamp(1.75rem, 1rem + 2.5vw, 3rem) * -1) calc(50% - 50vw) 0;
+  padding: clamp(2.5rem, 7vh, 5rem) var(--bleed) calc(var(--floor) + clamp(2rem, 6vh, 4rem));
+  --floor: clamp(4.5rem, 13vh, 8.5rem);
+  background: #f3f3f2 url('../assets/room-wall-light.webp') center top / cover no-repeat;
+}
+
+.hero__floor {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--floor);
+  background: url('../assets/room-floor-light.webp') center top / cover no-repeat;
+  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.35);
+}
+
+:root[data-theme='dark'] .hero {
+  background: #1b1a19 url('../assets/room-wall-dark.webp') 0% top / 150% auto no-repeat;
+}
+
+:root[data-theme='dark'] .hero__floor {
+  background-image: url('../assets/room-floor-dark.webp');
 }
 
 .hero__copy {
@@ -279,11 +329,15 @@ summary.nav__link::after {
   min-width: 0;
 }
 
-.hero--compact {
+.hero--compact,
+:root[data-theme='dark'] .hero--compact {
   grid-template-columns: minmax(0, 1fr);
-  padding-top: 0;
+  margin: 0;
+  padding: 0;
+  background: none;
 }
 
+.hero--compact .hero__floor,
 .hero--compact h1,
 .hero--compact .lede,
 .hero--compact .hero__note,
@@ -316,7 +370,7 @@ summary.nav__link::after {
 }
 
 .feature__frame img {
-  max-height: min(62vh, 34rem);
+  max-height: min(52vh, 30rem);
   width: auto;
   max-width: 100%;
 }
@@ -439,6 +493,17 @@ summary.nav__link::after {
   color: var(--ink);
 }
 
+.directory__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.directory__table tbody th[scope='row'],
+.directory__table tbody th[scope='row'] ~ td {
+  vertical-align: middle;
+}
+
 .directory__table tbody th a:hover {
   color: var(--accent);
 }
@@ -558,6 +623,19 @@ summary.nav__link::after {
   .hero h1 {
     max-width: none;
   }
+
+  :root[data-theme='dark'] .hero {
+    background-size: cover;
+    background-position: center top;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-head--emblem > .emblem {
+    width: 84px;
+    height: 84px;
+    grid-row: 1;
+  }
 }
 
 @media (max-width: 760px) {
@@ -635,4 +713,11 @@ summary.nav__link::after {
   .masonry {
     gap: 1rem;
   }
+}
+
+/* Small print on the photographed wall needs more ink than on the flat page. */
+.hero .muted,
+.hero .feature__note,
+.hero .label__held {
+  color: var(--ink-2);
 }
