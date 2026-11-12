@@ -1,5 +1,5 @@
 import { clear, h, icon } from '../lib/dom';
-import { workerUrl, type QueryParams } from '../lib/http';
+import { redactSecrets, workerUrl, type QueryParams } from '../lib/http';
 import { WORKER_BASE } from '../lib/config';
 
 type Probe = {
@@ -164,7 +164,7 @@ const runProbe = async (probe: Probe): Promise<ProbeResult> => {
     const response = await fetch(url, {
       headers: { Accept: 'application/json,application/xml;q=0.9,*/*;q=0.5' },
     });
-    const body = await response.text();
+    const body = redactSecrets(await response.text());
     const ms = Math.round(performance.now() - started);
     const contentType = response.headers.get('content-type')?.split(';')[0] ?? '';
     const diagnostic = diagnosticOf(body);

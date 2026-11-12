@@ -30,7 +30,13 @@ Built with Vite, strict TypeScript and vanilla DOM. All requests go through one 
 
 To add an API: add a Worker route, write an adapter, add an entry to `SOURCES`, and add a page to the route registry with a matching HTML shell and `src/pages/<slug>.ts`.
 
-The Worker's source is not in this repository.
+## The Worker
+
+`worker/worker.js` is the source of the Cloudflare Worker, with tests beside it. It adds the API keys, caches successful responses, and returns a JSON diagnostic for any upstream failure or for `?debug=1`. Diagnostics are redacted: credential parameters and the Worker's own secret values are replaced before anything is returned.
+
+`.github/workflows/worker.yml` deploys it with Wrangler when `worker/` changes on `main`, if the repository has a `CLOUDFLARE_API_TOKEN` secret (a token with "Edit Cloudflare Workers" permission) and `CLOUDFLARE_ACCOUNT_ID`. Without the secret the workflow reports that it skipped the deploy. To deploy by hand: `cd worker && npx wrangler deploy`.
+
+Secrets set in Cloudflare: `HARVARD_ARTMUSEUMS_KEY`, `UBC_OC_API_KEY`, and optionally `DATAVERSE_API_TOKEN`.
 
 ## Worker base URL
 

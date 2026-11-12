@@ -85,9 +85,17 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Blank out credential parameters before any response text is kept for display. The Worker
+ * redacts its own diagnostics; this is a second lock so a key can never reach the page.
+ */
+export const redactSecrets = (text: string): string =>
+  text.replace(/([?&](?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi, '$1REDACTED');
+
 const readSample = (value: string): string | undefined => {
   if (!value) return undefined;
-  return value.length <= SAMPLE_LIMIT ? value : `${value.slice(0, SAMPLE_LIMIT)}…`;
+  const safe = redactSecrets(value);
+  return safe.length <= SAMPLE_LIMIT ? safe : `${safe.slice(0, SAMPLE_LIMIT)}…`;
 };
 
 const mergeHeaders = (init: RequestInit | undefined, defaults: Record<string, string>): Headers => {
