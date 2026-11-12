@@ -107,6 +107,8 @@ const loadWall = (): Promise<ItemCard[]> => {
 const pickFeature = (items: ItemCard[]): ItemCard | undefined =>
   items.find(
     (item) =>
+      item.people &&
+      item.people.length > 0 &&
       item.colors &&
       accentFromPalette(item.colors) &&
       (item.aspect ?? 1) > 0.6 &&

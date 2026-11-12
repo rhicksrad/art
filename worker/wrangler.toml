@@ -1,0 +1,8 @@
+# Deploys to the existing Worker named "art" (https://art.hicksrch.workers.dev).
+# Secrets (HARVARD_ARTMUSEUMS_KEY, UBC_OC_API_KEY, DATAVERSE_API_TOKEN) live in Cloudflare and
+# are untouched by a deploy. keep_vars leaves dashboard-set variables in place too.
+name = "art"
+main = "worker.js"
+compatibility_date = "2025-11-01"
+workers_dev = true
+keep_vars = true
