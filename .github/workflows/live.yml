@@ -18,6 +18,8 @@ jobs:
   live:
     runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","web-trusted","playwright"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
+    env:
+      DEPLOY_TARGET: cloudflare
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,7 +34,7 @@ jobs:
         env:
           CI: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: pnpm build
+        run: pnpm build:cloudflare
       - run: pnpm exec playwright install chromium ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }}
       - name: Browser tests against the real Worker
         if: success() || failure()

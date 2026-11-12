@@ -4,13 +4,13 @@ This repo follows the plan in `rhicksrad/Pharaoh` `docs/CI_RUNNERS.md` (Part 2, 
 
 ## Workflows
 
-| Workflow         | Trigger                                   | Where it runs                                                                                        |
-| ---------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `ci.yml` `gate`  | PRs (not drafts), push to main, manual    | local, hosted fallback. Lint, typecheck, Vitest, route check                                         |
-| `ci.yml` `build` | same                                      | local, hosted fallback. `tsc` + Vite build + smoke check of `dist/`                                  |
-| `pages.yml`      | push to main, manual                      | build local, **deploy hosted** (keeps the Pages OIDC token off the PCs). `cancel-in-progress: false` |
-| `live.yml`       | nightly 07:23 UTC, manual                 | local. Hits the real Worker and site; fails on a core route or any unredacted credential             |
-| `worker.yml`     | push to main touching `worker/**`, manual | hosted (uses the Cloudflare secret)                                                                  |
+| Workflow         | Trigger                                | Where it runs                                                                                                     |
+| ---------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ci.yml` `gate`  | PRs (not drafts), push to main, manual | local, hosted fallback. Lint, typecheck, Vitest, route check                                                      |
+| `ci.yml` `build` | same                                   | local, hosted fallback. `tsc` + Vite build + smoke check of `dist/`                                               |
+| `pages.yml`      | push to main, manual                   | builds the GitHub Pages **redirects** to the Cloudflare site (local), deploys hosted. `cancel-in-progress: false` |
+| `live.yml`       | nightly 07:23 UTC, manual              | local. Hits the real Worker and site; fails on a core route or any unredacted credential                          |
+| `worker.yml`     | every push to main, manual             | hosted. Builds the site for Cloudflare and deploys it with the Worker (needs the Cloudflare token secret)         |
 
 PR and CI workflows use `concurrency: ${{ github.workflow }}-${{ github.ref }}` with
 `cancel-in-progress: true`, so a new push cancels the old run.
