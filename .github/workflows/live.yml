@@ -16,11 +16,37 @@ concurrency:
 
 jobs:
   live:
-    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","web-trusted"]') || 'ubuntu-latest' }}
-    timeout-minutes: 10
+    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","web-trusted","playwright"]') || 'ubuntu-latest' }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node scripts/live-check.mjs
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+      - name: Worker and site routes
+        run: node scripts/live-check.mjs
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build
+        env:
+          CI: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm build
+      - run: pnpm exec playwright install chromium ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }}
+      - name: Browser tests against the real Worker
+        if: success() || failure()
+        env:
+          CI: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: pnpm test:live
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-live-results
+          path: test-results/
+          retention-days: 7
+      - name: Clean workspace
+        if: always() && runner.environment == 'self-hosted'
+        run: rm -rf node_modules dist test-results playwright-report
