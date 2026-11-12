@@ -1,4 +1,5 @@
 import { h, icon } from '../lib/dom';
+import { stateEmblem } from '../lib/emblems';
 import { HttpError } from '../lib/http';
 
 export const describeError = (error: unknown): string => {
@@ -22,7 +23,7 @@ export const errorPanel = (error: unknown, title = 'This request failed'): HTMLE
     icon('alert', 18),
     h('strong', null, title),
   );
-  panel.append(head);
+  panel.append(stateEmblem('error', 88), head);
 
   if (!(error instanceof HttpError)) {
     panel.append(h('p', null, error instanceof Error ? error.message : String(error)));

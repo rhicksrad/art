@@ -1,4 +1,5 @@
 import { binYears, formatYear, type TimeBin } from '../lib/dates';
+import { emptyState } from '../lib/emblems';
 import { clear, formatCount, h, icon } from '../lib/dom';
 import type { ItemCard, SourceKey } from '../lib/types';
 import { sourceByKey } from '../sources';
@@ -320,11 +321,7 @@ export const createResults = ({
     const onOpen = (target: ItemCard): void => openDetail(target, shown);
     if (shown.length === 0) {
       list.replaceChildren(
-        h(
-          'p',
-          { class: 'empty' },
-          items.length === 0 ? `No ${noun}s.` : 'Nothing loaded matches these filters.',
-        ),
+        emptyState(items.length === 0 ? `No ${noun}s.` : 'Nothing loaded matches these filters.'),
       );
       return;
     }

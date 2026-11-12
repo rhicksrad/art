@@ -20,3 +20,12 @@ Uppercase tracked kicker labels above headings, "A · B · C" meta strings, big-
 ## Copy
 
 Say what the thing is or does. Name the action on a button. Do not print a number that does not come from an API response.
+
+## Generated art
+
+`src/assets/` holds artwork generated for this site with the Codex CLI image tool, then cropped and optimised:
+
+- `room-wall-*` and `room-floor-*`: a photographed empty gallery, split at the floor line so the landing view can stretch the wall and keep the floor a fixed height. The dark pair has a spotlight that sits behind the featured painting.
+- `emblem-*`: copperplate-style engravings, one per source plus an empty frame (nothing to show) and a crooked frame (a request failed). They are black ink with a transparent ground; the dark theme inverts them. `src/lib/emblems.ts` maps them to sources.
+
+The full-size originals are on the `art-assets` branch under `assets-src/`. To add one, generate it in the same engraving style on a white ground, convert ink to alpha at 360px, and add it to the map.

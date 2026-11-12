@@ -4,6 +4,7 @@ import { describeError, errorPanel } from '../components/errors';
 import { createResults } from '../components/results';
 import { toItemCards as harvardCards } from '../adapters/harvard';
 import { accentFromPalette } from '../lib/color';
+import { emptyState, sourceEmblem } from '../lib/emblems';
 import { clear, formatCount, h, icon } from '../lib/dom';
 import { fetchJSON, isAbort } from '../lib/http';
 import { applyAccent, clearRecentSearches, recentSearches, rememberSearch } from '../lib/prefs';
@@ -276,7 +277,16 @@ const sourceDirectory = (): HTMLElement => {
         h(
           'tr',
           null,
-          h('th', { scope: 'row' }, h('a', { href: pageHref(source.page) }, source.label)),
+          h(
+            'th',
+            { scope: 'row' },
+            h(
+              'a',
+              { href: pageHref(source.page), class: 'directory__source' },
+              sourceEmblem(source.key, 64),
+              h('span', null, source.label),
+            ),
+          ),
           h('td', { class: 'directory__blurb' }, source.blurb),
           live,
           h('td', { class: 'directory__endpoint' }, h('code', null, source.endpoint)),
@@ -406,6 +416,7 @@ const mount = (el: HTMLElement): void => {
       ),
     ),
     feature,
+    h('div', { class: 'hero__floor', 'aria-hidden': 'true' }),
   );
 
   const body = h('div', { class: 'home-body' });
@@ -583,7 +594,7 @@ const mount = (el: HTMLElement): void => {
       if (merged.length > 0) results.setItems(merged);
       else if (!pending) {
         results.element.replaceChildren(
-          h('p', { class: 'empty' }, `Nothing matched “${q}” in the sources that answered.`),
+          emptyState(`Nothing matched “${q}” in the sources that answered.`),
         );
       }
     };

@@ -1,3 +1,4 @@
+import { sourceEmblem } from '../lib/emblems';
 import { errorPanel } from '../components/errors';
 import { createResults } from '../components/results';
 import { clear, formatCount, h, icon } from '../lib/dom';
@@ -155,7 +156,8 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
       { class: 'page' },
       h(
         'header',
-        { class: 'page-head' },
+        { class: 'page-head page-head--emblem' },
+        sourceEmblem(source.key, 150),
         h('h1', null, source.label),
         h('p', { class: 'lede' }, source.blurb),
         h(

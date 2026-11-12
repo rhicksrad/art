@@ -6,6 +6,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
   scroll-padding-top: calc(var(--header-height) + 1rem);
 }
 
@@ -217,4 +218,14 @@ pre {
 
 .nowrap {
   white-space: nowrap;
+}
+
+/* Engraved emblems are black ink on a transparent ground; the dark theme prints them in white. */
+.emblem {
+  flex: none;
+  object-fit: contain;
+}
+
+:root[data-theme='dark'] .emblem {
+  filter: invert(1);
 }
