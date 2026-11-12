@@ -1,98 +1,32 @@
-import { fetchJSON, HttpError } from '../lib/http';
+import { parseYear } from '../lib/dates';
 import type { ItemCard } from '../lib/types';
+import { asRecord, fieldList, orUndefined, str, strings } from './util';
 
-type UnknownRecord = Record<string, unknown>;
+export const looksLikeHtid = (value: string): boolean =>
+  /^[a-z][a-z0-9]{1,5}\.[\w$:/+.-]+$/i.test(value.trim());
 
-const firstString = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
-    return undefined;
-  }
-  if (value && typeof value === 'object') {
-    for (const entry of Object.values(value as UnknownRecord)) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
-  }
-  return undefined;
-};
-
-const isDiagnostic = (value: unknown): value is { upstream?: string; status?: number } => {
-  return Boolean(value && typeof value === 'object' && 'upstream' in (value as UnknownRecord));
-};
-
-const fetchMetadata = async (volumeId: string, signal?: AbortSignal): Promise<UnknownRecord | null> => {
-  const path = `/htrc/api/metadata/volume/${encodeURIComponent(volumeId)}`;
-  try {
-    const payload = await fetchJSON<unknown>(path, undefined, { signal });
-    if (isDiagnostic(payload)) {
-      return null;
-    }
-    return payload && typeof payload === 'object' ? (payload as UnknownRecord) : null;
-  } catch (error) {
-    if (error instanceof HttpError) {
-      if (error.status === 404 || error.status === 403) {
-        return null;
-      }
-      if (error.contentType && error.contentType.includes('text/html')) {
-        return null;
-      }
-      if (error.status === 200) {
-        return null;
-      }
-    }
-    throw error;
-  }
-};
-
-const buildHref = (volumeId: string): string => {
-  return `https://analytics.hathitrust.org/catalog?volume_id=${encodeURIComponent(volumeId)}`;
-};
-
-const metadataToCard = (volumeId: string, metadata: UnknownRecord | null): ItemCard => {
-  const title = firstString(metadata?.title ?? metadata?.volume_title) ?? `HTRC volume ${volumeId}`;
-  const author = firstString(metadata?.author ?? metadata?.creator);
-  const tags = [metadata?.genre, metadata?.language]
-    .map((value) => firstString(value))
-    .filter((value): value is string => typeof value === 'string')
-    .slice(0, 4);
-
+export const toItemCard = (volumeId: string, payload: unknown): ItemCard => {
+  const root = asRecord(payload) ?? {};
+  const metadata = asRecord(root.metadata) ?? asRecord(asRecord(root.data)?.metadata) ?? root;
+  const date = str(metadata.pubDate) ?? str(metadata.date) ?? str(metadata.publication_date);
+  const authors = strings(metadata.contributor ?? metadata.author ?? metadata.creator);
   return {
     id: volumeId,
-    title,
-    sub: author ?? undefined,
-    date: firstString(metadata?.date ?? metadata?.publication_date),
-    tags: tags.length > 0 ? tags : undefined,
-    href: buildHref(volumeId),
+    title: str(metadata.title) ?? str(metadata.volume_title) ?? `HTRC volume ${volumeId}`,
+    sub: authors.length > 0 ? authors.slice(0, 2).join('; ') : undefined,
+    date,
+    tags: orUndefined(strings(metadata.genre).slice(0, 4)),
+    href: `https://babel.hathitrust.org/cgi/pt?id=${encodeURIComponent(volumeId)}`,
     source: 'HTRC',
-    raw: metadata ?? { volumeId, note: 'HTRC metadata unavailable via public API' },
+    raw: payload,
+    year: parseYear(date),
+    kind: 'Volume metadata',
+    fields: fieldList([
+      ['Volume ID', volumeId],
+      ['Published', date],
+      ['Language', str(metadata.language)],
+      ['Publisher', str(metadata.publisher)],
+      ['Page count', str(metadata.pageCount)],
+    ]),
   };
 };
-
-export const htrcLookup = async (
-  volumeId: string,
-  options?: { signal?: AbortSignal },
-): Promise<ItemCard | null> => {
-  const normalized = volumeId.trim();
-  if (!normalized) {
-    return null;
-  }
-  const metadata = await fetchMetadata(normalized, options?.signal).catch(() => null);
-  return metadataToCard(normalized, metadata);
-};
-
-export default htrcLookup;

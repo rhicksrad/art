@@ -1,96 +1,64 @@
 # Art API Explorer
 
-A Vite + TypeScript site that talks exclusively to the shared Cloudflare Worker at `https://art.hicksrch.workers.dev`. The Worker fans out to each upstream API, handles caching, adds required keys, and exposes a consistent surface for the browser.
+A showcase of what you can build on free public APIs. One search box fans a query out to university museums, libraries and research archives, and every result on screen is live data. Nothing is sample data, and when an upstream fails the page says so and shows the response.
 
-## Unified search
+Built with Vite, strict TypeScript and vanilla DOM. All requests go through one Cloudflare Worker at `https://art.hicksrch.workers.dev`, which adds API keys, caches responses and turns upstream failures into JSON diagnostics.
 
-The homepage acts like a "Google for academic APIs". A single form fans a query out to Harvard Art Museums, Princeton,
-Harvard Dataverse, UBC Open Collections, and arXiv. The UI lets you:
+## What it does
 
-- Pick which sources participate.
-- Control the max results per source, toggle a grid/list layout, and filter down to cards with images.
-- See per-source loading state, error alerts, and normalized cards rendered via shared adapters.
-- Jump into the unified experience from the header search bar, which rewrites the URL to `/?q=<term>`.
+- **Unified search** on the home page across Harvard Art Museums, Princeton University Art Museum, Northwestern Digital Collections, UBC Open Collections, arXiv and Harvard Dataverse. Paste a Stanford PURL, an OCLC/ISBN/LCCN number, a HathiTrust volume id or an IIIF path and the matching lookup source runs instead.
+- **Live front page**: a featured painting pulled from Harvard each day tints the whole interface with its extracted palette, next to a wall of works and live record counts per source.
+- **Gallery and timeline views** of any result set, with facets built from the loaded records (dates, source, type, makers, subjects, palette). Clicking a facet filters in place.
+- **Detail view** with a zoom loupe, every image of the record, the colour palette, full facts, links out and the raw API record.
+- **Colour search**: click any palette swatch to find Harvard works that share that colour.
+- **One explorer page per API** with that API's own controls, sample queries and a log of the Worker requests behind the page.
+- **OAI-PMH console** for UBC (`ubc-oai.html`) and a **live status page** (`debug.html`) that probes every Worker route.
 
 ## Architecture
 
-- **Worker endpoints** – All browser requests use relative URLs that the Worker serves:
-  - `/harvard-art/*`, `/princeton-art/*`, `/dataverse/*`, `/ubc/*`, `/arxiv/search`, `/ubc-oai`, and `/diag`.
-  - The Worker appends API keys, manages caching via a `ttl` query parameter, and returns JSON diagnostics for any error path.
-- **No client-side secrets** – Keys live in Cloudflare Secrets. The browser resolves the Worker base URL from `window.__CONFIG__`, `import.meta.env.VITE_WORKER_BASE`, or defaults to `https://art.hicksrch.workers.dev`.
-- **HTTP helpers** – `src/lib/http.ts` centralises fetch logic: JSON/text helpers, strong `Accept` headers, query-string building, and typed `HttpError` instances with response samples.
-- **Routing** – `src/main.ts` maps each HTML shell (e.g. `harvard.html`) to a page module. Pages build UI with vanilla DOM components.
-- **Adapters** – `src/adapters/*` normalise each API into a shared `ItemCard` shape so the UI can render cards consistently.
-- **Styling** – A layered design system lives in `src/styles/`, with tokens, base, components, charts, and utility layers imported through `src/styles/index.ts`.
-- **Debugging** – `debug.html` runs smoke tests against the Worker and logs PASS/FAIL with short samples. Append `?debug=1` to any request for upstream traces.
+| Path | Role |
+| --- | --- |
+| `src/lib/routeRegistry.mjs` | Single list of pages. Vite inputs, navigation, and the route checks all read it. |
+| `src/main.ts` | Builds the shell and mounts the page module for the current HTML entry. |
+| `src/sources/index.ts` | The source registry. Each entry describes one API: labels, sample queries, controls, and a `search()` that returns normalised items plus the Worker requests it made. |
+| `src/adapters/*` | Turn each API's response into the shared `ItemCard` shape (`src/lib/types.ts`). Covered by unit tests against recorded response shapes in `src/adapters/__fixtures__` (tests only, never shipped). |
+| `src/pages/explorer.ts` | The generic per-source explorer. `src/pages/<source>.ts` are one-line mounts of it. |
+| `src/pages/home.ts`, `status.ts`, `ubcOai.ts` | Home and unified search, the status page, the OAI console. |
+| `src/components/*` | Shell, cards, masonry, timeline, charts, results with facets, detail dialog, error panel. |
+| `src/styles/*` | Design tokens (light and dark), base, layout, components. |
+| `src/lib/http.ts` | `workerUrl`, `fetchJSON`, `fetchText` and a typed `HttpError` carrying the upstream diagnostic. |
 
-### Canonical app tree (active vs. legacy)
+To add an API: add a Worker route, write an adapter, add an entry to `SOURCES`, and add a page to the route registry with a matching HTML shell and `src/pages/<slug>.ts`.
 
-Edit these paths for active runtime behavior:
+The Worker's source is not in this repository.
 
-- `src/main.ts` – runtime entry and route mount orchestration.
-- `src/pages/*` – page entry modules loaded by `import.meta.glob`.
-- `src/components/*`, `src/lib/*`, `src/adapters/*` – shared UI, data, and adapter layers.
-- `src/art/pages/{harvard,princeton}.ts` plus their direct deps under `src/art/components` and `src/art/lib` are **retained active modules** still used by `src/pages/harvard.ts` and `src/pages/princeton.ts`.
+## Worker base URL
 
-Do not extend `legacy/src-art/*` for new work; that tree is archived legacy code moved out of the active runtime graph.
-
-## Included services
-
-- **Harvard Art Museums** – `/harvard-art/object` search with people, classification, and IIIF imagery.
-- **Princeton University Art Museum** – `/princeton-art/search` Linked Art responses rendered as ItemCards.
-- **Harvard Dataverse** – `/dataverse/search` dataset explorer with subject and keyword tags.
-- **UBC Open Collections** – `/ubc/search/8.5/{index}` discovery with automatic index resolution and IIIF helpers.
-- **UBC OAI-PMH** – `/ubc-oai` verb runner for harvesting metadata.
-- **arXiv** – `/arxiv/search` Atom feed parser for category-aware research cards.
-- **Northwestern Digital Collections** – `/northwestern/api/v2/search` for posters, ephemera, and recordings with IIIF image helpers.
-- **Stanford PURL / Embed** – `/stanford-purl/*` + `/stanford-embed/*` lookup for any 11-character PURL id.
-- **HathiTrust Catalog** – `/hathi-catalog/api/volumes/full/{type}/{id}.json` identifier search for digitized volumes.
-- **HTRC Analytics** – `/htrc/api/metadata/volume/{htid}` metadata probes for the HathiTrust Research Center.
-- **Leipzig IIIF** – `/leipzig-iiif/*` proxy for iiif.ub.uni-leipzig.de collections and manifests.
-- **Bern IIIF** – `/bern-iiif/*` proxy for iiif.ub.unibe.ch collections and manifests.
-
-## UBC index discovery
-
-UBC Open Collections exposes multiple Elasticsearch indices. The active slug is discovered at runtime via `/ubc/collections`. The frontend caches the first slug that starts with a letter in `localStorage` and falls back to `calendars` if discovery fails. All searches use the Worker proxy for the GET endpoint with an `index` query parameter:
-
-```
-GET /ubc/search/8.5?index=<index>&q=term&size=12
-```
-
-No POST requests or query-string API keys are sent from the browser.
+Resolved in this order: `window.__CONFIG__.WORKER_BASE`, then `VITE_WORKER_BASE`, then the page origin when running on localhost (the Vite dev and preview servers proxy Worker routes), then `https://art.hicksrch.workers.dev`.
 
 ## Development
 
-Requirements: Node 20, pnpm, strict TypeScript.
+Requirements: Node 20+, pnpm 9.
 
 ```bash
 pnpm install
-pnpm dev      # Vite dev server
+pnpm dev           # dev server, proxies Worker routes
+pnpm lint
 pnpm typecheck
+pnpm test
+pnpm check:routes
 pnpm build
+pnpm smoke:pages   # checks every registered page exists in dist/
 ```
 
-The site expects the Worker base URL to be available at runtime. In development you can create `public/config.js` and define `window.__CONFIG__ = { WORKER_BASE: 'https://your-worker.example.com' };`. For Pages deployments, the GitHub Actions workflow writes this file using the `WORKER_BASE` secret before building.
+## CI and deployment
 
-## Deployment
+`.github/workflows/pages.yml` runs lint, typecheck, unit tests, the route check, the build and the smoke check on every pull request and on pushes to `main`. Pushes to `main` then deploy `dist/` to GitHub Pages.
 
-GitHub Pages deploys via the existing “Pages via Actions” workflow:
+## API notes
 
-1. Install pnpm (9.12.3) and dependencies.
-2. Write `public/config.js` with the `WORKER_BASE` secret or default worker URL.
-3. `pnpm build` outputs static assets under `dist/`.
-4. Upload the artifact and deploy to Pages.
-
-## Known caveats
-
-- UBC search relies on the GET index endpoint and occasionally returns worker diagnostics if the upstream rotates indices. Reloading the collections probe resolves the current slug.
-- The UBC OAI endpoint (`ubc-oai.html`) still depends on the upstream OAI service, which can return 52x responses during maintenance.
-- Some Princeton object IDs 404 on the open API; use the search endpoint instead of direct object lookups.
-- arXiv requests are Atom feeds; parsing failures will surface as typed HTTP errors with response samples.
-
-## Debugging tips
-
-- Visit `/diag` for key status, cache info, and base URLs.
-- Append `?debug=1` to any Worker URL to inspect upstream status codes and body samples.
-- Load `debug.html` to run the bundled smoke tests against the production Worker.
+- **Northwestern** search takes `query=`, not `q=` (`q` is ignored and returns the whole catalogue).
+- **Harvard** supports `sort=random:<seed>` and `color=<hex>`; the colour must be one of the quantised hex values the API returns in `colors[]`.
+- **Princeton** `/objects/{id}` 404s for many ids; the site uses `/search`.
+- **UBC** search is `GET /ubc/search/8.5?index=<slug>&q=…`; the index list comes from `/ubc/collections`.
+- Upstream health changes. Open `debug.html` for the current state of every route, and `/diag` on the Worker for key status.

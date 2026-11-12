@@ -1,5 +1,5 @@
 import type { ItemCard } from '../lib/types';
-import { getUbcTotal } from '../lib/ubc';
+import { parseYear } from '../lib/dates';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -167,7 +167,9 @@ const cleanDate = (value: string | undefined): string | undefined => {
   return withoutEra;
 };
 
-const parseHandle = (value: string | undefined): { repo: string; collection: string; key: string } | undefined => {
+const parseHandle = (
+  value: string | undefined,
+): { repo: string; collection: string; key: string } | undefined => {
   if (!value) {
     return undefined;
   }
@@ -185,7 +187,12 @@ const parseHandle = (value: string | undefined): { repo: string; collection: str
 const deriveImage = (hit: UnknownRecord): string | undefined => {
   const source = getSource(hit);
   const direct = extractFirstString(
-    source.thumbnail ?? source.thumb ?? source.image ?? source.img ?? source.preview ?? source.cover,
+    source.thumbnail ??
+      source.thumb ??
+      source.image ??
+      source.img ??
+      source.preview ??
+      source.cover,
   );
   if (direct) {
     const iiif = resolveIiifBase(direct);
@@ -197,7 +204,9 @@ const deriveImage = (hit: UnknownRecord): string | undefined => {
     return toIiifImage(service);
   }
 
-  const fallback = extractFirstString(source.previewUrl ?? source.preview_url ?? source.primary_image);
+  const fallback = extractFirstString(
+    source.previewUrl ?? source.preview_url ?? source.primary_image,
+  );
   return fallback ?? undefined;
 };
 
@@ -228,13 +237,16 @@ const deriveIdentifier = (hit: UnknownRecord): string => {
 };
 
 const deriveHref = (hit: UnknownRecord, source: UnknownRecord): string | undefined => {
-  const direct = extractFirstString(source.url ?? source.href ?? source.source ?? source.identifier);
+  const direct = extractFirstString(
+    source.url ?? source.href ?? source.source ?? source.identifier,
+  );
   if (direct && /^https?:/i.test(direct)) {
     return direct;
   }
 
   const itemId =
-    extractFirstString(source.identifier ?? source.id) ?? (typeof hit._id === 'string' ? hit._id : undefined);
+    extractFirstString(source.identifier ?? source.id) ??
+    (typeof hit._id === 'string' ? hit._id : undefined);
   if (!itemId) {
     return undefined;
   }
@@ -312,13 +324,27 @@ const toCard = (hit: UnknownRecord): ItemCard => {
     href,
     source: 'UBC',
     raw: hit,
+    year: parseYear(date),
+    kind: extractFirstString(source.type ?? source.genre),
+    description: extractFirstString(source.description),
+    manifest: deriveIiifManifest(hit),
   };
 };
 
-const extractHits = (resp: unknown): UnknownRecord[] => {
-  if (!resp) {
-    return [];
+/** The Open Collections envelope nests the Elasticsearch body at varying depths; find `hits.hits`. */
+const findHitsEnvelope = (value: unknown, depth = 0): UnknownRecord | null => {
+  const record = asRecord(value);
+  if (!record || depth > 4) {
+    return null;
   }
+  const hits = asRecord(record.hits);
+  if (hits && Array.isArray(hits.hits)) {
+    return hits;
+  }
+  return findHitsEnvelope(record.data, depth + 1);
+};
+
+const extractHits = (resp: unknown): UnknownRecord[] => {
   if (Array.isArray(resp)) {
     return resp as UnknownRecord[];
   }
@@ -326,28 +352,16 @@ const extractHits = (resp: unknown): UnknownRecord[] => {
   if (!record) {
     return [];
   }
-  if (Array.isArray(record.data)) {
-    return record.data as UnknownRecord[];
+  const envelope = findHitsEnvelope(record);
+  if (envelope) {
+    return (envelope.hits as unknown[])
+      .map(asRecord)
+      .filter((hit): hit is UnknownRecord => hit !== null);
   }
-  if (Array.isArray(record.results)) {
-    return record.results as UnknownRecord[];
-  }
-  if (Array.isArray(record.items)) {
-    return record.items as UnknownRecord[];
-  }
-  const dataRecord = asRecord(record.data);
-  if (dataRecord) {
-    if (Array.isArray(dataRecord.hits)) {
-      return dataRecord.hits as UnknownRecord[];
+  for (const key of ['data', 'results', 'items']) {
+    if (Array.isArray(record[key])) {
+      return record[key] as UnknownRecord[];
     }
-    const nestedHits = asRecord(dataRecord.hits);
-    if (nestedHits && Array.isArray(nestedHits.hits)) {
-      return nestedHits.hits as UnknownRecord[];
-    }
-  }
-  const hits = asRecord(record.hits);
-  if (hits && Array.isArray(hits.hits)) {
-    return hits.hits as UnknownRecord[];
   }
   return [];
 };
@@ -358,10 +372,15 @@ export const toItemCards = (resp: unknown): ItemCard[] => {
 };
 
 export const extractTotal = (resp: unknown): number | undefined => {
-  return getUbcTotal(resp);
+  const total = findHitsEnvelope(resp)?.total;
+  if (typeof total === 'number') {
+    return total;
+  }
+  const value = asRecord(total)?.value;
+  return typeof value === 'number' ? value : undefined;
 };
 
-export const deriveIiifManifest = (hit: unknown): string | undefined => {
+export function deriveIiifManifest(hit: unknown): string | undefined {
   const record = asRecord(hit);
   if (!record) {
     return undefined;
@@ -377,4 +396,4 @@ export const deriveIiifManifest = (hit: unknown): string | undefined => {
     return candidate;
   }
   return undefined;
-};
+}

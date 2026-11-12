@@ -1,0 +1,40 @@
+{
+  "took": 12,
+  "timed_out": false,
+  "hits": {
+    "total": 14,
+    "hits": [
+      {
+        "_index": "prod-10-15-2025",
+        "_id": "12714",
+        "_score": 63.67882,
+        "_type": "artobjects",
+        "_source": {
+          "displaymaker": "Roy Lichtenstein, 1923–1997; born and died New York, NY | Printed by Kenneth Tyler, born 1931",
+          "objectnumber": "x1974-2",
+          "creditline": "Museum purchase, Laura P. Hall Memorial Fund",
+          "displaydate": "1969",
+          "primaryimage": ["https://media.artmuseum.princeton.edu/iiif/3/collection/x1974-2"],
+          "medium": "Color lithograph and screenprint margins on Rives BFK paper",
+          "displaytitle": "Haystack #4",
+          "objectid": 12714,
+          "dimensions": "image: 34.1 x 59.7 cm. (13 7/16 x 23 1/2 in.)"
+        }
+      },
+      {
+        "_index": "prod-10-15-2025",
+        "_id": "5413",
+        "_score": 41.2,
+        "_type": "artobjects",
+        "_source": {
+          "displaymaker": "John Linnell, 1792–1882; born London, England; died Redhill, England",
+          "displaydate": null,
+          "primaryimage": ["https://media.artmuseum.princeton.edu/iiif/3/collection/INV32546"],
+          "displaytitle": "Landscape",
+          "objectid": 5413
+        }
+      }
+    ]
+  },
+  "status": 200
+}

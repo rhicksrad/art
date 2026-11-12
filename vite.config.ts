@@ -66,4 +66,7 @@ export default defineConfig({
   server: {
     proxy: proxyConfig,
   },
+  preview: {
+    proxy: proxyConfig,
+  },
 });

@@ -1,0 +1,29 @@
+{
+  "status": "OK",
+  "data": {
+    "q": "museum",
+    "total_count": 1289,
+    "start": 0,
+    "items": [
+      {
+        "name": "Replication Data for: Museum Attendance and Urban Renewal",
+        "type": "dataset",
+        "url": "https://doi.org/10.7910/DVN/EXAMPL",
+        "global_id": "doi:10.7910/DVN/EXAMPL",
+        "description": "Survey responses and attendance counts used in the article. <b>Stata</b> and CSV formats.",
+        "published_at": "2021-03-14T18:22:01Z",
+        "publisher": "Harvard Dataverse",
+        "citationHtml": "Doe, Jane, 2021, \"Replication Data\", <a href=\"https://doi.org/10.7910/DVN/EXAMPL\">https://doi.org/10.7910/DVN/EXAMPL</a>",
+        "citation": "Doe, Jane, 2021, \"Replication Data for: Museum Attendance and Urban Renewal\", https://doi.org/10.7910/DVN/EXAMPL, Harvard Dataverse, V1",
+        "name_of_dataverse": "Cultural Policy Lab",
+        "identifier_of_dataverse": "culturalpolicy",
+        "subjects": ["Social Sciences", "Arts and Humanities"],
+        "keywords": ["museums", "attendance"],
+        "fileCount": 6,
+        "versionState": "RELEASED",
+        "authors": ["Doe, Jane", "Roe, Richard"]
+      }
+    ],
+    "count_in_response": 1
+  }
+}

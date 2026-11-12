@@ -1,100 +1,91 @@
+import { parseYear } from '../lib/dates';
 import type { ItemCard } from '../lib/types';
+import { asRecord, fieldList, iiifImage, orUndefined, str, type Rec } from './util';
 
-type HitRecord = Record<string, unknown>;
-
-const asRecord = (value: unknown): HitRecord | null => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as HitRecord;
+/**
+ * `displaymaker` packs every maker and their biography into one string:
+ * "Roy Lichtenstein, 1923–1997; born and died New York, NY | Printed by Kenneth Tyler…".
+ */
+export const makerNames = (displaymaker: string | undefined): string[] => {
+  if (!displaymaker) return [];
+  return displaymaker
+    .split('|')
+    .map((part) => part.split(/[,;]/)[0].trim())
+    .filter((name) => name.length > 0);
 };
 
-const firstString = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
-  }
-  return undefined;
+/** Short medium label for facets: "Color lithograph and screenprint margins on…" → "Color lithograph". */
+const mediumLabel = (medium: string | undefined): string | undefined => {
+  if (!medium) return undefined;
+  const head = medium.split(/\s+(?:on|and|with)\s+|[,;(]/i)[0].trim();
+  return head.length > 0 && head.length <= 40
+    ? head.charAt(0).toUpperCase() + head.slice(1)
+    : undefined;
 };
 
-const buildIiifImage = (url: string | undefined): string | undefined => {
-  if (!url) {
-    return undefined;
-  }
-  if (url.includes('/full/')) {
-    return url;
-  }
-  return `${url.replace(/\/?$/, '')}/full/!400,400/0/default.jpg`;
-};
-
-const parseHit = (hit: HitRecord): ItemCard => {
-  const source = asRecord(hit['_source']) ?? hit;
-  const objectId = firstString(source.objectid ?? hit._id) ?? `princeton-${Math.random().toString(36).slice(2)}`;
-  const title = firstString(source.displaytitle ?? source.title) ?? 'Untitled';
-  const sub = firstString(source.displaymaker ?? source.maker);
-  const date = firstString(source.displaydate ?? source.date_text);
-  const media = firstString(source.medium);
-  const credit = firstString(source.creditline);
-  const tags = [media, credit].filter((value): value is string => !!value);
-
-  const images = Array.isArray(source.primaryimage) ? (source.primaryimage as unknown[]) : [];
-  const image = images.length > 0 ? firstString(images[0]) : undefined;
-  const iiif = buildIiifImage(image ?? firstString(source.image));
-
-  const href = (() => {
-    const existing = firstString(source.url ?? source.href);
-    if (existing) {
-      return existing;
-    }
-    if (objectId && /^\d+$/.test(objectId)) {
-      return `https://artmuseum.princeton.edu/collections/objects/${objectId}`;
-    }
-    return undefined;
-  })();
+const parseHit = (hit: Rec): ItemCard => {
+  const source = asRecord(hit._source) ?? hit;
+  const objectId =
+    str(source.objectid) ?? str(hit._id) ?? `princeton-${Math.random().toString(36).slice(2)}`;
+  const displaymaker = str(source.displaymaker);
+  const makers = makerNames(displaymaker);
+  const medium = str(source.medium);
+  const date = str(source.displaydate);
+  const imageBase = str(source.primaryimage);
+  const short = mediumLabel(medium);
 
   return {
     id: objectId,
-    title,
-    sub,
+    title: str(source.displaytitle) ?? str(source.title) ?? 'Untitled',
+    sub:
+      makers.length > 0
+        ? makers.slice(0, 2).join(', ') + (makers.length > 2 ? ` +${makers.length - 2}` : '')
+        : undefined,
     date,
-    tags: tags.length > 0 ? tags : undefined,
-    img: iiif,
-    href,
+    tags: orUndefined([short].filter((value): value is string => !!value)),
+    img: iiifImage(imageBase, 480),
+    imgLarge: iiifImage(imageBase, 1400),
+    href: /^\d+$/.test(objectId)
+      ? `https://artmuseum.princeton.edu/collections/objects/${objectId}`
+      : undefined,
     source: 'Princeton',
     raw: hit,
+    year: parseYear(date),
+    kind: short,
+    people: orUndefined(makers),
+    fields: fieldList([
+      [
+        'Maker',
+        displaymaker
+          ?.split('|')
+          .map((part) => part.trim())
+          .join('\n'),
+      ],
+      ['Date', date],
+      ['Medium', medium],
+      ['Dimensions', str(source.dimensions)],
+      ['Object number', str(source.objectnumber)],
+      ['Credit line', str(source.creditline)],
+    ]),
+    links: imageBase ? [{ label: 'IIIF image info', href: `${imageBase}/info.json` }] : undefined,
   };
 };
 
-const extractHits = (resp: unknown): HitRecord[] => {
-  if (!resp) {
-    return [];
-  }
-  const record = asRecord(resp);
-  if (!record) {
-    return [];
-  }
-  const hits = asRecord(record.hits);
-  if (!hits) {
-    return [];
-  }
-  if (Array.isArray(hits.hits)) {
-    return hits.hits as HitRecord[];
-  }
-  return [];
-};
+const hitsOf = (resp: unknown): Rec | null => asRecord(asRecord(resp)?.hits);
 
 export const toItemCards = (resp: unknown): ItemCard[] => {
-  const hits = extractHits(resp);
-  return hits.map((hit) => parseHit(hit));
+  const hits = hitsOf(resp)?.hits;
+  return Array.isArray(hits)
+    ? hits
+        .map(asRecord)
+        .filter((h): h is Rec => h !== null)
+        .map(parseHit)
+    : [];
+};
+
+export const totalHits = (resp: unknown): number | undefined => {
+  const total = hitsOf(resp)?.total;
+  if (typeof total === 'number') return total;
+  const value = asRecord(total)?.value;
+  return typeof value === 'number' ? value : undefined;
 };

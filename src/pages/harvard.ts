@@ -1,5 +1,6 @@
-import { mount as mountHarvard } from '../art/pages/harvard';
+import { sourceBySlug, type SourceDefinition } from '../sources';
+import { mountExplorer } from './explorer';
 
-export const mount = mountHarvard;
-
-export default { mount };
+export default {
+  mount: (el: HTMLElement): void => mountExplorer(el, sourceBySlug('harvard') as SourceDefinition),
+};
