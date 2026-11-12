@@ -1,0 +1,26 @@
+name: live
+
+# Heavier check against the real Worker and the deployed site. Never runs on PRs.
+# Nightly and on demand, on a self-hosted runner when CI_RUNNER is 'local'.
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","web-trusted"]') || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/live-check.mjs
