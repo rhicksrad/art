@@ -306,6 +306,14 @@ select,
   display: block;
 }
 
+/* Until the image arrives, its place on the wall is a blank mount, never an empty shadow. */
+.card__media img,
+.filmstrip__item img,
+.timeline__item img,
+.detail__stage img {
+  background: var(--surface-2);
+}
+
 .card__media img {
   width: 100%;
   height: auto;
@@ -1061,6 +1069,23 @@ button.row:hover .label__title {
 .detail__layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+/* The same record set on the page instead of in the dialog: a rule above, the wall behind. */
+.record {
+  border-top: 1px solid var(--ink);
+}
+
+.record .detail__info {
+  padding-right: 0;
+}
+
+.record .detail__layout--text {
+  margin: 0;
+}
+
+.record .detail__layout--text .detail__info {
+  padding-left: 0;
 }
 
 .detail__layout--text {

@@ -95,9 +95,11 @@ const figure = (item: ItemCard): HTMLElement | null => {
   return frame;
 };
 
-const render = (): void => {
-  if (!dialog) return;
-  const item = items[index];
+/**
+ * The full record: image with loupe zoom and page strip beside every field the API returned.
+ * The dialog shows it, and a lookup that resolves to a single record sets it straight on the page.
+ */
+export const recordView = (item: ItemCard): HTMLElement => {
   const source = sourceByKey(item.source);
   const art = figure(item);
 
@@ -142,6 +144,70 @@ const render = (): void => {
     { once: false },
   );
 
+  return h(
+    'div',
+    { class: `detail__layout${art ? '' : ' detail__layout--text'}` },
+    art,
+    h(
+      'div',
+      { class: 'detail__info' },
+      item.kind ? h('p', { class: 'detail__kind' }, item.kind) : null,
+      h('h2', { class: 'detail__title' }, item.title),
+      item.sub || item.date
+        ? h(
+            'p',
+            { class: 'detail__byline' },
+            item.sub ? h('strong', null, item.sub) : null,
+            item.sub && item.date ? ', ' : null,
+            item.date ?? null,
+          )
+        : null,
+      item.description ? h('p', { class: 'detail__description' }, item.description) : null,
+      item.colors && item.colors.length > 0
+        ? h(
+            'div',
+            { class: 'detail__palette' },
+            h('h3', null, 'Colours in this work'),
+            paletteStrip(
+              item.colors,
+              item.source === 'Harvard'
+                ? (color) => pageHref(source.page, { color: color.hex })
+                : undefined,
+            ),
+            item.source === 'Harvard'
+              ? h('p', { class: 'panel__note' }, 'Pick a colour to find other works that share it.')
+              : null,
+          )
+        : null,
+      facts.childElementCount > 0 ? facts : null,
+      item.tags && item.tags.length > 0
+        ? h(
+            'div',
+            { class: 'tags' },
+            ...item.tags.map((tag) =>
+              h(
+                'a',
+                {
+                  class: 'tag tag--link',
+                  href: pageHref('/', { q: tag }),
+                  title: `Search every source for “${tag}”`,
+                },
+                tag,
+              ),
+            ),
+          )
+        : null,
+      actions.childElementCount > 0 ? actions : null,
+      raw,
+    ),
+  );
+};
+
+const render = (): void => {
+  if (!dialog) return;
+  const item = items[index];
+  const source = sourceByKey(item.source);
+
   const nav = (delta: number, label: string): HTMLButtonElement => {
     const button = h(
       'button',
@@ -176,67 +242,7 @@ const render = (): void => {
         close,
       ),
     ),
-    h(
-      'div',
-      { class: `detail__layout${art ? '' : ' detail__layout--text'}` },
-      art,
-      h(
-        'div',
-        { class: 'detail__info' },
-        item.kind ? h('p', { class: 'detail__kind' }, item.kind) : null,
-        h('h2', { class: 'detail__title' }, item.title),
-        item.sub || item.date
-          ? h(
-              'p',
-              { class: 'detail__byline' },
-              item.sub ? h('strong', null, item.sub) : null,
-              item.sub && item.date ? ', ' : null,
-              item.date ?? null,
-            )
-          : null,
-        item.description ? h('p', { class: 'detail__description' }, item.description) : null,
-        item.colors && item.colors.length > 0
-          ? h(
-              'div',
-              { class: 'detail__palette' },
-              h('h3', null, 'Colours in this work'),
-              paletteStrip(
-                item.colors,
-                item.source === 'Harvard'
-                  ? (color) => pageHref(source.page, { color: color.hex })
-                  : undefined,
-              ),
-              item.source === 'Harvard'
-                ? h(
-                    'p',
-                    { class: 'panel__note' },
-                    'Pick a colour to find other works that share it.',
-                  )
-                : null,
-            )
-          : null,
-        facts.childElementCount > 0 ? facts : null,
-        item.tags && item.tags.length > 0
-          ? h(
-              'div',
-              { class: 'tags' },
-              ...item.tags.map((tag) =>
-                h(
-                  'a',
-                  {
-                    class: 'tag tag--link',
-                    href: pageHref('/', { q: tag }),
-                    title: `Search every source for “${tag}”`,
-                  },
-                  tag,
-                ),
-              ),
-            )
-          : null,
-        actions.childElementCount > 0 ? actions : null,
-        raw,
-      ),
-    ),
+    recordView(item),
   );
   dialog.scrollTop = 0;
 };

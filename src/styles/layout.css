@@ -369,10 +369,14 @@ summary.nav__link::after {
   box-shadow: var(--shadow-art);
 }
 
+button.feature__frame {
+  width: min(100%, calc(min(52vh, 30rem) * var(--aspect, 1)));
+}
+
 .feature__frame img {
-  max-height: min(52vh, 30rem);
-  width: auto;
-  max-width: 100%;
+  width: 100%;
+  height: auto;
+  background: var(--surface-2);
 }
 
 .feature--loading .feature__frame {
@@ -550,9 +554,10 @@ summary.nav__link::after {
   display: grid;
   gap: 1.5rem;
   max-height: calc(100vh - var(--header-height) - 2rem);
-  overflow-y: auto;
-  padding-right: 2px;
-  scrollbar-width: thin;
+  overflow: hidden auto;
+  /* Room for the bar rows' hover ground, which is wider than their text. */
+  margin-left: -0.4rem;
+  padding: 0 0.6rem 0 0.4rem;
 }
 
 .masonry {
@@ -569,7 +574,24 @@ summary.nav__link::after {
 }
 
 .results__list {
+  display: grid;
+  gap: 3rem;
   min-width: 0;
+}
+
+/* Records with nothing to hang: set as catalogue entries under the wall. */
+.unhung {
+  min-width: 0;
+}
+
+.unhung__head {
+  margin-bottom: 0.9rem;
+}
+
+@media (min-width: 901px) {
+  .filters .filters__toggle {
+    display: none;
+  }
 }
 
 .rows {
@@ -670,11 +692,25 @@ summary.nav__link::after {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Results first; the charts open from the button in the summary row. */
+  .results__main {
+    display: contents;
+  }
+
+  .results .filters {
+    order: -1;
+  }
+
   .insights {
+    display: none;
     position: static;
     max-height: none;
     overflow: visible;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+
+  .results--charts-open .insights {
+    display: grid;
   }
 }
 

@@ -9,6 +9,10 @@ The site is a gallery. The works supply the colour and the interface behaves lik
 - **Type is signage and labels.** Archivo across its width axis: narrow and heavy for titles, normal width for interface text. Literata is for catalogue prose only (descriptions, abstracts, the introduction). No other families.
 - **Works are never boxed.** An image hangs on the wall at its own proportions with square corners and a small cast shadow. Its details sit underneath as an object label: maker in bold, title in italics, date, then where it is held, one fact per line.
 - **Structure comes from rules, not cards.** Sections are separated by a 1px ink rule. Lists of records are rows with dividers. Tabular content (the source directory, the status page) is a table.
+- **Only works hang.** In a gallery of results, records with an image go on the wall. Papers, datasets and anything else without one are set as catalogue rows in their own list underneath, never mixed in among the works.
+- **One record gets the whole page.** When a lookup resolves to a single record (a Stanford PURL, an IIIF manifest, an HTRC volume) the full record is set on the page with its pages and fields, not shown as one small card.
+- **A place on the wall is never empty.** An image that is still loading shows a blank mount at the work's proportions. Scrolling panels use a hairline scrollbar in label ink.
+- **Results come before charts on a phone.** Narrow screens show the works first and open the charts from a button.
 - **Corners are square.** Controls get 2px. Nothing is a pill.
 - **Motion only answers the user.** No entrance animation, no hover lift or scale on images, no shimmer.
 - **Generated art never poses as a museum work.** It is used for backdrops, textures, emblems and empty or error states.

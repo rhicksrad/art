@@ -94,6 +94,7 @@ export const createResults = ({
     ? h('div', { class: 'results__list' }, masonry.element)
     : h('div', { class: 'rows' });
   let view: 'gallery' | 'timeline' = 'gallery';
+  let insightsOpen = false;
   const element = h(
     'div',
     { class: 'results' },
@@ -118,6 +119,25 @@ export const createResults = ({
         ? `${formatCount(items.length)} ${noun}${items.length === 1 ? '' : 's'} loaded`
         : `${formatCount(shown)} of ${formatCount(items.length)} loaded ${noun}s match`;
     chips.append(h('span', { class: 'filters__summary' }, summary));
+
+    // On a narrow screen the charts would push every result below the fold, so they wait
+    // behind this button. Wide screens hide it and always show the charts alongside.
+    if (!insights.hidden) {
+      const toggleCharts = h(
+        'button',
+        {
+          type: 'button',
+          class: 'chip filters__toggle',
+          'aria-expanded': String(insightsOpen),
+        },
+        insightsOpen ? 'Hide charts and filters' : 'Charts and filters',
+      );
+      toggleCharts.addEventListener('click', () => {
+        insightsOpen = !insightsOpen;
+        render();
+      });
+      chips.append(toggleCharts);
+    }
 
     const chip = (label: string, patch: Partial<Filters>): void => {
       const button = h(
@@ -318,6 +338,7 @@ export const createResults = ({
     renderInsights();
     renderChips(shown.length);
     element.classList.toggle('results--solo', insights.hidden);
+    element.classList.toggle('results--charts-open', insightsOpen);
     const onOpen = (target: ItemCard): void => openDetail(target, shown);
     if (shown.length === 0) {
       list.replaceChildren(
@@ -330,13 +351,39 @@ export const createResults = ({
       return;
     }
     if (masonry) {
+      // Works with an image hang on the wall. Papers, datasets and other records without one
+      // read better as catalogue entries, so they get their own list underneath.
+      const hung = shown.filter((item) => item.img);
+      const unhung = shown.filter((item) => !item.img);
       masonry.setCards(
-        shown.map((item) => ({
+        hung.map((item) => ({
           element: galleryCard(item, { showSource, onOpen }),
           weight: cardWeight(item),
         })),
       );
-      list.replaceChildren(masonry.element);
+      const entries =
+        unhung.length > 0
+          ? h(
+              'section',
+              { class: 'unhung' },
+              hung.length > 0
+                ? h(
+                    'h2',
+                    { class: 'unhung__head' },
+                    `${formatCount(unhung.length)} without an image`,
+                  )
+                : null,
+              h(
+                'div',
+                { class: 'rows' },
+                ...unhung.map((item) => listRow(item, { showSource, onOpen })),
+              ),
+            )
+          : null;
+      list.replaceChildren(
+        ...(hung.length > 0 ? [masonry.element] : []),
+        ...(entries ? [entries] : []),
+      );
       return;
     }
     list.replaceChildren(...shown.map((item) => listRow(item, { showSource, onOpen })));

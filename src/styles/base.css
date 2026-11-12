@@ -32,6 +32,12 @@ body {
   flex-direction: column;
 }
 
+/* Panels that scroll inside the page get a hairline scrollbar in label ink, not the OS slab. */
+body * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
 h1,
 h2,
 h3,
