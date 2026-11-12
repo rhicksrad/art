@@ -34,7 +34,9 @@ test('unified search answers from every source without leaking a key', async ({ 
 });
 
 test('the Worker reports itself healthy', async ({ request }) => {
-  const response = await request.get('./diag');
+  // Asked of the Worker itself: under the Pages base path the preview server has no /diag.
+  const worker = process.env.WORKER_URL ?? 'https://art.hicksrch.workers.dev';
+  const response = await request.get(`${worker}/diag?ttl=0`);
   expect(response.ok()).toBe(true);
   expect(((await response.json()) as { ok?: boolean }).ok).toBe(true);
 });
