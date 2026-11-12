@@ -4,7 +4,7 @@
 // also scanned for credentials that escaped redaction.
 
 const WORKER = process.env.WORKER_URL ?? 'https://art.hicksrch.workers.dev';
-const SITE = process.env.SITE_URL ?? 'https://rhicksrad.github.io/art/';
+const SITE = process.env.SITE_URL ?? 'https://art.hicksrch.workers.dev/';
 
 const core = [
   '/diag',
