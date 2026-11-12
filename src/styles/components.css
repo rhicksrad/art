@@ -1096,6 +1096,9 @@ button.row:hover .label__title {
 
 .detail__figure {
   display: grid;
+  /* The page strip scrolls inside the figure; it must not widen the column. */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   align-content: start;
   gap: 0.75rem;
   padding: clamp(1rem, 3vw, 2.5rem);
