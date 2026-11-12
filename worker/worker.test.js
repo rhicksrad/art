@@ -149,3 +149,29 @@ describe('same-origin hosting', () => {
     expect(assets.fetch).toHaveBeenCalledOnce();
   });
 });
+
+describe('successful responses never carry keys either', () => {
+  it('removes the Harvard key that the API echoes in info.next', async () => {
+    const echoed = JSON.stringify({
+      info: {
+        totalrecords: 2,
+        next: 'https://api.harvardartmuseums.org/object?q=monet&size=1&page=2&apikey=harvard-secret-123',
+      },
+      records: [{ id: 1, title: 'Étude' }],
+    });
+    vi.stubGlobal('fetch', upstream(echoed, { headers: json }));
+    const res = await call('/harvard-art/object?q=monet&size=1&ttl=0');
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).not.toContain('harvard-secret-123');
+    expect(JSON.parse(body).info.next).toContain('apikey=REDACTED');
+    expect(JSON.parse(body).records[0].title).toBe('Étude');
+  });
+
+  it('leaves binary responses untouched', async () => {
+    const bytes = new Uint8Array([0, 255, 1, 254]);
+    vi.stubGlobal('fetch', upstream(bytes, { headers: { 'content-type': 'image/jpeg' } }));
+    const res = await call('/ubc-iiif/x/full/full/0/default.jpg?ttl=0');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+  });
+});

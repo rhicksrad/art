@@ -12,7 +12,7 @@
 //   DATAVERSE_BASE="https://dataverse.harvard.edu"
 //   ALLOWED_ORIGINS="*"
 
-const VERSION = '2026-11-12.site-and-api';
+const VERSION = '2026-11-12.scrub-success-bodies';
 
 const UPSTREAMS = {
   harvardArt: 'https://api.harvardartmuseums.org',
@@ -299,7 +299,10 @@ async function forwardBuffered(req, env, up, opts = {}) {
     const isHtml = /\btext\/html\b/i.test(ct);
 
     if (res.ok && !isHtml && !wantDebug) {
-      return responseFromBuffer(buf, res.status, res.statusText, res.headers);
+      // Some APIs echo the request URL, key included, in a successful body (Harvard's
+      // info.next does), so this Worker's own secrets are removed from text responses too.
+      const body = isTextual(ct) ? scrubBody(buf, env) : buf;
+      return responseFromBuffer(body, res.status, res.statusText, res.headers);
     }
 
     return new Response(
@@ -346,13 +349,32 @@ export function redactUrl(url) {
   return copy.toString();
 }
 
-/** Remove this Worker's own secret values, and any credential-looking parameter, from text. */
-export function redactText(text, env) {
+const SECRET_NAMES = ['HARVARD_ARTMUSEUMS_KEY', 'UBC_OC_API_KEY', 'DATAVERSE_API_TOKEN'];
+
+function isTextual(contentType) {
+  return /json|xml|text\/|javascript/i.test(contentType);
+}
+
+/** Replace this Worker's own secret values in text. Everything else is left untouched. */
+export function scrubSecrets(text, env) {
   let out = String(text);
-  for (const name of ['HARVARD_ARTMUSEUMS_KEY', 'UBC_OC_API_KEY', 'DATAVERSE_API_TOKEN']) {
+  for (const name of SECRET_NAMES) {
     const secret = env && env[name];
     if (secret) out = out.split(secret).join('REDACTED');
   }
+  return out;
+}
+
+/** A successful body with secrets removed; the original buffer when it holds none. */
+function scrubBody(buf, env) {
+  const text = new TextDecoder().decode(buf);
+  const clean = scrubSecrets(text, env);
+  return clean === text ? buf : new TextEncoder().encode(clean);
+}
+
+/** Remove this Worker's own secret values, and any credential-looking parameter, from text. */
+export function redactText(text, env) {
+  const out = scrubSecrets(text, env);
   return out.replace(
     /((?:^|[^a-z0-9])(?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi,
     '$1REDACTED',
