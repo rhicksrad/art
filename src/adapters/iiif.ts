@@ -158,7 +158,7 @@ const canvasServices = (manifest: IiifRecord): string[] => {
     .map((id) => id.replace(/\/$/, ''));
 };
 
-const MAX_PAGES = 48;
+const MAX_PAGES = 600;
 
 const manifestToCard = (manifest: IiifRecord, source: ItemCard['source']): ItemCard | null => {
   const id = firstString(manifest.id ?? manifest['@id']);

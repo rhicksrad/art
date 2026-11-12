@@ -72,24 +72,54 @@ const figure = (item: ItemCard): HTMLElement | null => {
   });
 
   frame.append(stage, hint);
-  if (item.images && item.images.length > 1) {
+
+  // A record with several images is read like a book: turn pages, or jump from the strip.
+  const pages = item.images ?? [];
+  if (pages.length > 1) {
+    let page = 0;
+    const counter = h('span', { class: 'detail__page', 'aria-live': 'polite' });
+    const turn = (delta: number, label: string): HTMLButtonElement => {
+      const button = h(
+        'button',
+        { type: 'button', class: 'icon-button', 'aria-label': label, title: label },
+        icon('arrow', 18),
+      );
+      if (delta < 0) button.classList.add('icon-button--flip');
+      button.addEventListener('click', () => show(page + delta, true));
+      return button;
+    };
+    const previous = turn(-1, 'Previous page');
+    const next = turn(1, 'Next page');
+    const thumbs = pages.map((thumb, i) => {
+      const button = h(
+        'button',
+        { type: 'button', 'aria-label': `Show page ${i + 1}` },
+        h('img', { src: thumb, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }),
+      );
+      button.addEventListener('click', () => show(i, false));
+      return button;
+    });
+    const mark = (): void => {
+      counter.textContent = `Page ${page + 1} of ${pages.length}`;
+      previous.disabled = page === 0;
+      next.disabled = page === pages.length - 1;
+      thumbs.forEach((thumb, i) => {
+        if (i === page) thumb.setAttribute('aria-current', 'true');
+        else thumb.removeAttribute('aria-current');
+      });
+    };
+    function show(target: number, reveal: boolean): void {
+      if (target < 0 || target >= pages.length) return;
+      page = target;
+      stage.classList.remove('is-zoomed');
+      img.src = upscale(pages[page], 1400);
+      mark();
+      if (reveal) thumbs[page].scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+    mark();
     frame.append(
-      h(
-        'div',
-        { class: 'detail__strip', 'aria-label': `${item.images.length} images` },
-        ...item.images.map((thumb, i) => {
-          const button = h(
-            'button',
-            { type: 'button', 'aria-label': `Show image ${i + 1}` },
-            h('img', { src: thumb, alt: '', loading: 'lazy' }),
-          );
-          button.addEventListener('click', () => {
-            stage.classList.remove('is-zoomed');
-            img.src = upscale(thumb, 1400);
-          });
-          return button;
-        }),
-      ),
+      h('div', { class: 'detail__pager' }, previous, counter, next),
+      h('div', { class: 'detail__strip', 'aria-label': `${pages.length} pages` }, ...thumbs),
     );
   }
   return frame;

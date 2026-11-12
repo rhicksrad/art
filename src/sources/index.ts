@@ -322,6 +322,8 @@ export const SOURCES: SourceDefinition[] = [
     layout: 'gallery',
     endpoint: '/ubc/search/8.5',
     upstream: 'oc-index.library.ubc.ca',
+    countNoun: 'collections',
+    count: async () => (await loadUbcCollections()).length || undefined,
     controls: [
       {
         name: 'index',
