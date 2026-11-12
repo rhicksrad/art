@@ -1,7 +1,9 @@
 name: pages
 
-# Builds the site on push to main (self-hosted when CI_RUNNER is 'local') and deploys it
-# from a GitHub-hosted job, so the Pages OIDC token never touches the PCs.
+# The site now ships from the Cloudflare Worker (worker.yml). GitHub Pages only serves
+# redirects to it (scripts/build-pages-redirect.mjs), so old links keep their path, query and
+# hash. Built on the PCs when CI_RUNNER is 'local'; deployed from a GitHub-hosted job so the
+# Pages OIDC token never touches them.
 on:
   push:
     branches: [main]
@@ -20,24 +22,17 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-      - run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Build
-        env:
-          CI: 'true'
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: pnpm build
-      - run: pnpm smoke:pages
+      - name: Build redirect pages
+        run: node scripts/build-pages-redirect.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./dist-redirect
       - name: Clean workspace
         if: always() && runner.environment == 'self-hosted'
-        run: rm -rf node_modules dist
+        run: rm -rf dist-redirect
 
   deploy:
     needs: build

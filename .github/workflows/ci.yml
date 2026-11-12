@@ -47,6 +47,9 @@ jobs:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ${{ vars.CI_RUNNER == 'local' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","web-trusted","playwright"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
+    env:
+      # Build and test the artifact that ships: the Cloudflare site, served from /.
+      DEPLOY_TARGET: cloudflare
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -59,8 +62,10 @@ jobs:
         env:
           CI: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: pnpm build
+        run: pnpm build:cloudflare
       - run: pnpm smoke:pages
+      - name: Build the GitHub Pages redirects
+        run: node scripts/build-pages-redirect.mjs
       - name: Install Chromium
         # Self-hosted PCs already have Chromium's system libraries (no sudo in jobs).
         run: pnpm exec playwright install chromium ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }}
@@ -78,4 +83,4 @@ jobs:
           retention-days: 7
       - name: Clean workspace
         if: always() && runner.environment == 'self-hosted'
-        run: rm -rf node_modules dist test-results playwright-report
+        run: rm -rf node_modules dist dist-redirect test-results playwright-report
