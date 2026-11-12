@@ -12,7 +12,7 @@
 //   DATAVERSE_BASE="https://dataverse.harvard.edu"
 //   ALLOWED_ORIGINS="*"
 
-const VERSION = '2026-11-12.redacted-diagnostics';
+const VERSION = '2026-11-12.redact-prose';
 
 const UPSTREAMS = {
   harvardArt: 'https://api.harvardartmuseums.org',
@@ -342,7 +342,7 @@ export function redactText(text, env) {
     if (secret) out = out.split(secret).join('REDACTED');
   }
   return out.replace(
-    /([?&](?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi,
+    /((?:^|[^a-z0-9])(?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi,
     '$1REDACTED',
   );
 }

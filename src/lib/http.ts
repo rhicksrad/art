@@ -90,7 +90,10 @@ export class HttpError extends Error {
  * redacts its own diagnostics; this is a second lock so a key can never reach the page.
  */
 export const redactSecrets = (text: string): string =>
-  text.replace(/([?&](?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi, '$1REDACTED');
+  text.replace(
+    /((?:^|[^a-z0-9])(?:api[-_]?key|key|token|access[-_]?token)=)[^&\s"'<>\\]+/gi,
+    '$1REDACTED',
+  );
 
 const readSample = (value: string): string | undefined => {
   if (!value) return undefined;

@@ -14,6 +14,11 @@ describe('redactSecrets', () => {
     expect(() => JSON.parse(safe) as unknown).not.toThrow();
   });
 
+  it('blanks a key quoted in prose, outside a query string', () => {
+    expect(redactSecrets('failed for key=abc123 today')).toBe('failed for key=REDACTED today');
+    expect(redactSecrets('api_key=abc123')).toBe('api_key=REDACTED');
+  });
+
   it('leaves ordinary parameters alone', () => {
     const url = 'https://x.test/search?q=keyhole&monkey=1&size=2';
     expect(redactSecrets(url)).toBe(url);

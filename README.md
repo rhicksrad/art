@@ -55,7 +55,11 @@ pnpm test
 pnpm check:routes
 pnpm build
 pnpm smoke:pages   # checks every registered page exists in dist/
+pnpm test:e2e      # browser tests against the build, Worker routes mocked
+pnpm test:live     # the same pages against the real Worker
 ```
+
+The browser tests are Playwright (`e2e/`), run on a desktop and a phone viewport against `vite preview`, so run `pnpm build` first and `pnpm exec playwright install chromium` once. `e2e/worker.ts` stands in for the Worker with payloads shaped like the real APIs, including a failing source that tries to leak a key. The live suite accepts an upstream being down but fails on a blank page, a script error or an unredacted key.
 
 ## CI and deployment
 
