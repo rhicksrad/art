@@ -12,6 +12,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "check:routes": "node scripts/validate-routes.mjs",
+    "build:cloudflare": "tsc && vite build --mode cloudflare",
+    "deploy:cloudflare": "pnpm build:cloudflare && npx --yes wrangler@4 deploy --config worker/wrangler.toml",
     "smoke:pages": "node scripts/smoke-pages.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

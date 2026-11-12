@@ -56,8 +56,10 @@ const proxyConfig = workerProxyRoutes.reduce(
   {} as Record<string, import('vite').ProxyOptions>,
 );
 
-export default defineConfig({
-  base: isCI && repo ? `/${repo}/` : '/',
+// `--mode cloudflare` builds for the Worker's static assets: served from the root, with the API
+// on the same origin under /api (see .env.cloudflare and worker/wrangler.toml).
+export default defineConfig(({ mode }) => ({
+  base: mode !== 'cloudflare' && isCI && repo ? `/${repo}/` : '/',
   build: {
     rollupOptions: {
       input: rollupInput,
@@ -69,4 +71,4 @@ export default defineConfig({
   preview: {
     proxy: proxyConfig,
   },
-});
+}));

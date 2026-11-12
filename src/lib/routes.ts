@@ -38,5 +38,9 @@ export const currentRoute = (): string => {
   if (BASE !== '/' && path.startsWith(BASE)) path = `/${path.slice(BASE.length)}`;
   else if (BASE !== '/' && `${path}/` === BASE) path = '/';
   if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
-  return path === '/index.html' || path === '' ? '/' : path;
+  if (path === '/index.html' || path === '/index' || path === '') return '/';
+  // Cloudflare serves /harvard.html as /harvard; the registry is keyed by the .html path.
+  if (!/\.[a-z0-9]+$/i.test(path) && routeRegistry.some((route) => route.path === `${path}.html`))
+    return `${path}.html`;
+  return path;
 };

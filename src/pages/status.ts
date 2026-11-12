@@ -108,14 +108,14 @@ const PROBES: Probe[] = [
       count((json(body).items as unknown[] | undefined)?.length, 'digitised copies of OCLC 424023'),
   },
   {
-    name: 'Leipzig IIIF host',
-    path: '/leipzig-iiif/',
-    check: () => 'Host reachable',
+    name: 'Leipzig IIIF manifest',
+    path: '/leipzig-iiif/0000000001/manifest.json',
+    check: (body) => contains(body, 'sc:Manifest', 'IIIF manifest returned'),
   },
   {
-    name: 'Bern IIIF host',
-    path: '/bern-iiif/',
-    check: () => 'Host reachable',
+    name: 'Bern rare books (e-rara IIIF)',
+    path: '/bern-iiif/i3f/v20/2273935/manifest',
+    check: (body) => contains(body, 'sc:Manifest', 'IIIF manifest returned'),
   },
   {
     name: 'arXiv',
@@ -134,8 +134,8 @@ const PROBES: Probe[] = [
       ),
   },
   {
-    name: 'HTRC Analytics',
-    path: '/htrc/api/metadata/volume/mdp.39015025315527',
+    name: 'HTRC Extracted Features',
+    path: '/htrc/ef-api/volumes/mdp.39015025315527/metadata',
     check: (body) => {
       json(body);
       return 'Metadata returned';
