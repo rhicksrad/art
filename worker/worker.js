@@ -12,7 +12,7 @@
 //   DATAVERSE_BASE="https://dataverse.harvard.edu"
 //   ALLOWED_ORIGINS="*"
 
-const VERSION = '2026-11-12.redact-prose';
+const VERSION = '2026-11-12.site-and-api';
 
 const UPSTREAMS = {
   harvardArt: 'https://api.harvardartmuseums.org',
@@ -54,6 +54,18 @@ const DIRECT_ROUTES = [
 export default {
   async fetch(req, env, ctx) {
     try {
+      // The site calls the API under /api on its own origin; the bare paths stay for older callers.
+      const incoming = new URL(req.url);
+      if (incoming.pathname === '/api' || incoming.pathname.startsWith('/api/')) {
+        incoming.pathname = incoming.pathname.slice(4) || '/';
+        req = new Request(incoming.toString(), req);
+      } else if (
+        env.ASSETS &&
+        normalizePath(incoming.pathname) === '/ubc-oai' &&
+        !incoming.searchParams.has('verb')
+      ) {
+        return env.ASSETS.fetch(req);
+      }
       const url = new URL(req.url);
       const path = normalizePath(url.pathname);
 

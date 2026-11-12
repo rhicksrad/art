@@ -38,6 +38,17 @@ To add an API: add a Worker route, write an adapter, add an entry to `SOURCES`, 
 
 Secrets set in Cloudflare: `HARVARD_ARTMUSEUMS_KEY`, `UBC_OC_API_KEY`, and optionally `DATAVERSE_API_TOKEN`.
 
+## Hosting on Cloudflare
+
+The Worker can serve the site as well as the API, so both share one origin and one deploy:
+
+```bash
+pnpm build:cloudflare    # base path /, API calls go to /api on the same origin
+pnpm deploy:cloudflare   # the build above, then wrangler deploy with worker/wrangler.toml
+```
+
+`worker/wrangler.toml` points `[assets]` at `dist/`. Static files are served without running the Worker; `/api/*` always runs it, and the bare routes (`/harvard-art/...`) keep working for older callers. Cloudflare serves `/harvard.html` as `/harvard`, and the router accepts both.
+
 ## Worker base URL
 
 Resolved in this order: `window.__CONFIG__.WORKER_BASE`, then `VITE_WORKER_BASE`, then the page origin when running on localhost (the Vite dev and preview servers proxy Worker routes), then `https://art.hicksrch.workers.dev`.

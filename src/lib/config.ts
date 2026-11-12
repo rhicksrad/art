@@ -55,6 +55,11 @@ const resolveConfigValue = (
 
 const localWorkerBase = detectLocalWorkerBase();
 
-export const WORKER_BASE: string =
+/** A base such as `/api` means the site and the Worker share an origin (the Cloudflare build). */
+const absolute = (base: string): string =>
+  base.startsWith('/') && typeof window !== 'undefined' ? `${window.location.origin}${base}` : base;
+
+export const WORKER_BASE: string = absolute(
   resolveConfigValue('WORKER_BASE', 'VITE_WORKER_BASE', localWorkerBase ?? DEFAULT_WORKER_BASE) ??
-  DEFAULT_WORKER_BASE;
+    DEFAULT_WORKER_BASE,
+);

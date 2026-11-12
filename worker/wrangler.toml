@@ -6,3 +6,11 @@ main = "worker.js"
 compatibility_date = "2025-11-01"
 workers_dev = true
 keep_vars = true
+
+# The built site (pnpm build:cloudflare) is served by the same Worker, so pages and API share an
+# origin. Static files are served without running the Worker; everything under /api does run it.
+# /ubc-oai is both a page and a legacy API route, so the Worker decides which one was meant.
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/ubc-oai"]

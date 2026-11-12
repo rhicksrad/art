@@ -121,3 +121,31 @@ describe('routes', () => {
     );
   });
 });
+
+describe('same-origin hosting', () => {
+  it('serves the API under /api as well as the bare path', async () => {
+    const res = await call('/api/diag');
+    expect(res.status).toBe(200);
+    expect((await res.json()).path).toBe('/diag');
+  });
+
+  it('forwards /api routes to the same upstream as the bare route', async () => {
+    const fetchMock = upstream('{"info":{"totalrecords":1},"records":[]}', { headers: json });
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call('/api/harvard-art/object?q=monet&ttl=0');
+    expect(res.status).toBe(200);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/object?');
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('/api/harvard-art');
+  });
+
+  it('hands /ubc-oai to the static page unless an OAI verb is present', async () => {
+    const assets = { fetch: vi.fn(() => Promise.resolve(new Response('<html>page</html>'))) };
+    const res = await worker.fetch(
+      new Request('https://worker.test/ubc-oai'),
+      { ...env, ASSETS: assets },
+      ctx,
+    );
+    expect(await res.text()).toContain('page');
+    expect(assets.fetch).toHaveBeenCalledOnce();
+  });
+});
