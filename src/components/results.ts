@@ -401,7 +401,9 @@ export const createResults = ({
       items = [];
       filters = emptyFilters();
       insights.hidden = true;
-      element.classList.add('results--solo');
+      // Keep the charts column reserved while loading, so results do not jump sideways
+      // when the charts arrive.
+      element.classList.remove('results--solo');
       clear(chips);
       if (masonry) {
         masonry.setCards(
