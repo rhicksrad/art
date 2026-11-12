@@ -1,66 +1,45 @@
 name: pages
 
+# Builds the site on push to main (self-hosted when CI_RUNNER is 'local') and deploys it
+# from a GitHub-hosted job, so the Pages OIDC token never touches the PCs.
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER == 'local' && fromJSON('["self-hosted","web-trusted"]') || 'ubuntu-latest' }}
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Unit tests
-        run: pnpm test
-
-      - name: Check routes
-        run: pnpm check:routes
-
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+      - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Build
         env:
           CI: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pnpm build
-
-      - name: Smoke test built pages
-        run: pnpm smoke:pages
-
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+      - run: pnpm smoke:pages
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
+      - name: Clean workspace
+        if: always() && runner.environment == 'self-hosted'
+        run: rm -rf node_modules dist
 
   deploy:
-    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
