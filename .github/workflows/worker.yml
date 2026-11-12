@@ -1,13 +1,12 @@
 name: worker
 
-# Deploys worker/ to the Cloudflare Worker "art". It runs only when the Worker changes on
-# main, or when started by hand, and only if the repository has a CLOUDFLARE_API_TOKEN secret.
+# Builds the site for Cloudflare and deploys it with the Worker "art" (static assets from
+# dist/ plus the API). Runs on every push to main and by hand, on a GitHub-hosted runner so
+# the Cloudflare token never reaches the self-hosted PCs, and is skipped when the repository
+# has no CLOUDFLARE_API_TOKEN secret.
 on:
   push:
     branches: [main]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/worker.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,23 +36,31 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Setup pnpm
+        if: steps.creds.outputs.present == 'true'
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         if: steps.creds.outputs.present == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
 
-      - name: Deploy
+      - name: Install
         if: steps.creds.outputs.present == 'true'
-        working-directory: worker
-        run: npx --yes wrangler@4 deploy
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and deploy
+        if: steps.creds.outputs.present == 'true'
+        run: pnpm deploy:cloudflare
 
       - name: Confirm the new version is live
         if: steps.creds.outputs.present == 'true'
         run: |
           want=$(grep -oP "const VERSION = '\K[^']+" worker/worker.js)
           for i in 1 2 3 4 5 6; do
-            got=$(curl -fsS https://art.hicksrch.workers.dev/diag | grep -oP '"version": "\K[^"]+' || true)
+            got=$(curl -fsS https://art.hicksrch.workers.dev/api/diag | grep -oP '"version": "\K[^"]+' || true)
             if [ "$got" = "$want" ]; then echo "Live version: $got"; exit 0; fi
             sleep 10
           done
