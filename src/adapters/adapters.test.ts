@@ -239,6 +239,39 @@ describe('IIIF and HTRC', () => {
     for (const junk of JUNK) expect(iiifResourceToCards(junk, 'BernIIIF')).toEqual([]);
   });
 
+  it('reads the pages and catalogue details of a manifest', () => {
+    const [card] = iiifResourceToCards(
+      {
+        '@id': 'https://example.org/book/manifest',
+        '@type': 'sc:Manifest',
+        label: 'A rare book',
+        attribution: 'Example <b>Library</b>',
+        metadata: [
+          { label: 'Titel', value: 'A rare book' },
+          { label: 'Impressum', value: '<span>London, 1866</span>' },
+        ],
+        sequences: [
+          {
+            canvases: [1, 2, 3].map((n) => ({
+              images: [{ resource: { service: { '@id': `https://example.org/i3f/${n}/` } } }],
+            })),
+          },
+        ],
+      },
+      'BernIIIF',
+    );
+    expectCard(card, 'BernIIIF');
+    expect(card.img).toBe('https://example.org/i3f/1/full/!400,400/0/default.jpg');
+    expect(card.imgLarge).toBe('https://example.org/i3f/1/full/!1400,1400/0/default.jpg');
+    expect(card.images).toHaveLength(3);
+    // The title is not repeated as a field, and markup is stripped from values.
+    expect(card.fields).toEqual([
+      { label: 'Impressum', value: 'London, 1866' },
+      { label: 'Pages', value: '3' },
+      { label: 'Attribution', value: 'Example Library' },
+    ]);
+  });
+
   it('maps HTRC metadata and validates volume ids', () => {
     expectCard(htrcCard('mdp.1', { metadata: { title: 'A title', pubDate: '1901' } }), 'HTRC');
     const v3 = htrcCard('mdp.2', {

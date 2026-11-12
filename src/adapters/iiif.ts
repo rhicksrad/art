@@ -125,6 +125,41 @@ const isManifest = (record: IiifRecord): boolean => {
   return typeof type === 'string' && type.toLowerCase().includes('manifest');
 };
 
+const readEntries = (value: unknown): IiifRecord[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => toRecord(entry))
+    .filter((entry): entry is IiifRecord => entry !== null);
+};
+
+const stripTags = (value: string): string =>
+  value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Image service ids for each page, from a Presentation 2 (`sequences`) or 3 (`items`) manifest. */
+const canvasServices = (manifest: IiifRecord): string[] => {
+  const v2 = readEntries(readEntries(manifest.sequences)[0]?.canvases).map((canvas) =>
+    toRecord(readEntries(canvas.images)[0]?.resource),
+  );
+  const v3 = readEntries(manifest.items).map((canvas) =>
+    toRecord(readEntries(readEntries(canvas.items)[0]?.items)[0]?.body),
+  );
+  return [...v2, ...v3]
+    .map((resource) => {
+      const service = Array.isArray(resource?.service) ? resource?.service[0] : resource?.service;
+      const record = toRecord(service);
+      return record ? firstString(record['@id'] ?? record.id) : undefined;
+    })
+    .filter((id): id is string => !!id)
+    .map((id) => id.replace(/\/$/, ''));
+};
+
+const MAX_PAGES = 48;
+
 const manifestToCard = (manifest: IiifRecord, source: ItemCard['source']): ItemCard | null => {
   const id = firstString(manifest.id ?? manifest['@id']);
   if (!id) {
@@ -133,27 +168,42 @@ const manifestToCard = (manifest: IiifRecord, source: ItemCard['source']): ItemC
   const title = readLabel(manifest.label) ?? 'Untitled manifest';
   const summary = readLabel(manifest.summary ?? manifest.description);
   const thumbnail = readThumbnail(manifest.thumbnail ?? manifest.thumbnails);
+  const thumbRecord = toRecord(
+    Array.isArray(manifest.thumbnail) ? manifest.thumbnail[0] : manifest.thumbnail,
+  );
+  const width = Number(thumbRecord?.width);
+  const height = Number(thumbRecord?.height);
+
+  // The catalogue details a manifest carries, in whatever language the library wrote them.
+  const fields = readEntries(manifest.metadata)
+    .map((entry) => ({
+      label: stripTags(readLabel(entry.label) ?? ''),
+      value: stripTags(readLabel(entry.value) ?? ''),
+    }))
+    .filter((field) => field.label && field.value && field.value !== title);
+  const pages = canvasServices(manifest);
+  if (pages.length > 0) fields.push({ label: 'Pages', value: String(pages.length) });
+  const attribution = readLabel(manifest.attribution ?? manifest.requiredStatement);
+  if (attribution) fields.push({ label: 'Attribution', value: stripTags(attribution) });
 
   return {
     id,
     title,
     sub: summary ?? undefined,
-    img: thumbnail,
+    img: thumbnail ?? (pages[0] ? `${pages[0]}/full/!400,400/0/default.jpg` : undefined),
+    imgLarge: pages[0] ? `${pages[0]}/full/!1400,1400/0/default.jpg` : undefined,
+    images:
+      pages.length > 1
+        ? pages.slice(0, MAX_PAGES).map((page) => `${page}/full/!200,200/0/default.jpg`)
+        : undefined,
+    aspect: width > 0 && height > 0 ? width / height : undefined,
+    fields: fields.length > 0 ? fields : undefined,
     href: id,
     source,
     raw: manifest,
     kind: 'IIIF manifest',
     manifest: id,
   };
-};
-
-const readEntries = (value: unknown): IiifRecord[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => toRecord(entry))
-    .filter((entry): entry is IiifRecord => entry !== null);
 };
 
 const extractManifests = (collection: IiifRecord): IiifRecord[] => {

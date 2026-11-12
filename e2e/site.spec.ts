@@ -64,10 +64,33 @@ test('unified search merges sources, reports the failed one and never shows a ke
   expect(errors).toEqual([]);
 });
 
+test('works hang on the wall and records without an image are listed beneath', async ({ page }) => {
+  await page.goto('./?q=monet');
+  await expect(page.locator('.masonry button.card').first()).toBeVisible();
+  // Nothing without an image is hung among the works.
+  await expect(page.locator('.masonry .card--text')).toHaveCount(0);
+  await expect(page.locator('.unhung__head')).toContainText('without an image');
+  await expect(page.locator('.unhung button.row').first()).toBeVisible();
+});
+
+test('a lookup that resolves to one record sets it on the page in full', async ({ page }) => {
+  await page.goto('./stanford.html');
+  const record = page.locator('article.record');
+  await expect(record.locator('.detail__title')).not.toBeEmpty();
+  await expect(record.locator('.facts')).toBeVisible();
+  await expect(page.locator('dialog.detail[open]')).toHaveCount(0);
+});
+
 test('a facet filters the results in place', async ({ page }) => {
   await page.goto('./harvard.html?q=study');
   const cards = page.locator('button.card');
   await expect(cards).toHaveCount(24);
+  // A phone shows results first and keeps the charts behind a button.
+  const charts = page.locator('.filters__toggle');
+  if (await charts.isVisible()) {
+    await expect(page.locator('.insights')).toBeHidden();
+    await charts.click();
+  }
   await page.locator('.barlist__row', { hasText: 'Prints' }).first().click();
   await expect(cards).toHaveCount(12);
 });

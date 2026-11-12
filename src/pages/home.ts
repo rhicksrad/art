@@ -139,7 +139,14 @@ const featureFigure = (): HTMLElement => {
       });
       const frame = h(
         'button',
-        { type: 'button', class: 'feature__frame', 'aria-label': `Open details for ${item.title}` },
+        {
+          type: 'button',
+          class: 'feature__frame',
+          'aria-label': `Open details for ${item.title}`,
+          // The frame is sized from the record's proportions, so it holds its place on the
+          // wall while the image is still on its way.
+          style: `--aspect:${(item.aspect ?? 1).toFixed(4)}`,
+        },
         img,
       );
       frame.addEventListener('click', () => openDetail(item, items));

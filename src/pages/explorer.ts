@@ -1,5 +1,6 @@
 import { sourceEmblem } from '../lib/emblems';
 import { errorPanel } from '../components/errors';
+import { recordView } from '../components/detail';
 import { createResults } from '../components/results';
 import { clear, formatCount, h, icon } from '../lib/dom';
 import { isAbort } from '../lib/http';
@@ -143,6 +144,8 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
   const status = h('p', { class: 'status-line', 'aria-live': 'polite' });
   const alerts = h('div');
   const results = createResults({ layout: source.layout, showSource: false });
+  // A lookup that resolves to one record sets that record on the page in full.
+  const record = h('article', { class: 'record', hidden: true });
   const more = h(
     'button',
     { type: 'button', class: 'button button--wide', hidden: true },
@@ -173,6 +176,7 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
       status,
       alerts,
       results.element,
+      record,
       h('div', { class: 'more' }, more),
       requestLog,
     ),
@@ -205,6 +209,7 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
     const { signal } = controller;
     clear(alerts);
     more.hidden = true;
+    record.hidden = true;
     paintColorChip();
 
     const hint = source.accepts?.(state.q) ?? null;
@@ -243,6 +248,11 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
       requests.push(...result.requests);
       renderRequests();
       results.setItems(items);
+      if (source.mode === 'identifier' && items.length === 1) {
+        results.element.hidden = true;
+        record.replaceChildren(recordView(items[0]));
+        record.hidden = false;
+      }
 
       const label = state.q
         ? `“${state.q}”`
