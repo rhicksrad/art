@@ -241,11 +241,7 @@ const todaysWall = (): HTMLElement => {
           });
           const button = h(
             'button',
-            {
-              type: 'button',
-              class: 'filmstrip__item',
-              'aria-label': `Open details for ${item.title}`,
-            },
+            { type: 'button', class: 'filmstrip__item' },
             img,
             h(
               'span',
@@ -266,6 +262,89 @@ const todaysWall = (): HTMLElement => {
   return section;
 };
 
+/**
+ * One more wall per image-rich collection, so the landing page shows more than Harvard.
+ * The subject changes daily; every work is a live search result.
+ */
+const ROOMS: Array<{ key: SourceKey; subjects: string[] }> = [
+  { key: 'Princeton', subjects: ['landscape', 'portrait', 'still life', 'etching', 'bronze'] },
+  { key: 'Northwestern', subjects: ['poster', 'map', 'photograph'] },
+];
+
+const dayNumber = (): number => Math.floor(Date.now() / 86_400_000);
+
+const roomWall = (key: SourceKey, subjects: string[]): HTMLElement => {
+  const source = sourceByKey(key);
+  const subject = subjects[dayNumber() % subjects.length];
+  const strip = h('div', { class: 'filmstrip', tabindex: '0' });
+  const section = h(
+    'section',
+    { class: 'wall' },
+    h(
+      'header',
+      { class: 'section-head' },
+      h('h2', null, `${source.label}: ${subject}`),
+      h(
+        'a',
+        { href: pageHref(source.page, { q: subject }), class: 'more-link' },
+        `Search ${source.short} for “${subject}”`,
+      ),
+    ),
+    strip,
+  );
+  strip.append(
+    ...Array.from({ length: 7 }, (_, i) =>
+      h('div', {
+        class: 'filmstrip__item filmstrip__item--skeleton',
+        style: `aspect-ratio:${[1.2, 0.75, 1, 1.4, 0.8, 1.3, 0.7][i]}`,
+      }),
+    ),
+  );
+  source
+    .search({ q: subject, page: 1, size: 14 })
+    .then((page) => {
+      const items = page.items.filter((item) => item.img);
+      // A source that is down or has nothing to show leaves no empty room behind.
+      if (items.length < 3) {
+        section.remove();
+        return;
+      }
+      strip.replaceChildren(
+        ...items.map((item) => {
+          const img = h('img', {
+            src: item.img,
+            alt: '',
+            loading: 'lazy',
+            referrerpolicy: 'no-referrer',
+            style: `aspect-ratio:${(item.aspect ?? 1).toFixed(4)}`,
+          });
+          const button = h(
+            'button',
+            { type: 'button', class: 'filmstrip__item' },
+            img,
+            h(
+              'span',
+              { class: 'label' },
+              item.sub ? h('span', { class: 'label__maker' }, item.sub) : null,
+              h('span', { class: 'label__title' }, item.title),
+              item.date ? h('span', { class: 'label__date' }, item.date) : null,
+            ),
+          );
+          // Without a reported size the true proportions arrive with the image.
+          img.addEventListener('load', () => {
+            if (!item.aspect && img.naturalHeight > 0)
+              img.style.aspectRatio = String(img.naturalWidth / img.naturalHeight);
+          });
+          img.addEventListener('error', () => button.remove());
+          button.addEventListener('click', () => openDetail(item, items));
+          return button;
+        }),
+      );
+    })
+    .catch(() => section.remove());
+  return section;
+};
+
 /** The floor directory: every source, what it holds, how big it is right now, and its route. */
 const sourceDirectory = (): HTMLElement => {
   const body = h('tbody');
@@ -275,13 +354,19 @@ const sourceDirectory = (): HTMLElement => {
     );
     for (const source of SOURCES.filter((entry) => entry.group === group)) {
       const live = h('td', { class: 'directory__size' });
-      // Live collection size, straight from the API. Stays blank if the source is down.
-      source
-        .count?.()
-        .then((total) => {
-          if (total) live.textContent = `${formatCount(total)} ${source.countNoun ?? 'records'}`;
-        })
-        .catch(() => undefined);
+      // Live collection size, straight from the API. Sources that publish no total say so.
+      if (source.count) {
+        source
+          .count()
+          .then((total) => {
+            if (total) live.textContent = `${formatCount(total)} ${source.countNoun ?? 'records'}`;
+          })
+          .catch(() => undefined);
+      } else {
+        live.classList.add('muted');
+        live.textContent =
+          source.mode === 'identifier' ? 'Looked up by identifier' : 'No total published';
+      }
       body.append(
         h(
           'tr',
@@ -464,7 +549,12 @@ const mount = (el: HTMLElement): void => {
       'Try',
       SAMPLE_QUERIES.filter((query) => !recent.includes(query)),
     );
-    body.replaceChildren(quick, todaysWall(), sourceDirectory());
+    body.replaceChildren(
+      quick,
+      todaysWall(),
+      ...ROOMS.map((room) => roomWall(room.key, room.subjects)),
+      sourceDirectory(),
+    );
   };
 
   /* ------------------------------ Results view ----------------------------- */

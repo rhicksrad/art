@@ -13,6 +13,8 @@ The site is a gallery. The works supply the colour and the interface behaves lik
 - **One record gets the whole page.** When a lookup resolves to a single record (a Stanford PURL, an IIIF manifest, an HTRC volume) the full record is set on the page with its pages and fields, not shown as one small card.
 - **A place on the wall is never empty.** An image that is still loading shows a blank mount at the work's proportions. Scrolling panels use a hairline scrollbar in label ink.
 - **Results come before charts on a phone.** Narrow screens show the works first and open the charts from a button.
+- **Books are read, not previewed.** A record with several images gets page turning, a page count and every page in its strip.
+- **The timeline is a wall.** Works stand on a ruled baseline with the period set as signage beneath, and a busy period spreads sideways four works to a file.
 - **Corners are square.** Controls get 2px. Nothing is a pill.
 - **Motion only answers the user.** No entrance animation, no hover lift or scale on images, no shimmer.
 - **Generated art never poses as a museum work.** It is used for backdrops, textures, emblems and empty or error states.

@@ -58,11 +58,7 @@ export const galleryCard = (item: ItemCard, { onOpen, showSource }: CardOptions)
   const hasImage = !!item.img;
   const button = h(
     'button',
-    {
-      type: 'button',
-      class: `card${hasImage ? '' : ' card--text'}`,
-      'aria-label': `Open details for ${item.title}`,
-    },
+    { type: 'button', class: `card${hasImage ? '' : ' card--text'}` },
     hasImage ? media(item) : null,
     label(item, showSource),
     !hasImage && item.description ? h('p', { class: 'card__excerpt' }, item.description) : null,
@@ -74,7 +70,7 @@ export const galleryCard = (item: ItemCard, { onOpen, showSource }: CardOptions)
 export const listRow = (item: ItemCard, { onOpen, showSource }: CardOptions): HTMLElement => {
   const button = h(
     'button',
-    { type: 'button', class: 'row', 'aria-label': `Open details for ${item.title}` },
+    { type: 'button', class: 'row' },
     h(
       'div',
       { class: 'row__main' },

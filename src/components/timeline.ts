@@ -73,7 +73,8 @@ export const timeline = (
     track.append(
       h(
         'section',
-        { class: 'timeline__column' },
+        // A busy period spreads sideways, four works to a file, so no column towers over the rest.
+        { class: 'timeline__column', style: `--files:${Math.ceil(members.length / 4)}` },
         stack,
         h(
           'header',

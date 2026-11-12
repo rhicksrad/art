@@ -110,7 +110,7 @@ export const toItemCard = (purlId: string, cocina: unknown, manifest?: unknown):
     imgLarge: iiifImage(services[0], 1400),
     images:
       services.length > 1
-        ? services.slice(0, 24).map((service) => iiifImage(service, 240) as string)
+        ? services.slice(0, 600).map((service) => iiifImage(service, 240) as string)
         : undefined,
     href,
     source: 'Stanford',

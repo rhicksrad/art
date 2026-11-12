@@ -81,6 +81,25 @@ test('a lookup that resolves to one record sets it on the page in full', async (
   await expect(page.locator('dialog.detail[open]')).toHaveCount(0);
 });
 
+test('a record with several images turns pages like a book', async ({ page }) => {
+  await page.goto('./stanford.html');
+  const record = page.locator('article.record');
+  await expect(record.locator('.detail__page')).toHaveText('Page 1 of 2');
+  await record.getByRole('button', { name: 'Next page' }).click();
+  await expect(record.locator('.detail__page')).toHaveText('Page 2 of 2');
+  await expect(record.getByRole('button', { name: 'Next page' })).toBeDisabled();
+  await expect(record.locator('.detail__strip button[aria-current="true"]')).toHaveCount(1);
+});
+
+test('the landing page hangs a wall for more than one collection', async ({ page }) => {
+  await page.goto('./');
+  await expect(
+    page.locator('.wall h2', { hasText: 'Princeton University Art Museum' }),
+  ).toHaveCount(1);
+  // The mocked Northwestern answer has too few images to hang, so its wall is taken down.
+  await expect(page.locator('.wall h2', { hasText: 'Northwestern' })).toHaveCount(0);
+});
+
 test('a facet filters the results in place', async ({ page }) => {
   await page.goto('./harvard.html?q=study');
   const cards = page.locator('button.card');
