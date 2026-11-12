@@ -37,12 +37,24 @@ describe('diagnostics never leak keys', () => {
       headers: { 'content-type': 'text/html' },
     });
     vi.stubGlobal('fetch', fetchMock);
-    const res = await call('/ubc/search/8.5?index=calendars&q=news&ttl=0');
+    const res = await call('/ubc/collections/calendars/items?ttl=0');
     const text = await res.text();
     expect(res.status).toBe(500);
     expect(fetchMock.mock.calls[0][0]).toContain('key=ubc-secret-456');
     expect(text).not.toContain('ubc-secret-456');
     expect(JSON.parse(text).upstream).toContain('key=REDACTED');
+  });
+
+  it('sends UBC search as a plain GET with no key', async () => {
+    const fetchMock = upstream('{"data":{"hits":{"hits":[]}}}', { status: 200, headers: json });
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await call('/ubc/search/8.5?index=calendars&q=news&size=2&key=mine&ttl=0');
+    expect(res.status).toBe(200);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe(
+      'https://oc-index.library.ubc.ca/search/8.5?index=calendars&q=news&size=2',
+    );
+    expect(init.method).toBe('GET');
   });
 
   it('redacts the Harvard key on ?debug=1', async () => {
@@ -182,7 +194,7 @@ describe('slow upstreams', () => {
       'fetch',
       vi.fn(() => Promise.reject(new DOMException('timed out', 'TimeoutError'))),
     );
-    const res = await call('/leipzig-iiif/0000000001/manifest.json?ttl=0');
+    const res = await call('/bern-iiif/i3f/v20/2273935/manifest?ttl=0');
     expect(res.status).toBe(504);
     expect((await res.json()).error).toBe('Upstream timed out');
   });

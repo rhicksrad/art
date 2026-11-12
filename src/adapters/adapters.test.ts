@@ -229,9 +229,9 @@ describe('UBC', () => {
 
 describe('IIIF and HTRC', () => {
   it('lists manifests in a collection and reads language-map labels', () => {
-    const cards = iiifResourceToCards(json('iiif-collection.json'), 'LeipzigIIIF');
+    const cards = iiifResourceToCards(json('iiif-collection.json'), 'BernIIIF');
     expect(cards).toHaveLength(1);
-    expectCard(cards[0], 'LeipzigIIIF');
+    expectCard(cards[0], 'BernIIIF');
     expect(cards[0].title).toBe('Handschrift 1');
     expect(
       iiifResourceToCards({ id: 'https://example.org/m', type: 'Manifest' }, 'BernIIIF')[0].title,

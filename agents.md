@@ -26,7 +26,7 @@ The project’s goal: one endpoint space and one UI where users can browse, quer
 | `/princeton-art/*`  | Princeton University Art Museum (open, JSON)     | `https://data.artmuseum.princeton.edu`       |
 | `/dataverse/*`      | Harvard Dataverse API (set via `DATAVERSE_BASE`) | `https://dataverse.harvard.edu`              |
 | `/ubc/*`            | UBC Open Collections API (REST, OAI, IIIF)       | `https://oc-index.library.ubc.ca`            |
-| `/ubc-oai?verb=`    | UBC OAI-PMH feed                                 | `https://oce-index.library.ubc.ca/oai`       |
+| `/ubc-oai?verb=`    | UBC OAI-PMH feed                                 | `https://oc-index.library.ubc.ca/oai`        |
 | `/ubc-iiif/*`       | UBC IIIF service passthrough                     | `https://iiif.library.ubc.ca`                |
 | `/arxiv/search`     | arXiv Atom feed proxy                            | `https://export.arxiv.org/api/query`         |
 | `/northwestern/*`   | Northwestern Digital Collections API             | `https://api.dc.library.northwestern.edu`    |
@@ -34,7 +34,6 @@ The project’s goal: one endpoint space and one UI where users can browse, quer
 | `/stanford-embed/*` | Stanford oEmbed summaries                        | `https://embed.stanford.edu`                 |
 | `/hathi-catalog/*`  | HathiTrust catalog identifier search             | `https://catalog.hathitrust.org/api/volumes` |
 | `/htrc/*`           | HathiTrust Research Center metadata              | `https://data.htrc.illinois.edu`             |
-| `/leipzig-iiif/*`   | Leipzig University Library IIIF                  | `https://iiif.ub.uni-leipzig.de`             |
 | `/bern-iiif/*`      | Bern University Library rare books (e-rara IIIF) | `https://www.e-rara.ch`                      |
 | `/diag`             | Worker health report and environment keys        | local                                        |
 | `/favicon.ico`      | 1×1 transparent PNG to silence browser errors    | local                                        |

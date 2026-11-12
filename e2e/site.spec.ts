@@ -27,7 +27,7 @@ test('home hangs the featured painting with its label and lists every source', a
   await expect(feature.locator('.label__title')).not.toBeEmpty();
   await expect(feature.locator('.palette__swatch').first()).toBeVisible();
 
-  await expect(page.locator('.directory__table tbody tr:not(.directory__group)')).toHaveCount(11);
+  await expect(page.locator('.directory__table tbody tr:not(.directory__group)')).toHaveCount(10);
   await expect(page.locator('.directory__size').first()).toContainText('4,647');
   expect(await overflow(page)).toBeLessThanOrEqual(0);
   expect(errors).toEqual([]);

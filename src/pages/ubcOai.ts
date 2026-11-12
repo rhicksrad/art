@@ -286,7 +286,7 @@ const mount = (el: HTMLElement): void => {
           'p',
           { class: 'endpoint' },
           h('code', null, 'GET /ubc-oai?verb=…'),
-          h('span', { class: 'muted' }, 'proxied to oce-index.library.ubc.ca/oai'),
+          h('span', { class: 'muted' }, 'proxied to oc-index.library.ubc.ca/oai'),
         ),
       ),
       form,
