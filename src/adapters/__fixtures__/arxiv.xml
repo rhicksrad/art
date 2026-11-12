@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>arXiv Query: search_query=all:museum</title>
+  <id>http://arxiv.org/api/abc</id>
+  <opensearch:totalResults>462</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2603.11147v4</id>
+    <updated>2026-10-26T02:29:23Z</updated>
+    <published>2026-03-11T17:30:30Z</published>
+    <title>Catalogue-Grounded Multimodal Attribution for Museum Video
+  under Resource and Regulatory Constraints</title>
+    <summary>We study attribution of museum video to catalogue records.</summary>
+    <author><name>Minsak Nanang</name></author>
+    <author><name>Adrian Hilton</name></author>
+    <author><name>Armin Mustafa</name></author>
+    <link href="https://arxiv.org/abs/2603.11147v4" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2603.11147v4" rel="related" type="application/pdf" title="pdf"/>
+    <arxiv:primary_category term="cs.MM"/>
+    <category term="cs.MM"/>
+    <category term="cs.CV"/>
+    <category term="cs.LG"/>
+  </entry>
+</feed>

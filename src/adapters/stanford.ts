@@ -1,295 +1,138 @@
-import { fetchJSON, HttpError } from '../lib/http';
+import { parseYear } from '../lib/dates';
 import type { ItemCard } from '../lib/types';
+import {
+  asArray,
+  asRecord,
+  fieldList,
+  iiifImage,
+  orUndefined,
+  str,
+  truncate,
+  type Rec,
+} from './util';
 
-type StanfordEmbedResponse = {
-  title?: string;
-  author_name?: string;
-  provider_name?: string;
-  thumbnail_url?: string;
-  url?: string;
-  type?: string;
-  description?: string;
+const PURL_ID_PATTERN = /^[a-z]{2}\d{3}[a-z]{2}\d{4}$/i;
+
+/** Accepts a bare druid, `druid:…`, or a purl.stanford.edu URL. */
+export const normalizePurlId = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = trimmed
+    .replace(/^https?:\/\/purl\.stanford\.edu\//i, '')
+    .replace(/^druid:/i, '')
+    .replace(/[/?#].*$/, '');
+  return PURL_ID_PATTERN.test(candidate) ? candidate.toLowerCase() : null;
 };
 
-type RecordMap = Record<string, unknown>;
+const records = (value: unknown): Rec[] =>
+  asArray(value)
+    .map(asRecord)
+    .filter((r): r is Rec => r !== null);
 
-type StanfordDescription = {
-  title?: unknown;
-  contributor?: unknown;
-  event?: unknown;
-  subject?: unknown;
+/** Cocina descriptive values are `{ value }` or `{ structuredValue: [{ value }] }`. */
+const cocinaValue = (entry: Rec): string | undefined => {
+  const direct = str(entry.value);
+  if (direct) return direct;
+  const parts = records(entry.structuredValue)
+    .map((part) => cocinaValue(part))
+    .filter((part): part is string => !!part);
+  return parts.length > 0 ? parts.join(' – ') : undefined;
 };
 
-type StanfordCocina = {
-  description?: StanfordDescription | RecordMap;
-};
+const contributors = (description: Rec): string[] =>
+  records(description.contributor)
+    .map((entry) => {
+      const name = records(entry.name).map(cocinaValue).find(Boolean);
+      const role = records(entry.role).map(cocinaValue).find(Boolean);
+      return name ? (role ? `${name} (${role})` : name) : undefined;
+    })
+    .filter((entry): entry is string => !!entry);
 
-const firstString = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
-    return undefined;
-  }
-  if (value && typeof value === 'object') {
-    const record = value as RecordMap;
-    if (typeof record.value === 'string') {
-      return firstString(record.value);
-    }
-    if (typeof record['@value'] === 'string') {
-      return firstString(record['@value']);
-    }
-    for (const entry of Object.values(record)) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
+const eventDate = (description: Rec): string | undefined => {
+  for (const event of records(description.event)) {
+    const date = records(event.date).map(cocinaValue).find(Boolean);
+    if (date) return date;
   }
   return undefined;
 };
 
-const toRecord = (value: unknown): RecordMap | null => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
+const noteOfType = (description: Rec, type: string): string | undefined =>
+  records(description.note)
+    .filter((note) => str(note.type) === type)
+    .map(cocinaValue)
+    .find(Boolean);
+
+/** Image service ids for every canvas in a IIIF Presentation 2 or 3 manifest. */
+export const manifestImageServices = (manifest: unknown): string[] => {
+  const root = asRecord(manifest);
+  if (!root) return [];
+  const services: string[] = [];
+  const v2Canvases = records(root.sequences).flatMap((sequence) => records(sequence.canvases));
+  for (const canvas of v2Canvases) {
+    const resource = asRecord(records(canvas.images)[0]?.resource);
+    const service = str(asRecord(resource?.service)?.['@id']);
+    if (service) services.push(service);
   }
-  return value as RecordMap;
+  for (const canvas of records(root.items)) {
+    const body = asRecord(records(records(canvas.items)[0]?.items)[0]?.body);
+    const service = records(body?.service)[0];
+    const id = service ? (str(service.id) ?? str(service['@id'])) : undefined;
+    if (id) services.push(id);
+  }
+  return services;
 };
 
-const readStructuredArray = (value: unknown): RecordMap[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.map((entry) => toRecord(entry)).filter((entry): entry is RecordMap => entry !== null);
-};
-
-const readContributors = (value: unknown): string[] => {
-  const contributors: string[] = [];
-  const entries = readStructuredArray(value);
-  for (const entry of entries) {
-    const names = readStructuredArray(entry.name);
-    for (const name of names) {
-      const label = firstString(name.value);
-      if (label) {
-        contributors.push(label);
-        break;
-      }
-    }
-  }
-  return contributors;
-};
-
-const readTitle = (description: StanfordDescription | RecordMap | undefined): string | undefined => {
-  if (!description) {
-    return undefined;
-  }
-  const titles = readStructuredArray(description.title);
-  for (const entry of titles) {
-    const title = firstString(entry.value);
-    if (title) {
-      return title;
-    }
-  }
-  return undefined;
-};
-
-const readEventDate = (description: StanfordDescription | RecordMap | undefined): string | undefined => {
-  if (!description) {
-    return undefined;
-  }
-  const events = readStructuredArray(description.event);
-  for (const event of events) {
-    const dates = readStructuredArray(event.date);
-    for (const dateEntry of dates) {
-      const structured = readStructuredArray(dateEntry.structuredValue);
-      if (structured.length > 0) {
-        const parts = structured
-          .map((piece) => firstString(piece.value))
-          .filter((value): value is string => typeof value === 'string');
-        if (parts.length > 0) {
-          return parts.join(' – ');
-        }
-      }
-      const value = firstString(dateEntry.value);
-      if (value) {
-        return value;
-      }
-    }
-  }
-  return undefined;
-};
-
-const ensureIiifImage = (value: string | undefined): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  if (/\/full\//.test(value)) {
-    return value;
-  }
-  const trimmed = value.replace(/\/$/, '').replace(/\/info\.json$/i, '');
-  return `${trimmed}/full/!400,400/0/default.jpg`;
-};
-
-const readThumbnail = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = readThumbnail(entry);
-      if (result) {
-        return result;
-      }
-    }
-    return undefined;
-  }
-  const record = toRecord(value);
-  if (!record) {
-    return undefined;
-  }
-  const direct = firstString(record['@id'] ?? record.id ?? record.url);
-  if (direct) {
-    return direct;
-  }
-  if (record.service) {
-    const serviceRecord = toRecord(record.service);
-    const serviceId = serviceRecord ? firstString(serviceRecord['@id'] ?? serviceRecord.id) : undefined;
-    return ensureIiifImage(serviceId);
-  }
-  return undefined;
-};
-
-const normalizeSignal = (signal?: AbortSignal): RequestInit | undefined => {
-  return signal ? { signal } : undefined;
-};
-
-const fetchStanfordEmbed = async (purlId: string, signal?: AbortSignal): Promise<StanfordEmbedResponse | null> => {
-  try {
-    return await fetchJSON<StanfordEmbedResponse>(
-      '/stanford-embed/oembed',
-      { url: `https://purl.stanford.edu/${purlId}`, format: 'json' },
-      normalizeSignal(signal),
-    );
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
-      return null;
-    }
-    throw error;
-  }
-};
-
-const fetchStanfordCocina = async (purlId: string, signal?: AbortSignal): Promise<StanfordCocina | null> => {
-  try {
-    return await fetchJSON<StanfordCocina>(
-      `/stanford-purl/${purlId}`,
-      { format: 'json' },
-      normalizeSignal(signal),
-    );
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
-      return null;
-    }
-    throw error;
-  }
-};
-
-const fetchStanfordManifestThumbnail = async (purlId: string, signal?: AbortSignal): Promise<string | undefined> => {
-  try {
-    const manifest = await fetchJSON<RecordMap>(
-      `/stanford-purl/${purlId}/iiif/manifest`,
-      undefined,
-      normalizeSignal(signal),
-    );
-    return readThumbnail(manifest.thumbnail);
-  } catch (error) {
-    if (error instanceof HttpError && (error.status === 404 || error.status === 403)) {
-      return undefined;
-    }
-    throw error;
-  }
-};
-
-const buildStanfordHref = (purlId: string): string => {
-  return `https://purl.stanford.edu/${purlId}`;
-};
-
-const embedToItemCard = (purlId: string, embed: StanfordEmbedResponse): ItemCard => {
-  const tags: string[] = [];
-  if (embed.type) {
-    tags.push(embed.type);
-  }
-  return {
-    id: purlId,
-    title: embed.title ?? `Stanford object ${purlId}`,
-    sub: embed.author_name ?? embed.provider_name ?? undefined,
-    date: undefined,
-    tags: tags.length > 0 ? tags : undefined,
-    img: embed.thumbnail_url ?? undefined,
-    href: embed.url ?? buildStanfordHref(purlId),
-    source: 'Stanford',
-    raw: embed,
-  };
-};
-
-const cocinaToItemCard = (purlId: string, cocina: StanfordCocina, thumbnail?: string): ItemCard => {
-  const description = cocina.description;
-  const title = readTitle(description) ?? `Stanford object ${purlId}`;
-  const contributors = readContributors(description?.contributor);
-  const tags = readStructuredArray(description?.subject)
-    .map((subject) => firstString(subject.value))
-    .filter((value): value is string => typeof value === 'string')
-    .slice(0, 4);
+export const toItemCard = (purlId: string, cocina: unknown, manifest?: unknown): ItemCard => {
+  const root = asRecord(cocina) ?? {};
+  const description = asRecord(root.description) ?? {};
+  const people = contributors(description);
+  const date = eventDate(description);
+  const subjects = records(description.subject)
+    .map(cocinaValue)
+    .filter((value): value is string => !!value);
+  const forms = records(description.form)
+    .map(cocinaValue)
+    .filter((value): value is string => !!value && !value.includes('/'));
+  const services = manifestImageServices(manifest);
+  const href = `https://purl.stanford.edu/${purlId}`;
+  const access = asRecord(root.access);
 
   return {
     id: purlId,
-    title,
-    sub: contributors.length > 0 ? contributors.join(', ') : undefined,
-    date: readEventDate(description),
-    tags: tags.length > 0 ? tags : undefined,
-    img: thumbnail,
-    href: buildStanfordHref(purlId),
+    title:
+      records(description.title).map(cocinaValue).find(Boolean) ??
+      str(root.label) ??
+      `Stanford object ${purlId}`,
+    sub: people.length > 0 ? people.slice(0, 2).join(', ') : undefined,
+    date,
+    tags: orUndefined([...forms, ...subjects].slice(0, 6)),
+    img: iiifImage(services[0], 480),
+    imgLarge: iiifImage(services[0], 1400),
+    images:
+      services.length > 1
+        ? services.slice(0, 24).map((service) => iiifImage(service, 240) as string)
+        : undefined,
+    href,
     source: 'Stanford',
     raw: cocina,
+    year: parseYear(date),
+    kind: forms[0],
+    people: orUndefined(people.map((person) => person.replace(/\s*\([^)]*\)$/, ''))),
+    description: truncate(
+      noteOfType(description, 'abstract') ?? noteOfType(description, 'summary'),
+      900,
+    ),
+    manifest: `${href}/iiif/manifest`,
+    fields: fieldList([
+      ['Contributor', orUndefined(people)?.join('; ')],
+      ['Date', date],
+      ['Form', orUndefined(forms)?.join('; ')],
+      ['Subject', orUndefined(subjects)?.join('; ')],
+      ['Images', services.length > 0 ? String(services.length) : undefined],
+      ['Access', str(access?.view)],
+      ['Use and reproduction', truncate(str(access?.useAndReproductionStatement), 300)],
+      ['Druid', str(root.externalIdentifier)],
+    ]),
+    links: [{ label: 'IIIF manifest', href: `${href}/iiif/manifest` }],
   };
 };
-
-const PURL_ID_PATTERN = /([a-z]{2}\d{3}[a-z]{2}\d{4})/i;
-
-export const normalizePurlId = (value: string): string | null => {
-  const match = value.trim().match(PURL_ID_PATTERN);
-  return match ? match[1].toLowerCase() : null;
-};
-
-export const stanfordLookupPurl = async (
-  purlId: string,
-  options?: { signal?: AbortSignal },
-): Promise<ItemCard | null> => {
-  const normalized = normalizePurlId(purlId);
-  if (!normalized) {
-    return null;
-  }
-
-  const embed = await fetchStanfordEmbed(normalized, options?.signal);
-  if (embed) {
-    return embedToItemCard(normalized, embed);
-  }
-
-  const cocina = await fetchStanfordCocina(normalized, options?.signal);
-  if (!cocina) {
-    return null;
-  }
-  const thumbnail = await fetchStanfordManifestThumbnail(normalized, options?.signal);
-  return cocinaToItemCard(normalized, cocina, thumbnail ?? undefined);
-};
-
-export default stanfordLookupPurl;

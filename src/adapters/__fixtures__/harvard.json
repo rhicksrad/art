@@ -1,0 +1,67 @@
+{
+  "info": { "totalrecordsperquery": 2, "totalrecords": 86, "pages": 43, "page": 1, "responsetime": "27 ms" },
+  "records": [
+    {
+      "id": 331916,
+      "objectid": 331916,
+      "objectnumber": "2.2002.5171",
+      "dated": "1979",
+      "datebegin": 1979,
+      "dateend": 1979,
+      "classification": "Photographs",
+      "medium": null,
+      "technique": "Gelatin silver print",
+      "period": null,
+      "century": "20th century",
+      "culture": "American",
+      "dimensions": "sheet: 17.6 x 12.5 cm (6 15/16 x 4 15/16 in.)",
+      "copyright": "© Bill Dane",
+      "creditline": "Harvard Art Museums/Fogg Museum, Transfer from the Carpenter Center for the Visual Arts",
+      "department": "Department of Photographs",
+      "division": "Modern and Contemporary Art",
+      "description": null,
+      "imagecount": 1,
+      "imagepermissionlevel": 0,
+      "url": "https://www.harvardartmuseums.org/collections/object/331916",
+      "colors": [
+        { "color": "#7d7d7d", "spectrum": "#8362aa", "hue": "Grey", "percent": 0.17177570093457945, "css3": "#808080" },
+        { "color": "#afafaf", "spectrum": "#8c5fa8", "hue": "Grey", "percent": 0.14903426791277258, "css3": "#a9a9a9" }
+      ],
+      "images": [
+        {
+          "date": "2009-05-07",
+          "copyright": "President and Fellows of Harvard College",
+          "imageid": 345865,
+          "format": "image/jpeg",
+          "renditionnumber": "INV213409",
+          "displayorder": 1,
+          "baseimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV213409_dynmc",
+          "width": 737,
+          "height": 1024
+        }
+      ],
+      "primaryimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV213409_dynmc",
+      "people": [
+        { "role": "Artist", "displaydate": "born 1938", "culture": "American", "displayname": "Bill Dane", "name": "Bill Dane", "personid": 22059, "displayorder": 1 }
+      ],
+      "title": "Untitled (Berkeley + Monet)",
+      "worktypes": [{ "worktypeid": "274", "worktype": "photograph" }],
+      "seeAlso": [
+        { "id": "https://iiif.harvardartmuseums.org/manifests/object/331916", "type": "IIIF Manifest", "format": "application/json", "profile": "http://iiif.io/api/presentation/2/context.json" }
+      ]
+    },
+    {
+      "id": 192395,
+      "objectnumber": "1985.412",
+      "title": "Illustrated Story of the Priest Saigyō (Saigyō monogatari emaki) in Four Volumes",
+      "dated": "Late Edo or Early Meiji era, circa mid to late 19th century",
+      "datebegin": 19,
+      "dateend": 19,
+      "classification": "Paintings",
+      "century": "19th century",
+      "culture": "Japanese",
+      "primaryimageurl": "https://nrs.harvard.edu/urn-3:HUAM:INV007068_dynmc",
+      "url": "https://www.harvardartmuseums.org/collections/object/192395"
+    }
+  ]
+}

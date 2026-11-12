@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": "4ac87bbf-2a65-45f5-ad2d-cf502d261b83",
+      "title": "Poster for celebration commemorating 1966 coup (Cordell, n.d.)",
+      "alternate_title": [],
+      "subject": [
+        { "variants": ["Republic of Ghana"], "label": "Ghana", "id": "http://id.worldcat.org/fast/1208741", "role": "Geographical", "facet": "http://id.worldcat.org/fast/1208741|GEOGRAPHICAL|Ghana (Geographical)", "label_with_role": "Ghana (Geographical)" },
+        { "variants": [], "label": "Africa", "id": "http://id.worldcat.org/fast/1239509", "role": "Geographical", "facet": "http://id.worldcat.org/fast/1239509|GEOGRAPHICAL|Africa (Geographical)", "label_with_role": "Africa (Geographical)" }
+      ],
+      "genre": [{ "variants": ["slide (photograph)"], "label": "slides (photographs)", "id": "http://vocab.getty.edu/aat/300128371", "facet": "http://vocab.getty.edu/aat/300128371||slides (photographs)" }],
+      "creator": [],
+      "contributor": [
+        { "variants": [], "label": "University of Wisconsin--Madison. African Studies Program", "id": "http://id.loc.gov/authorities/names/n80026728", "role": "Donor", "label_with_role": "University of Wisconsin--Madison. African Studies Program (Donor)" }
+      ],
+      "collection": { "description": "Slides of Africa from various sources", "id": "8041cf15-cbe5-4285-bda5-c77e3281b763", "title": "Slides of Africa from the University of Wisconsin--Madison " },
+      "date_created": ["1966"],
+      "date_created_edtf": ["1966"],
+      "date_created_start": "1966-01-01",
+      "date_created_end": "1966-12-31",
+      "description": ["Legon, Ghana (near Accra, at the university). This poster commemorates the 24 February 1966 coup."],
+      "identifier": ["14.18.01"],
+      "library_unit": "Herskovits Library of African Studies",
+      "physical_description_material": ["1 slide"],
+      "physical_description_size": ["5 cm x 5 cm"],
+      "rights_statement": { "label": "Copyright Undetermined", "id": "http://rightsstatements.org/vocab/UND/1.0/" },
+      "thumbnail": "https://api.dc.library.northwestern.edu/api/v2/works/4ac87bbf-2a65-45f5-ad2d-cf502d261b83/thumbnail",
+      "iiif_manifest": "https://api.dc.library.northwestern.edu/api/v2/works/4ac87bbf-2a65-45f5-ad2d-cf502d261b83?as=iiif",
+      "representative_file_set": { "aspect_ratio": 0.66958, "id": "19e0cc94-412b-4390-bf1b-82e4e9676750", "url": "https://iiif.dc.library.northwestern.edu/iiif/3/19e0cc94-412b-4390-bf1b-82e4e9676750" },
+      "canonical_link": "https://dc.library.northwestern.edu/items/4ac87bbf-2a65-45f5-ad2d-cf502d261b83",
+      "ark": "ark:/81985/n2rn33619",
+      "visibility": "Public",
+      "work_type": "Image",
+      "embedding": [0.01, 0.02]
+    }
+  ],
+  "pagination": { "query_url": "https://api.dc.library.northwestern.edu/api/v2/search?query=poster&size=1", "current_page": 1, "limit": 1, "offset": 0, "total_hits": 3805, "total_pages": 3805 },
+  "info": { "name": "dc-api", "version": "2.12.1" }
+}

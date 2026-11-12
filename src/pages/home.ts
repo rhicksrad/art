@@ -1,730 +1,657 @@
-import { createAlert } from '../components/Alert';
-import { renderItemCard } from '../components/Card';
-import { HttpError } from '../lib/http';
-import { getExploreCards, getSampleCards } from '../lib/sampleData';
-import type { ItemCard } from '../lib/types';
-import { SOURCE_DEFINITIONS } from '../lib/unifiedSearch';
-import type { UnifiedSource } from '../lib/unifiedSearch';
+import { paletteStrip } from '../components/charts';
+import { openDetail } from '../components/detail';
+import { describeError, errorPanel } from '../components/errors';
+import { createResults } from '../components/results';
+import { toItemCards as harvardCards } from '../adapters/harvard';
+import { accentFromPalette } from '../lib/color';
+import { clear, formatCount, h, icon } from '../lib/dom';
+import { fetchJSON, isAbort } from '../lib/http';
+import { applyAccent, clearRecentSearches, recentSearches, rememberSearch } from '../lib/prefs';
+import { pageHref } from '../lib/routes';
+import type { ItemCard, SourceKey } from '../lib/types';
+import {
+  SOURCE_GROUPS,
+  SOURCES,
+  sourceAccepts,
+  sourceByKey,
+  type SourceDefinition,
+} from '../sources';
 
-type LayoutMode = 'grid' | 'list';
+const KEYWORD_SOURCES = SOURCES.filter((source) => source.mode === 'keyword');
+const IDENTIFIER_SOURCES = SOURCES.filter((source) => source.mode === 'identifier');
+const PER_SOURCE_OPTIONS = [6, 12, 24];
+const DEFAULT_PER_SOURCE = 12;
+const SAMPLE_QUERIES = [
+  'landscape',
+  'Hokusai',
+  'poster',
+  'cultural heritage',
+  'oclc:424023',
+  'bb112zx3193',
+];
 
-const LAYOUT_OPTIONS: LayoutMode[] = ['grid', 'list'];
-const LIMIT_OPTIONS = [3, 5, 10, 25];
+type State = { q: string; enabled: Set<SourceKey>; perSource: number };
 
-type UnifiedSearchState = {
-  q: string;
-  perSourceLimit: number;
-  showImagesOnly: boolean;
-  layout: LayoutMode;
-  enabledSources: Record<UnifiedSource, boolean>;
+type Outcome =
+  | { state: 'loading' }
+  | { state: 'ok'; items: ItemCard[]; total?: number; ms: number }
+  | { state: 'error'; error: unknown; ms: number };
+
+const readState = (): State => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('src')?.split(',').filter(Boolean);
+  const enabled = new Set<SourceKey>(
+    KEYWORD_SOURCES.filter((source) => !requested || requested.includes(source.slug)).map(
+      (source) => source.key,
+    ),
+  );
+  const n = Number(params.get('n'));
+  return {
+    q: params.get('q')?.trim() ?? '',
+    enabled,
+    perSource: PER_SOURCE_OPTIONS.includes(n) ? n : DEFAULT_PER_SOURCE,
+  };
 };
 
-type SourceEntry = {
-  cards: ItemCard[];
-  loading: boolean;
-  error?: string;
-  notice?: string;
-};
-
-type SourceView = {
-  section: HTMLElement;
-  status: HTMLParagraphElement;
-  list: HTMLElement;
-  error: HTMLElement;
-  count: HTMLElement;
-  card: HTMLButtonElement;
-  body: HTMLElement;
-  chevron: HTMLElement;
-};
-
-const formatError = (error: unknown): string => {
-  if (error instanceof HttpError) {
-    return `${error.status}: ${error.message}`;
+const writeState = (state: State): void => {
+  const params = new URLSearchParams();
+  if (state.q) params.set('q', state.q);
+  if (state.enabled.size !== KEYWORD_SOURCES.length) {
+    params.set(
+      'src',
+      KEYWORD_SOURCES.filter((s) => state.enabled.has(s.key))
+        .map((s) => s.slug)
+        .join(','),
+    );
   }
-  if (error instanceof Error) {
-    return error.message;
+  if (state.perSource !== DEFAULT_PER_SOURCE) params.set('n', String(state.perSource));
+  const query = params.toString();
+  const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
+  if (url !== `${window.location.pathname}${window.location.search}`)
+    window.history.pushState(null, '', url);
+};
+
+/** Round-robin across sources so no single collection dominates the first screen. */
+const interleave = (lists: ItemCard[][]): ItemCard[] => {
+  const merged: ItemCard[] = [];
+  const longest = Math.max(0, ...lists.map((list) => list.length));
+  for (let i = 0; i < longest; i += 1) {
+    for (const list of lists) {
+      if (list[i]) merged.push(list[i]);
+    }
   }
-  return String(error);
+  return merged;
 };
 
-const createEnabledSourceMap = (): Record<UnifiedSource, boolean> => {
-  const map = {} as Record<UnifiedSource, boolean>;
-  SOURCE_DEFINITIONS.forEach((def) => {
-    map[def.key] = def.defaultEnabled ?? true;
-  });
-  return map;
+/* ------------------------------- Landing ---------------------------------- */
+
+const todaySeed = (): string => new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+let wallRequest: Promise<ItemCard[]> | null = null;
+
+/** Twelve paintings from Harvard, reshuffled daily and cached by the Worker for the day. */
+const loadWall = (): Promise<ItemCard[]> => {
+  wallRequest ??= fetchJSON<unknown>('/harvard-art/object', {
+    size: 14,
+    hasimage: 1,
+    classification: 'Paintings',
+    q: 'imagepermissionlevel:0',
+    sort: `random:${todaySeed()}`,
+    ttl: 86400,
+  }).then((response) => harvardCards(response).filter((item) => item.img));
+  return wallRequest;
 };
 
-const createSourceStateMap = (): Record<UnifiedSource, SourceEntry> => {
-  const map = {} as Record<UnifiedSource, SourceEntry>;
-  SOURCE_DEFINITIONS.forEach((def) => {
-    map[def.key] = { cards: [], loading: false };
-  });
-  return map;
-};
+/** The featured work: the first of today's paintings that has a palette worth borrowing. */
+const pickFeature = (items: ItemCard[]): ItemCard | undefined =>
+  items.find(
+    (item) =>
+      item.colors &&
+      accentFromPalette(item.colors) &&
+      (item.aspect ?? 1) > 0.6 &&
+      (item.aspect ?? 1) < 1.7,
+  ) ?? items[0];
 
-const getLayoutClass = (mode: LayoutMode): string => {
-  return mode === 'list' ? 'cards cards--list' : 'grid cards';
-};
+const featureFigure = (): HTMLElement => {
+  const figure = h(
+    'figure',
+    { class: 'feature feature--loading' },
+    h('div', { class: 'feature__frame' }),
+  );
+  loadWall()
+    .then((items) => {
+      const item = pickFeature(items);
+      if (!item) throw new Error('No works returned');
+      const accent = item.colors ? accentFromPalette(item.colors) : null;
+      if (accent) applyAccent(accent, true);
 
-const formatResultCount = (count: number): string => {
-  if (count === 0) {
-    return '0 results';
-  }
-  return count === 1 ? '1 result' : `${count} results`;
-};
-
-const applyImageFilter = (items: ItemCard[], showImagesOnly: boolean): ItemCard[] => {
-  if (!showImagesOnly) {
-    return items;
-  }
-  return items.filter((item) => typeof item.img === 'string' && item.img.trim().length > 0);
-};
-
-const FALLBACK_NOTICE = 'Live results are unavailable right now. Showing sample items instead.';
-
-const createUnifiedSearchSection = (): HTMLElement => {
-  const section = document.createElement('section');
-  section.className = 'home-search home-search--landing';
-
-  const hero = document.createElement('div');
-  hero.className = 'home-search__hero';
-
-  const form = document.createElement('form');
-  form.className = 'home-search-form home-search-form--hero';
-
-  const srLabel = document.createElement('label');
-  srLabel.className = 'sr-only';
-  srLabel.textContent = 'Search across every art API';
-
-  const surface = document.createElement('div');
-  surface.className = 'home-search__surface';
-
-  const queryInput = document.createElement('input');
-  queryInput.type = 'search';
-  queryInput.id = 'home-search-input';
-  srLabel.setAttribute('for', queryInput.id);
-  queryInput.className = 'home-search__input home-search__input--main';
-  queryInput.placeholder = 'Search art objects, manifests, or datasets…';
-  queryInput.autocomplete = 'off';
-
-  const searchButton = document.createElement('button');
-  searchButton.type = 'submit';
-  searchButton.className = 'home-search__submit';
-  searchButton.textContent = 'Search';
-
-  surface.append(queryInput, searchButton);
-  form.append(srLabel, surface);
-  hero.appendChild(form);
-  section.appendChild(hero);
-
-  const exploreSection = document.createElement('section');
-  exploreSection.className = 'home-explore';
-
-  const exploreHeader = document.createElement('div');
-  exploreHeader.className = 'home-explore__header';
-  const exploreTitle = document.createElement('h2');
-  exploreTitle.textContent = 'Explore highlights';
-  const exploreCopy = document.createElement('p');
-  exploreCopy.textContent = 'Jump into curated samples and instant searches while the live feeds load.';
-  exploreHeader.append(exploreTitle, exploreCopy);
-
-  const quickSearches = SOURCE_DEFINITIONS.flatMap((def) => def.sampleQueries ?? []);
-  const quickSearchRow = document.createElement('div');
-  quickSearchRow.className = 'home-explore__quick';
-  const quickLabel = document.createElement('span');
-  quickLabel.className = 'home-explore__label';
-  quickLabel.textContent = 'Quick searches';
-  const quickList = document.createElement('div');
-  quickList.className = 'home-explore__chips';
-  quickSearches.slice(0, 8).forEach((term) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'chip home-explore__chip';
-    button.textContent = term;
-    button.addEventListener('click', () => {
-      queryInput.value = term;
-      runUnifiedSearch();
-    });
-    quickList.appendChild(button);
-  });
-  quickSearchRow.append(quickLabel, quickList);
-
-  const exploreGrid = document.createElement('div');
-  exploreGrid.className = 'home-explore__grid';
-  const exploreCards = getExploreCards(8);
-  exploreCards.forEach((card) => {
-    exploreGrid.appendChild(renderItemCard(card));
-  });
-
-  exploreSection.append(exploreHeader, quickSearchRow, exploreGrid);
-  section.appendChild(exploreSection);
-
-  const resultsContainer = document.createElement('div');
-  resultsContainer.className = 'home-results';
-  resultsContainer.hidden = true;
-
-  const resultsHeader = document.createElement('div');
-  resultsHeader.className = 'home-results__header';
-  const resultsTitle = document.createElement('p');
-  resultsTitle.className = 'home-results__title';
-  resultsTitle.textContent = 'Unified results';
-
-  const filtersToggle = document.createElement('button');
-  filtersToggle.type = 'button';
-  filtersToggle.className = 'home-filter-toggle';
-  filtersToggle.setAttribute('aria-expanded', 'false');
-  const hamburger = document.createElement('span');
-  hamburger.className = 'home-filter-toggle__icon';
-  hamburger.setAttribute('aria-hidden', 'true');
-  hamburger.textContent = '☰';
-  const toggleLabel = document.createElement('span');
-  toggleLabel.className = 'sr-only';
-  toggleLabel.textContent = 'Open filters';
-  filtersToggle.append(hamburger, toggleLabel);
-  filtersToggle.hidden = true;
-  filtersToggle.disabled = true;
-
-  resultsHeader.append(resultsTitle, filtersToggle);
-
-  const resultsWrapper = document.createElement('div');
-  resultsWrapper.className = 'home-source-grid';
-  resultsContainer.append(resultsHeader, resultsWrapper);
-
-  const filtersOverlay = document.createElement('div');
-  filtersOverlay.className = 'home-filter-panel__overlay';
-  filtersOverlay.hidden = true;
-
-  const filtersPanel = document.createElement('aside');
-  filtersPanel.className = 'home-filter-panel';
-  filtersPanel.setAttribute('role', 'dialog');
-  filtersPanel.setAttribute('aria-modal', 'true');
-  filtersPanel.setAttribute('aria-label', 'Search filters');
-  filtersPanel.setAttribute('aria-hidden', 'true');
-  filtersPanel.dataset.open = 'false';
-  filtersPanel.tabIndex = -1;
-
-  const filtersHeader = document.createElement('header');
-  filtersHeader.className = 'home-filter-panel__header';
-  const filtersHeading = document.createElement('h2');
-  filtersHeading.textContent = 'Filters';
-  const filtersClose = document.createElement('button');
-  filtersClose.type = 'button';
-  filtersClose.className = 'home-filter-panel__close';
-  const closeIcon = document.createElement('span');
-  closeIcon.setAttribute('aria-hidden', 'true');
-  closeIcon.textContent = '×';
-  const closeLabel = document.createElement('span');
-  closeLabel.className = 'sr-only';
-  closeLabel.textContent = 'Close filters';
-  filtersClose.append(closeIcon, closeLabel);
-  filtersHeader.append(filtersHeading, filtersClose);
-
-  const filtersBody = document.createElement('div');
-  filtersBody.className = 'home-search__filters-body';
-  const filtersBodyWrapper = document.createElement('div');
-  filtersBodyWrapper.className = 'home-filter-panel__body';
-
-  const controlsRow = document.createElement('div');
-  controlsRow.className = 'home-search__controls';
-
-  const limitField = document.createElement('label');
-  limitField.className = 'home-search__field';
-  const limitLabel = document.createElement('span');
-  limitLabel.className = 'home-search__label';
-  limitLabel.textContent = 'Max results per source';
-  const limitSelect = document.createElement('select');
-  limitSelect.className = 'home-search__input';
-  LIMIT_OPTIONS.forEach((option) => {
-    const entry = document.createElement('option');
-    entry.value = String(option);
-    entry.textContent = String(option);
-    limitSelect.appendChild(entry);
-  });
-  limitField.append(limitLabel, limitSelect);
-
-  const imagesField = document.createElement('label');
-  imagesField.className = 'home-search__checkbox';
-  const imagesCheckbox = document.createElement('input');
-  imagesCheckbox.type = 'checkbox';
-  const imagesCopy = document.createElement('span');
-  imagesCopy.textContent = 'Only show items with images';
-  imagesField.append(imagesCheckbox, imagesCopy);
-
-  const layoutGroup = document.createElement('div');
-  layoutGroup.className = 'home-search__layout';
-  const layoutLabel = document.createElement('span');
-  layoutLabel.className = 'home-search__label';
-  layoutLabel.textContent = 'Layout';
-  const layoutOptions = document.createElement('div');
-  layoutOptions.className = 'home-search__layout-options';
-  const layoutInputs = new Map<LayoutMode, HTMLInputElement>();
-  LAYOUT_OPTIONS.forEach((mode) => {
-    const option = document.createElement('label');
-    option.className = 'home-search__layout-option';
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'layout';
-    radio.value = mode;
-    const copy = document.createElement('span');
-    copy.textContent = mode === 'grid' ? 'Grid' : 'List';
-    option.append(radio, copy);
-    layoutOptions.appendChild(option);
-    layoutInputs.set(mode, radio);
-  });
-  layoutGroup.append(layoutLabel, layoutOptions);
-
-  controlsRow.append(limitField, layoutGroup, imagesField);
-
-  const sourcesSubtitle = document.createElement('p');
-  sourcesSubtitle.className = 'home-search__filters-subtitle';
-  sourcesSubtitle.textContent = 'Choose the feeds you want to query';
-
-  const sourcesGrid = document.createElement('div');
-  sourcesGrid.className = 'home-search__sources';
-  const sourceCheckboxes = new Map<UnifiedSource, HTMLInputElement>();
-  SOURCE_DEFINITIONS.forEach((source) => {
-    const wrapper = document.createElement('label');
-    wrapper.className = 'home-search__source';
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = source.key;
-    const name = document.createElement('span');
-    name.className = 'home-search__source-name';
-    name.textContent = source.label;
-    const meta = document.createElement('span');
-    meta.className = 'home-search__source-meta';
-    meta.textContent = source.typeLabel;
-    const copy = document.createElement('span');
-    copy.className = 'home-search__source-description';
-    copy.textContent = source.description;
-    wrapper.append(checkbox, name, meta, copy);
-    sourcesGrid.appendChild(wrapper);
-    sourceCheckboxes.set(source.key, checkbox);
-  });
-
-  const actionRow = document.createElement('div');
-  actionRow.className = 'home-search__actions home-search__actions--filters';
-  const resetButton = document.createElement('button');
-  resetButton.type = 'button';
-  resetButton.className = 'home-search__reset';
-  resetButton.textContent = 'Reset search';
-  actionRow.appendChild(resetButton);
-
-  filtersBody.append(controlsRow, sourcesSubtitle, sourcesGrid, actionRow);
-  filtersBodyWrapper.appendChild(filtersBody);
-  filtersPanel.append(filtersHeader, filtersBodyWrapper);
-  section.append(filtersOverlay, filtersPanel);
-
-  let resultsMounted = false;
-  const mountResultsContainer = (): void => {
-    if (resultsMounted) {
-      return;
-    }
-    section.insertBefore(resultsContainer, filtersOverlay);
-    resultsMounted = true;
-  };
-
-  const unmountResultsContainer = (): void => {
-    if (!resultsMounted) {
-      return;
-    }
-    resultsContainer.remove();
-    resultsMounted = false;
-  };
-
-  const state: UnifiedSearchState = {
-    q: new URLSearchParams(window.location.search).get('q')?.trim() ?? '',
-    perSourceLimit: LIMIT_OPTIONS[1],
-    showImagesOnly: false,
-    layout: 'grid',
-    enabledSources: createEnabledSourceMap(),
-  };
-
-  const perSource = createSourceStateMap();
-  const views = new Map<UnifiedSource, SourceView>();
-  const controllers: Partial<Record<UnifiedSource, AbortController>> = {};
-
-  queryInput.value = state.q;
-  limitSelect.value = String(state.perSourceLimit);
-  imagesCheckbox.checked = state.showImagesOnly;
-  const initialLayout = layoutInputs.get(state.layout);
-  if (initialLayout) {
-    initialLayout.checked = true;
-  }
-  sourceCheckboxes.forEach((checkbox, key) => {
-    checkbox.checked = state.enabledSources[key];
-  });
-
-  const updateUrl = (): void => {
-    const url = new URL(window.location.href);
-    if (state.q) {
-      url.searchParams.set('q', state.q);
-    } else {
-      url.searchParams.delete('q');
-    }
-    window.history.replaceState({}, '', url);
-  };
-
-  const abortSource = (key: UnifiedSource): void => {
-    const controller = controllers[key];
-    if (controller) {
-      controller.abort();
-      controllers[key] = undefined;
-    }
-  };
-
-  const resetSource = (key: UnifiedSource): void => {
-    const entry = perSource[key];
-    entry.cards = [];
-    entry.loading = false;
-    entry.error = undefined;
-    entry.notice = undefined;
-  };
-
-  const setSourceCollapsed = (key: UnifiedSource, collapsed: boolean): void => {
-    const view = views.get(key);
-    if (!view) {
-      return;
-    }
-    view.body.hidden = collapsed;
-    view.body.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
-    view.card.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    view.section.classList.toggle('home-source--collapsed', collapsed);
-    view.section.classList.toggle('home-source--expanded', !collapsed);
-  };
-
-  const toggleSourceCollapsed = (key: UnifiedSource): void => {
-    const view = views.get(key);
-    if (!view) {
-      return;
-    }
-    const isCollapsed = view.body.hidden;
-    setSourceCollapsed(key, !isCollapsed);
-  };
-
-  const setFiltersOpen = (open: boolean): void => {
-    filtersPanel.dataset.open = open ? 'true' : 'false';
-    filtersPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-    filtersOverlay.hidden = !open;
-    filtersToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) {
-      filtersPanel.focus();
-    }
-  };
-
-  const closeFilters = (): void => setFiltersOpen(false);
-
-  const updateResultsVisibility = (): void => {
-    const hasQuery = state.q.trim().length > 0;
-    if (hasQuery) {
-      mountResultsContainer();
-    } else {
-      unmountResultsContainer();
-    }
-    exploreSection.hidden = hasQuery;
-    resultsContainer.hidden = !hasQuery;
-    filtersToggle.hidden = !hasQuery;
-    filtersToggle.disabled = !hasQuery;
-    resultsTitle.textContent = hasQuery ? `Results for “${state.q}”` : 'Unified results';
-    if (!hasQuery) {
-      closeFilters();
-    }
-  };
-
-  const updateSourceView = (key: UnifiedSource): void => {
-    const view = views.get(key);
-    if (!view) {
-      return;
-    }
-    const entry = perSource[key];
-    const enabled = state.enabledSources[key];
-    const hasQuery = state.q.trim().length > 0;
-    view.list.className = getLayoutClass(state.layout);
-    view.error.innerHTML = '';
-
-    if (!hasQuery || !enabled) {
-      view.section.hidden = true;
-      view.status.textContent = hasQuery ? 'Source disabled via filters.' : 'Awaiting query…';
-      view.count.textContent = formatResultCount(0);
-      view.list.replaceChildren();
-      setSourceCollapsed(key, true);
-      return;
-    }
-
-    view.section.hidden = false;
-    if (entry.loading) {
-      view.status.textContent = 'Searching…';
-      view.count.textContent = 'Searching…';
-    } else if (entry.error) {
-      view.status.textContent = 'Error';
-      view.count.textContent = 'Error';
-      view.error.appendChild(createAlert(entry.error, 'error'));
-      view.list.replaceChildren();
-    } else if (entry.notice) {
-      view.status.textContent = entry.notice;
-      view.count.textContent = '—';
-      view.error.appendChild(createAlert(entry.notice, 'info'));
-      view.list.replaceChildren();
-    } else {
-      const filtered = applyImageFilter(entry.cards, state.showImagesOnly);
-      view.status.textContent = filtered.length > 0 ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : 'No results';
-      view.list.replaceChildren(...filtered.map((card) => renderItemCard(card)));
-      view.count.textContent = formatResultCount(filtered.length);
-    }
-  };
-
-  const updateAllViews = (): void => {
-    SOURCE_DEFINITIONS.forEach((def) => updateSourceView(def.key));
-  };
-
-  const runSource = (key: UnifiedSource): void => {
-    const def = SOURCE_DEFINITIONS.find((source) => source.key === key);
-    if (!def) {
-      return;
-    }
-    const query = state.q.trim();
-    if (!query || !state.enabledSources[key]) {
-      abortSource(key);
-      resetSource(key);
-      updateSourceView(key);
-      return;
-    }
-    abortSource(key);
-    const controller = new AbortController();
-    controllers[key] = controller;
-    const entry = perSource[key];
-    entry.loading = true;
-    entry.error = undefined;
-    entry.notice = undefined;
-    updateSourceView(key);
-    const notice = def.isCompatibleQuery?.(query) ?? null;
-    if (notice) {
-      entry.loading = false;
-      entry.notice = notice;
-      updateSourceView(key);
-      controllers[key] = undefined;
-      return;
-    }
-    def
-      .search(query, state.perSourceLimit, controller.signal)
-      .then((cards) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-        entry.cards = cards;
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-        const fallback = getSampleCards(key, state.perSourceLimit);
-        if (fallback.length > 0) {
-          entry.cards = fallback;
-          entry.notice = FALLBACK_NOTICE;
-          entry.error = undefined;
-        } else {
-          entry.error = formatError(error);
-        }
-      })
-      .finally(() => {
-        if (controller.signal.aborted) {
-          return;
-        }
-        entry.loading = false;
-        updateSourceView(key);
-        controllers[key] = undefined;
+      const img = h('img', {
+        src: item.imgLarge ?? item.img,
+        alt: item.title,
+        referrerpolicy: 'no-referrer',
+        style: item.aspect ? `aspect-ratio:${item.aspect.toFixed(4)}` : undefined,
       });
-  };
-
-  const runUnifiedSearch = (): void => {
-    state.q = queryInput.value.trim();
-    updateUrl();
-    updateResultsVisibility();
-    const query = state.q.trim();
-    if (!query) {
-      SOURCE_DEFINITIONS.forEach((def) => {
-        abortSource(def.key);
-        resetSource(def.key);
+      img.addEventListener('error', () => {
+        if (item.img && img.src !== item.img) img.src = item.img;
       });
-      updateAllViews();
-      return;
-    }
-    SOURCE_DEFINITIONS.forEach((def) => runSource(def.key));
-  };
+      const frame = h(
+        'button',
+        { type: 'button', class: 'feature__frame', 'aria-label': `${item.title} — open details` },
+        img,
+      );
+      frame.addEventListener('click', () => openDetail(item, items));
 
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    runUnifiedSearch();
-  });
-
-  filtersToggle.addEventListener('click', () => {
-    const isOpen = filtersPanel.dataset.open === 'true';
-    setFiltersOpen(!isOpen);
-  });
-
-  filtersClose.addEventListener('click', () => {
-    closeFilters();
-  });
-
-  filtersOverlay.addEventListener('click', () => {
-    closeFilters();
-  });
-
-  section.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && filtersPanel.dataset.open === 'true') {
-      closeFilters();
-    }
-  });
-
-  resetButton.addEventListener('click', () => {
-    queryInput.value = '';
-    state.q = '';
-    updateUrl();
-    updateResultsVisibility();
-    SOURCE_DEFINITIONS.forEach((def) => {
-      abortSource(def.key);
-      resetSource(def.key);
+      figure.classList.remove('feature--loading');
+      figure.replaceChildren(
+        frame,
+        h(
+          'figcaption',
+          { class: 'feature__caption' },
+          h('p', { class: 'eyebrow' }, 'On the wall today · Harvard Art Museums'),
+          h('p', { class: 'feature__title' }, item.title),
+          h('p', { class: 'muted' }, [item.sub, item.date].filter(Boolean).join(' · ')),
+          item.colors
+            ? paletteStrip(item.colors, (color) => pageHref('/harvard.html', { color: color.hex }))
+            : null,
+          accent
+            ? h(
+                'p',
+                { class: 'feature__note' },
+                'This page takes its accent colour from this painting’s palette, live from the API. Pick a colour to find works that share it.',
+              )
+            : null,
+        ),
+      );
+    })
+    .catch((error: unknown) => {
+      figure.classList.remove('feature--loading');
+      figure.classList.add('feature--failed');
+      figure.replaceChildren(
+        h(
+          'p',
+          { class: 'muted' },
+          `Today’s painting could not be loaded (${describeError(error)}). `,
+          h('a', { href: pageHref('/debug.html') }, 'Check the Worker status'),
+          '.',
+        ),
+      );
     });
-    updateAllViews();
-    closeFilters();
-  });
+  return figure;
+};
 
-  limitSelect.addEventListener('change', () => {
-    const next = Number(limitSelect.value);
-    state.perSourceLimit = Number.isFinite(next) ? next : state.perSourceLimit;
-    if (state.q.trim()) {
-      SOURCE_DEFINITIONS.forEach((def) => runSource(def.key));
-    }
-  });
-
-  imagesCheckbox.addEventListener('change', () => {
-    state.showImagesOnly = imagesCheckbox.checked;
-    updateAllViews();
-  });
-
-  layoutInputs.forEach((input, mode) => {
-    input.addEventListener('change', () => {
-      if (input.checked) {
-        state.layout = mode;
-        updateAllViews();
+/** A filmstrip of the rest of today's paintings. Real records, never placeholders. */
+const todaysWall = (): HTMLElement => {
+  const strip = h('div', { class: 'filmstrip', tabindex: '0' });
+  const section = h(
+    'section',
+    { class: 'wall' },
+    h(
+      'header',
+      { class: 'section-head' },
+      h('h2', null, 'Also hanging today'),
+      h(
+        'a',
+        { href: pageHref('/harvard.html'), class: 'more-link' },
+        'Explore Harvard Art Museums',
+        icon('arrow', 15),
+      ),
+    ),
+    strip,
+  );
+  strip.append(
+    ...Array.from({ length: 7 }, (_, i) =>
+      h('div', {
+        class: 'filmstrip__item filmstrip__item--skeleton',
+        style: `aspect-ratio:${[0.8, 1.3, 0.7, 1, 1.4, 0.75, 1.2][i]}`,
+      }),
+    ),
+  );
+  loadWall()
+    .then((items) => {
+      const feature = pickFeature(items);
+      const rest = items.filter((item) => item !== feature);
+      if (rest.length === 0) {
+        section.remove();
+        return;
       }
-    });
-    if (mode === state.layout) {
-      input.checked = true;
-    }
-  });
-
-  sourceCheckboxes.forEach((checkbox, key) => {
-    checkbox.addEventListener('change', () => {
-      state.enabledSources[key] = checkbox.checked;
-      if (!checkbox.checked) {
-        abortSource(key);
-        resetSource(key);
-        updateSourceView(key);
-      } else if (state.q.trim()) {
-        runSource(key);
-      }
-    });
-  });
-
-  SOURCE_DEFINITIONS.forEach((source) => {
-    const block = document.createElement('article');
-    block.className = 'home-source';
-    block.hidden = true;
-
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'home-source__card';
-
-    const cardHead = document.createElement('div');
-    cardHead.className = 'home-source__card-head';
-
-    const blockHeader = document.createElement('header');
-    blockHeader.className = 'home-source__header';
-
-    const heading = document.createElement('div');
-    heading.className = 'home-source__title';
-    const title = document.createElement('h3');
-    title.textContent = source.label;
-    heading.appendChild(title);
-
-    const countChip = document.createElement('span');
-    countChip.className = 'home-source__count';
-    countChip.textContent = formatResultCount(0);
-
-    blockHeader.append(heading, countChip);
-
-    const chevron = document.createElement('span');
-    chevron.className = 'home-source__chevron';
-    chevron.setAttribute('aria-hidden', 'true');
-    chevron.textContent = '›';
-
-    cardHead.append(blockHeader, chevron);
-
-    const description = document.createElement('p');
-    description.className = 'home-source__description';
-    description.textContent = source.description;
-
-    const status = document.createElement('p');
-    status.className = 'home-source__status';
-    status.textContent = 'Awaiting query…';
-
-    card.append(cardHead, description, status);
-
-    const body = document.createElement('div');
-    body.className = 'home-source__body';
-    body.hidden = true;
-
-    const errorContainer = document.createElement('div');
-    errorContainer.className = 'home-source__error';
-
-    const list = document.createElement('div');
-    list.className = getLayoutClass(state.layout);
-    list.setAttribute('aria-live', 'polite');
-
-    body.append(errorContainer, list);
-
-    card.addEventListener('click', () => {
-      toggleSourceCollapsed(source.key);
-    });
-
-    const bodyId = `home-source-body-${source.key}`;
-    body.id = bodyId;
-    body.setAttribute('aria-hidden', 'true');
-    card.setAttribute('aria-controls', bodyId);
-    card.setAttribute('aria-expanded', 'false');
-
-    block.append(card, body);
-    resultsWrapper.appendChild(block);
-
-    views.set(source.key, {
-      section: block,
-      status,
-      list,
-      error: errorContainer,
-      count: countChip,
-      card,
-      body,
-      chevron,
-    });
-    setSourceCollapsed(source.key, true);
-  });
-
-  updateResultsVisibility();
-  updateAllViews();
-  if (state.q) {
-    runUnifiedSearch();
-  }
-
+      strip.replaceChildren(
+        ...rest.map((item) => {
+          const img = h('img', {
+            src: item.img,
+            alt: '',
+            loading: 'lazy',
+            referrerpolicy: 'no-referrer',
+            style: item.aspect ? `aspect-ratio:${item.aspect.toFixed(4)}` : undefined,
+          });
+          const button = h(
+            'button',
+            {
+              type: 'button',
+              class: 'filmstrip__item',
+              'aria-label': `${item.title} — open details`,
+            },
+            img,
+            h(
+              'span',
+              { class: 'filmstrip__caption' },
+              h('strong', null, item.title),
+              h('span', null, [item.sub, item.date].filter(Boolean).join(' · ')),
+            ),
+          );
+          img.addEventListener('error', () => button.remove());
+          button.addEventListener('click', () => openDetail(item, items));
+          return button;
+        }),
+      );
+    })
+    // The featured figure already reports the failure; no need to say it twice.
+    .catch(() => section.remove());
   return section;
 };
 
+const statStrip = (): HTMLElement =>
+  h(
+    'dl',
+    { class: 'stats' },
+    ...[
+      [String(SOURCES.length), 'free public APIs'],
+      ['1', 'Cloudflare Worker in front of them'],
+      ['0', 'API keys in your browser'],
+      ['0', 'rows of sample data'],
+    ].map(([value, label]) =>
+      h('div', { class: 'stats__item' }, h('dt', null, label), h('dd', null, value)),
+    ),
+  );
+
+const sourceDirectory = (): HTMLElement => {
+  const section = h(
+    'section',
+    { class: 'directory' },
+    h(
+      'header',
+      { class: 'section-head' },
+      h('h2', null, 'Every collection has its own explorer'),
+      h(
+        'a',
+        { href: pageHref('/debug.html'), class: 'more-link' },
+        'Live status of every API',
+        icon('arrow', 15),
+      ),
+    ),
+  );
+  for (const group of SOURCE_GROUPS) {
+    section.append(
+      h('h3', { class: 'eyebrow directory__group' }, group),
+      h(
+        'div',
+        { class: 'directory__grid' },
+        ...SOURCES.filter((source) => source.group === group).map((source) => {
+          const live = h('span', { class: 'tile__live' });
+          // Live collection size, straight from the API. Stays blank if the source is down.
+          source
+            .count?.()
+            .then((total) => {
+              if (total)
+                live.replaceChildren(
+                  h('strong', null, formatCount(total)),
+                  ` ${source.countNoun ?? 'records'} right now`,
+                );
+            })
+            .catch(() => undefined);
+          return h(
+            'a',
+            { href: pageHref(source.page), class: 'tile' },
+            h('span', { class: 'tile__holds' }, source.holds),
+            h('span', { class: 'tile__title' }, source.label),
+            h('span', { class: 'tile__blurb' }, source.blurb),
+            live,
+            h('code', { class: 'tile__endpoint' }, source.endpoint),
+          );
+        }),
+      ),
+    );
+  }
+  return section;
+};
+
+/* --------------------------------- Page ----------------------------------- */
+
 const mount = (el: HTMLElement): void => {
-  document.body.classList.add('home-minimal');
-  el.innerHTML = '';
-  const search = createUnifiedSearchSection();
-  el.append(search);
+  let state = readState();
+  let controller: AbortController | null = null;
+
+  const input = h('input', {
+    type: 'search',
+    name: 'q',
+    class: 'searchbar__input',
+    placeholder: 'A subject, a maker, a medium — or paste an identifier',
+    'aria-label': 'Search every source',
+    autocomplete: 'off',
+    value: state.q,
+  });
+
+  const sourceChips = h('div', {
+    class: 'source-picker',
+    role: 'group',
+    'aria-label': 'Sources to search',
+  });
+  const paintSourceChips = (): void => {
+    clear(sourceChips);
+    for (const source of KEYWORD_SOURCES) {
+      const on = state.enabled.has(source.key);
+      const chip = h(
+        'button',
+        {
+          type: 'button',
+          class: `chip${on ? ' chip--on' : ''}`,
+          'aria-pressed': String(on),
+          title: source.label,
+        },
+        on ? icon('check', 13) : null,
+        source.short,
+      );
+      chip.addEventListener('click', () => {
+        if (on) state.enabled.delete(source.key);
+        else state.enabled.add(source.key);
+        paintSourceChips();
+        if (state.q) run();
+      });
+      sourceChips.append(chip);
+    }
+  };
+  paintSourceChips();
+
+  const perSource = h(
+    'select',
+    { 'aria-label': 'Results per source' },
+    ...PER_SOURCE_OPTIONS.map((n) =>
+      h('option', { value: n, selected: n === state.perSource || undefined }, `${n} per source`),
+    ),
+  );
+  perSource.addEventListener('change', () => {
+    state.perSource = Number(perSource.value);
+    if (state.q) run();
+  });
+
+  const form = h(
+    'form',
+    { class: 'searchbar searchbar--hero', role: 'search' },
+    h(
+      'div',
+      { class: 'searchbar__main' },
+      icon('search', 22),
+      input,
+      h('button', { type: 'submit', class: 'button button--primary' }, 'Search'),
+    ),
+    h('div', { class: 'searchbar__controls' }, sourceChips, perSource),
+  );
+
+  const feature = h('div', { class: 'hero__feature' });
+  const hero = h(
+    'section',
+    { class: 'hero' },
+    h(
+      'div',
+      { class: 'hero__copy' },
+      h('p', { class: 'eyebrow' }, 'Built entirely on free public APIs'),
+      h('h1', null, 'One search across university museums, libraries and research archives.'),
+      form,
+      h(
+        'p',
+        { class: 'hero__note muted' },
+        `${IDENTIFIER_SOURCES.map((s) => s.short).join(', ')} join in automatically when you paste one of their identifiers.`,
+      ),
+    ),
+    feature,
+  );
+
+  const body = h('div', { class: 'home-body' });
+  el.replaceChildren(h('div', { class: 'page page--home' }, hero, body));
+
+  /* ------------------------------ Landing view ----------------------------- */
+
+  const renderLanding = (): void => {
+    document.title = 'Art API Explorer';
+    hero.classList.remove('hero--compact');
+    if (feature.childElementCount === 0) feature.append(featureFigure());
+    const quick = h('div', { class: 'samples' });
+    const addChips = (label: string, queries: string[]): void => {
+      if (queries.length === 0) return;
+      quick.append(h('span', { class: 'muted' }, label));
+      for (const query of queries) {
+        const chip = h('button', { type: 'button', class: 'chip' }, query);
+        chip.addEventListener('click', () => {
+          input.value = query;
+          run();
+        });
+        quick.append(chip);
+      }
+    };
+    const recent = recentSearches();
+    addChips('Recent', recent.slice(0, 5));
+    if (recent.length > 0) {
+      const forget = h('button', { type: 'button', class: 'link-button' }, 'Clear');
+      forget.addEventListener('click', () => {
+        clearRecentSearches();
+        renderLanding();
+      });
+      quick.append(forget, h('span', { class: 'samples__break' }));
+    }
+    addChips(
+      'Try',
+      SAMPLE_QUERIES.filter((query) => !recent.includes(query)),
+    );
+    body.replaceChildren(quick, statStrip(), todaysWall(), sourceDirectory());
+  };
+
+  /* ------------------------------ Results view ----------------------------- */
+
+  const runSearch = (): void => {
+    controller?.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+    const q = state.q;
+    document.title = `${q} · Art API Explorer`;
+    hero.classList.add('hero--compact');
+    rememberSearch(q);
+
+    const participants: SourceDefinition[] = [
+      ...KEYWORD_SOURCES.filter((source) => state.enabled.has(source.key)),
+      ...IDENTIFIER_SOURCES.filter((source) => sourceAccepts(source, q)),
+    ];
+    // An identifier is not a useful keyword: when one is recognised, only those sources run.
+    const identifierHit = IDENTIFIER_SOURCES.some((source) => sourceAccepts(source, q));
+    const running = identifierHit
+      ? participants.filter((source) => source.mode === 'identifier')
+      : participants;
+
+    const outcomes = new Map<SourceKey, Outcome>(
+      running.map((source) => [source.key, { state: 'loading' }]),
+    );
+    const rail = h('div', { class: 'rail', 'aria-label': 'Sources searched' });
+    const summary = h('p', { class: 'status-line', 'aria-live': 'polite' });
+    const failures = h('div', { class: 'failures' });
+    const banner = h('div', { class: 'source-banner', hidden: true });
+    const results = createResults({ layout: 'gallery', showSource: true });
+    let activeSource: SourceKey | null = null;
+
+    const paint = (): void => {
+      clear(rail);
+      let done = 0;
+      let totalLoaded = 0;
+      const failed: Array<[SourceDefinition, unknown]> = [];
+      for (const source of running) {
+        const outcome = outcomes.get(source.key) as Outcome;
+        let detail: string;
+        let cls = 'rail__item';
+        if (outcome.state === 'loading') {
+          detail = 'searching…';
+          cls += ' is-loading';
+        } else if (outcome.state === 'error') {
+          done += 1;
+          detail = describeError(outcome.error);
+          cls += ' is-error';
+          failed.push([source, outcome.error]);
+        } else {
+          done += 1;
+          totalLoaded += outcome.items.length;
+          detail =
+            outcome.total !== undefined && outcome.total > outcome.items.length
+              ? `${outcome.items.length} of ${formatCount(outcome.total)}`
+              : `${outcome.items.length}`;
+          if (outcome.items.length === 0) cls += ' is-empty';
+        }
+        const clickable = outcome.state === 'ok' && outcome.items.length > 0;
+        const item = h(
+          'button',
+          {
+            type: 'button',
+            class: `${cls}${activeSource === source.key ? ' is-active' : ''}`,
+            disabled: !clickable || undefined,
+            'aria-pressed': clickable ? String(activeSource === source.key) : undefined,
+            title:
+              outcome.state === 'loading'
+                ? source.label
+                : `${source.label} · ${'ms' in outcome ? `${outcome.ms} ms` : ''}`,
+          },
+          h('span', { class: 'rail__dot', 'aria-hidden': 'true' }),
+          h('span', { class: 'rail__name' }, source.short),
+          h('span', { class: 'rail__detail' }, detail),
+        );
+        if (clickable)
+          item.addEventListener('click', () =>
+            results.setSource(activeSource === source.key ? null : source.key),
+          );
+        rail.append(item);
+      }
+
+      summary.textContent =
+        done < running.length
+          ? `Searching ${running.length} sources for “${q}” · ${done} answered`
+          : `${formatCount(totalLoaded)} results for “${q}” from ${running.length - failed.length} of ${running.length} sources`;
+
+      clear(failures);
+      if (failed.length > 0) {
+        failures.append(
+          h(
+            'details',
+            { class: 'disclosure disclosure--alert' },
+            h(
+              'summary',
+              null,
+              icon('alert', 15),
+              ` ${failed.length} source${failed.length === 1 ? '' : 's'} failed: ${failed.map(([s]) => s.short).join(', ')}`,
+            ),
+            ...failed.map(([source, error]) => errorPanel(error, source.label)),
+          ),
+        );
+      }
+
+      banner.hidden = !activeSource;
+      if (activeSource) {
+        const source = sourceByKey(activeSource);
+        const outcome = outcomes.get(activeSource);
+        const total =
+          outcome?.state === 'ok' && outcome.total !== undefined
+            ? ` of ${formatCount(outcome.total)}`
+            : '';
+        banner.replaceChildren(
+          h(
+            'span',
+            null,
+            `Showing the first ${outcome?.state === 'ok' ? outcome.items.length : ''}${total} from ${source.label}.`,
+          ),
+          h(
+            'a',
+            { href: pageHref(source.page, { q }), class: 'more-link' },
+            'Open the full explorer',
+            icon('arrow', 15),
+          ),
+        );
+      }
+    };
+
+    const publish = (): void => {
+      const lists = running
+        .map((source) => outcomes.get(source.key))
+        .filter((outcome): outcome is Extract<Outcome, { state: 'ok' }> => outcome?.state === 'ok')
+        .map((outcome) => outcome.items);
+      const merged = interleave(lists);
+      const pending = running.some((source) => outcomes.get(source.key)?.state === 'loading');
+      if (merged.length > 0) results.setItems(merged);
+      else if (!pending) {
+        results.element.replaceChildren(
+          h('p', { class: 'empty' }, `Nothing matched “${q}” in the sources that answered.`),
+        );
+      }
+    };
+
+    results.onFilterChange(({ source }) => {
+      activeSource = source;
+      paint();
+    });
+
+    body.replaceChildren(summary, rail, failures, banner, results.element);
+    if (running.length === 0) {
+      summary.textContent = 'Turn on at least one source to search.';
+      return;
+    }
+    results.setLoading(8);
+    paint();
+
+    for (const source of running) {
+      const started = performance.now();
+      source
+        .search({ q, page: 1, size: state.perSource, signal })
+        .then((page) => {
+          outcomes.set(source.key, {
+            state: 'ok',
+            items: page.items,
+            total: page.total,
+            ms: Math.round(performance.now() - started),
+          });
+        })
+        .catch((error: unknown) => {
+          if (isAbort(error)) return;
+          outcomes.set(source.key, {
+            state: 'error',
+            error,
+            ms: Math.round(performance.now() - started),
+          });
+        })
+        .finally(() => {
+          if (signal.aborted) return;
+          paint();
+          publish();
+        });
+    }
+  };
+
+  function run(): void {
+    state.q = input.value.trim();
+    writeState(state);
+    if (state.q) runSearch();
+    else {
+      controller?.abort();
+      renderLanding();
+    }
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    run();
+  });
+  window.addEventListener('popstate', () => {
+    state = readState();
+    input.value = state.q;
+    perSource.value = String(state.perSource);
+    paintSourceChips();
+    if (state.q) runSearch();
+    else renderLanding();
+  });
+
+  if (state.q) runSearch();
+  else renderLanding();
 };
 
 export default { mount };

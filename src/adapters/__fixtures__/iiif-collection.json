@@ -1,0 +1,15 @@
+{
+  "@context": "http://iiif.io/api/presentation/3/context.json",
+  "id": "https://iiif.ub.uni-leipzig.de/collection/example",
+  "type": "Collection",
+  "label": { "de": ["Beispielsammlung"] },
+  "items": [
+    {
+      "id": "https://iiif.ub.uni-leipzig.de/0000000001/manifest.json",
+      "type": "Manifest",
+      "label": { "de": ["Handschrift 1"] },
+      "thumbnail": [{ "id": "https://iiif.ub.uni-leipzig.de/iiif/j2k/0000/0000/0000000001/00000001.jpx/full/!400,400/0/default.jpg", "type": "Image" }]
+    },
+    { "id": "https://iiif.ub.uni-leipzig.de/collection/nested", "type": "Collection", "label": { "de": ["Untersammlung"] } }
+  ]
+}

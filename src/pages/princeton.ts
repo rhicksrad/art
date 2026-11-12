@@ -1,5 +1,7 @@
-import { mount as mountPrinceton } from '../art/pages/princeton';
+import { sourceBySlug, type SourceDefinition } from '../sources';
+import { mountExplorer } from './explorer';
 
-export const mount = mountPrinceton;
-
-export default { mount };
+export default {
+  mount: (el: HTMLElement): void =>
+    mountExplorer(el, sourceBySlug('princeton') as SourceDefinition),
+};

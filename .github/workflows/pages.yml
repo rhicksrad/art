@@ -3,15 +3,14 @@ name: pages
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,38 +19,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Ensure pnpm 9.12.3
-        shell: bash
-        run: |
-          set -euxo pipefail
-          corepack enable || true
-          corepack prepare pnpm@9.12.3 --activate || npm i -g pnpm@9.12.3
-          pnpm -v
-          pnpm config set store-dir ~/.pnpm-store
-
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-${{ runner.os }}-
+          cache: pnpm
 
       - name: Install
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
-      - name: Write runtime config
-        run: |
-          mkdir -p public
-          echo 'window.__CONFIG__ = { WORKER_BASE: "https://art.hicksrch.workers.dev" };' > public/config.js
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
 
       - name: Check routes
         run: pnpm check:routes
@@ -65,14 +53,19 @@ jobs:
       - name: Smoke test built pages
         run: pnpm smoke:pages
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

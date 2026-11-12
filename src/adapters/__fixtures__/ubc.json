@@ -1,0 +1,27 @@
+{
+  "http_code": 200,
+  "endpoint": "POST: /search/8.5",
+  "api_code": 2000,
+  "data": {
+    "data": {
+      "took": 4,
+      "hits": {
+        "total": 37,
+        "hits": [
+          {
+            "_index": "dsp.calendars-2024",
+            "_id": "1.0169842",
+            "_source": {
+              "title": ["The University of British Columbia Calendar 1925-26"],
+              "creator": ["University of British Columbia"],
+              "ubc_date_sort": "1925-01-01 AD",
+              "type": ["Text"],
+              "collection": ["UBC Calendars"],
+              "description": ["Annual calendar of courses and regulations."]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

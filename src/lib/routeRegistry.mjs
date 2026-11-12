@@ -4,7 +4,7 @@ export const routeRegistry = [
     aliases: ['/index.html'],
     htmlShell: 'index',
     moduleKey: './pages/home',
-    navLabel: 'Home',
+    navLabel: 'Search',
     navVisible: true,
   },
   {
@@ -39,7 +39,7 @@ export const routeRegistry = [
     path: '/ubc-oai.html',
     htmlShell: 'ubc-oai',
     moduleKey: './pages/ubcOai',
-    navLabel: 'UBC OAI',
+    navLabel: 'OAI harvester',
     navVisible: true,
   },
   {
@@ -89,6 +89,13 @@ export const routeRegistry = [
     htmlShell: 'bern',
     moduleKey: './pages/bern',
     navLabel: 'Bern IIIF',
+    navVisible: true,
+  },
+  {
+    path: '/debug.html',
+    htmlShell: 'debug',
+    moduleKey: './pages/status',
+    navLabel: 'Status',
     navVisible: true,
   },
 ];

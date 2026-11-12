@@ -1,147 +1,152 @@
-import type { ItemCard } from '../lib/types';
+import { centuryToYear, parseYear } from '../lib/dates';
+import type { ColorSwatch, ItemCard } from '../lib/types';
+import { asArray, asRecord, fieldList, orUndefined, str, truncate, unique, type Rec } from './util';
 
-type HarvardRecord = Record<string, unknown>;
-
-const asRecord = (value: unknown): HarvardRecord | null => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as HarvardRecord;
+/** Harvard serves renditions from the NRS resolver; `height`/`width` request a bounded size. */
+const sized = (url: string | undefined, box: number): string | undefined => {
+  if (!url) return undefined;
+  if (/\/full\//.test(url) || url.includes('?')) return url;
+  return `${url}?height=${box}&width=${box}`;
 };
 
-const firstString = (value: unknown): string | undefined => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
-  } else if (value && typeof value === 'object') {
-    for (const entry of Object.values(value as HarvardRecord)) {
-      const result = firstString(entry);
-      if (result) {
-        return result;
-      }
-    }
+const findImage = (record: Rec): string | undefined => {
+  const primary = str(record.primaryimageurl);
+  if (primary) return primary;
+  for (const entry of asArray(record.images)) {
+    const image = asRecord(entry);
+    const base = image ? (str(image.baseimageurl) ?? str(image.iiifbaseuri)) : undefined;
+    if (base) return base;
   }
   return undefined;
 };
 
-const toIiifImage = (value: string | undefined): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  if (value.includes('/full/')) {
-    return value;
-  }
-  if (value.includes('/iiif/')) {
-    return `${value.replace(/\/?$/, '')}/full/!400,400/0/default.jpg`;
-  }
-  return value;
+const aspectOf = (record: Rec): number | undefined => {
+  const image = asRecord(asArray(record.images)[0]);
+  const width = image?.width;
+  const height = image?.height;
+  return typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0
+    ? width / height
+    : undefined;
 };
 
-const findImage = (record: HarvardRecord): string | undefined => {
-  const images = Array.isArray(record.images) ? (record.images as unknown[]) : [];
-  for (const entry of images) {
-    const item = asRecord(entry);
-    if (!item) {
-      continue;
-    }
-    const iiif = firstString(item.iiifbaseuri ?? item.iiif_url ?? item.baseimageurl);
-    const resolved = toIiifImage(iiif);
-    if (resolved) {
-      return resolved;
-    }
-  }
-  const direct = firstString(record.primaryimageurl ?? record.image);
-  return direct ? toIiifImage(direct) : undefined;
+const people = (record: Rec): Array<{ name: string; role?: string }> =>
+  asArray(record.people)
+    .map((entry): { name: string; role?: string } | null => {
+      const person = asRecord(entry);
+      const name = person ? (str(person.displayname) ?? str(person.name)) : undefined;
+      return name ? { name, role: person ? str(person.role) : undefined } : null;
+    })
+    .filter((entry): entry is { name: string; role?: string } => entry !== null);
+
+const colors = (record: Rec): ColorSwatch[] =>
+  asArray(record.colors)
+    .map((entry): ColorSwatch | null => {
+      const color = asRecord(entry);
+      const hex = color ? str(color.color) : undefined;
+      const percent = color && typeof color.percent === 'number' ? color.percent : 0;
+      return hex && /^#[0-9a-f]{6}$/i.test(hex)
+        ? { hex, percent, hue: color ? str(color.hue) : undefined }
+        : null;
+    })
+    .filter((entry): entry is ColorSwatch => entry !== null);
+
+/**
+ * `datebegin` is usually a real year but is sometimes a placeholder (0, or the
+ * century number). Trust it only when it agrees with the `century` label.
+ */
+const resolveYear = (record: Rec): number | undefined => {
+  const century = centuryToYear(str(record.century));
+  const begin =
+    typeof record.datebegin === 'number' && record.datebegin !== 0 ? record.datebegin : undefined;
+  if (begin !== undefined && (century === undefined || Math.abs(begin - century) <= 100))
+    return begin;
+  return century ?? parseYear(str(record.dated));
 };
 
-const buildTags = (record: HarvardRecord): string[] => {
-  const tags = new Set<string>();
-  const classification = firstString(record.classification);
-  if (classification) {
-    tags.add(classification);
+const manifest = (record: Rec): string | undefined => {
+  for (const entry of asArray(record.seeAlso)) {
+    const link = asRecord(entry);
+    if (link && /iiif/i.test(str(link.type) ?? '')) return str(link.id);
   }
-  const century = firstString(record.century);
-  if (century) {
-    tags.add(century);
-  }
-  const culture = firstString(record.culture);
-  if (culture) {
-    tags.add(culture);
-  }
-  return Array.from(tags);
+  return undefined;
 };
 
-const joinPeople = (record: HarvardRecord): string | undefined => {
-  const people = Array.isArray(record.people) ? (record.people as unknown[]) : [];
-  const names: string[] = [];
-  for (const entry of people) {
-    const person = asRecord(entry);
-    if (!person) {
-      continue;
-    }
-    const name = firstString(person.displayname ?? person.name);
-    if (name) {
-      names.push(name);
-    }
-  }
-  return names.length > 0 ? names.join(', ') : undefined;
-};
-
-const recordToCard = (record: HarvardRecord): ItemCard => {
-  const id = firstString(record.id ?? record.objectid ?? record.objectnumber) ?? `harvard-${Math.random().toString(36).slice(2)}`;
-  const title = firstString(record.title) ?? 'Untitled';
-  const sub = joinPeople(record) ?? firstString(record.division);
-  const date = firstString(record.dated ?? record.date);
-  const href = firstString(record.url);
+const recordToCard = (record: Rec): ItemCard => {
+  const makers = people(record);
+  const image = findImage(record);
+  const swatches = colors(record);
+  const worktype = str(asRecord(asArray(record.worktypes)[0])?.worktype);
+  const tags = unique(
+    [
+      str(record.classification),
+      str(record.culture),
+      str(record.century),
+      str(record.technique),
+      str(record.period),
+    ].filter((value): value is string => !!value),
+  );
+  const manifestUrl = manifest(record);
 
   return {
-    id,
-    title,
-    sub,
-    date,
-    tags: (() => {
-      const tags = buildTags(record);
-      return tags.length > 0 ? tags : undefined;
-    })(),
-    img: findImage(record),
-    href,
+    id:
+      str(record.id) ??
+      str(record.objectid) ??
+      str(record.objectnumber) ??
+      `harvard-${Math.random().toString(36).slice(2)}`,
+    title: str(record.title) ?? 'Untitled',
+    sub: makers.length > 0 ? makers.map((person) => person.name).join(', ') : str(record.division),
+    date: str(record.dated),
+    tags: orUndefined(tags),
+    img: sized(image, 480),
+    imgLarge: sized(image, 1400),
+    aspect: aspectOf(record),
+    href: str(record.url),
     source: 'Harvard',
     raw: record,
+    year: resolveYear(record),
+    kind: str(record.classification) ?? worktype,
+    people: orUndefined(makers.map((person) => person.name)),
+    description: truncate(
+      str(record.description) ?? str(record.labeltext) ?? str(record.commentary),
+      900,
+    ),
+    manifest: manifestUrl,
+    colors: orUndefined(swatches),
+    fields: fieldList([
+      [
+        'Maker',
+        orUndefined(makers.map((p) => (p.role ? `${p.name} (${p.role})` : p.name)))?.join('; '),
+      ],
+      ['Date', str(record.dated)],
+      ['Culture', str(record.culture)],
+      ['Period', str(record.period)],
+      ['Classification', str(record.classification)],
+      ['Medium', str(record.medium)],
+      ['Technique', str(record.technique)],
+      ['Dimensions', str(record.dimensions)],
+      ['Department', str(record.department)],
+      ['Object number', str(record.objectnumber)],
+      ['Credit line', str(record.creditline)],
+      ['Copyright', str(record.copyright)],
+    ]),
+    links: manifestUrl ? [{ label: 'IIIF manifest', href: manifestUrl }] : undefined,
   };
 };
 
-const extractRecords = (resp: unknown): HarvardRecord[] => {
-  if (!resp) {
-    return [];
-  }
-  if (Array.isArray(resp)) {
-    return resp as HarvardRecord[];
-  }
+const extractRecords = (resp: unknown): Rec[] => {
+  if (Array.isArray(resp)) return resp.map(asRecord).filter((r): r is Rec => r !== null);
   const record = asRecord(resp);
-  if (!record) {
-    return [];
-  }
-  if (Array.isArray(record.records)) {
-    return record.records as HarvardRecord[];
-  }
-  if (record.record && typeof record.record === 'object') {
-    return [record.record as HarvardRecord];
-  }
-  return [record];
+  if (!record || 'error' in record) return [];
+  if (Array.isArray(record.records))
+    return record.records.map(asRecord).filter((r): r is Rec => r !== null);
+  const single = asRecord(record.record);
+  if (single) return [single];
+  return 'id' in record || 'objectid' in record ? [record] : [];
 };
 
-export const toItemCards = (resp: unknown): ItemCard[] => {
-  const records = extractRecords(resp);
-  return records.map((record) => recordToCard(record));
+export const toItemCards = (resp: unknown): ItemCard[] => extractRecords(resp).map(recordToCard);
+
+export const totalRecords = (resp: unknown): number | undefined => {
+  const total = asRecord(asRecord(resp)?.info)?.totalrecords;
+  return typeof total === 'number' ? total : undefined;
 };

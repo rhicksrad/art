@@ -136,35 +136,16 @@ fetch("https://art.hicksrch.workers.dev/arxiv/search?search_query=cat:cs.AI&max_
 
 ---
 
-## Frontend Strategy
+## Frontend
 
-### Pages
+The site is a showcase of what free public APIs can do, so look and function matter as much as correctness.
 
-| Page              | Source               | Chart/Visualization                              |
-| ----------------- | -------------------- | ------------------------------------------------ |
-| `/harvard.html`   | Harvard Art Museums  | Histogram of objects per decade; color analytics |
-| `/princeton.html` | Princeton Art Museum | Maker networks                                   |
-| `/dataverse.html` | Dataverse            | Subject bar charts; dataset counts               |
-| `/ubc.html`       | UBC Collections      | Per-year bars; IIIF image previews               |
-| `/arxiv.html`     | arXiv                | Category growth sparkline                        |
-| `/northwestern.html` | Northwestern Digital Collections | Keyword search + IIIF cards                  |
-| `/stanford.html`  | Stanford PURL        | PURL lookup with oEmbed + manifest preview       |
-| `/hathi.html`     | HathiTrust Catalog   | Identifier search for catalog volumes            |
-| `/htrc.html`      | HTRC Analytics       | HTID lookup + worker diagnostics                 |
-| `/leipzig.html`   | Leipzig IIIF         | Manifest listing for iiif.ub.uni-leipzig.de      |
-| `/bern.html`      | Bern IIIF            | Manifest listing for iiif.ub.unibe.ch            |
-
-New sources (Northwestern, HathiTrust Catalog, Stanford PURL, HTRC, Leipzig IIIF, Bern IIIF) participate in the homepage’s unified
-search. Identifier-based sources (Hathi, Stanford, HTRC, Leipzig, Bern) default to disabled in the filter list so they only fire
-when users intentionally enable them and enter a compatible ID/path. Each source also has a dedicated explorer page (listed above)
-for focused workflows and debugging.
-| `/home.html`      | All                  | Combined timeline, saved searches, diagnostics   |
-
-### Unified search UX
-
-* The homepage hosts a multi-source search console. Users pick sources (Harvard, Princeton, Dataverse, UBC, arXiv), set the per-source limit, toggle layout (grid vs. list), and optionally require image thumbnails.
-* Each source renders `ItemCard`s from the adapters; loading and error states surface inside the section via `Alert` components.
-* The header search box rewrites the URL to `/?q=<term>` so the unified search auto-runs with shared state pulled from `window.location.search`.
+* `src/sources/index.ts` is the registry of APIs. Home search, the explorers, the navigation and the directory are all driven by it.
+* Every source has an explorer page (`/<slug>.html`) built by `src/pages/explorer.ts`. `/ubc-oai.html` is the OAI-PMH console and `/debug.html` is the live status page.
+* Adapters in `src/adapters/` normalise responses to `ItemCard`. Facets, the timeline and the charts are computed from loaded records.
+* **Never ship sample data or silent fallbacks.** If an upstream fails, render the error panel with the Worker diagnostic.
+* Northwestern search uses `query=`, not `q=`.
+* Run `pnpm lint && pnpm typecheck && pnpm test && pnpm check:routes && pnpm build` before pushing; CI runs the same.
 
 ---
 
@@ -198,4 +179,4 @@ for focused workflows and debugging.
 
 **Version:** `2025-11-06`
 **Worker:** `art.hicksrch.workers.dev`
-**Status:** ✅ stable — all APIs functional except UBC POST variant (GET-only search mode confirmed).
+**Status:** upstream health varies; check `/debug.html` on the site for the live state of every route.

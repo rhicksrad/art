@@ -1,0 +1,19 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "https://purl.stanford.edu/bb112zx3193/iiif/manifest",
+  "@type": "sc:Manifest",
+  "label": "Bugatti Type 51A. Road & Track Salon January 1957",
+  "thumbnail": {
+    "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001/full/!400,400/0/default.jpg",
+    "service": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001" }
+  },
+  "sequences": [
+    {
+      "@type": "sc:Sequence",
+      "canvases": [
+        { "@type": "sc:Canvas", "label": "Image 1", "images": [{ "resource": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001/full/full/0/default.jpg", "service": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001" } } }] },
+        { "@type": "sc:Canvas", "label": "Image 2", "images": [{ "resource": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002/full/full/0/default.jpg", "service": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002" } } }] }
+      ]
+    }
+  ]
+}

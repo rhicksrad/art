@@ -19,7 +19,6 @@ const detectLocalWorkerBase = (): string | undefined => {
 
 type RuntimeConfig = {
   WORKER_BASE?: string;
-  UBC_OC_API_KEY?: string;
 };
 
 declare global {
@@ -59,5 +58,3 @@ const localWorkerBase = detectLocalWorkerBase();
 export const WORKER_BASE: string =
   resolveConfigValue('WORKER_BASE', 'VITE_WORKER_BASE', localWorkerBase ?? DEFAULT_WORKER_BASE) ??
   DEFAULT_WORKER_BASE;
-
-export const UBC_OC_API_KEY: string | undefined = resolveConfigValue('UBC_OC_API_KEY', 'VITE_UBC_OC_API_KEY');
