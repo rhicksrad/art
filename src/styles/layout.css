@@ -195,6 +195,8 @@ summary.nav__link::after {
 
 .site-main {
   flex: 1;
+  /* The footer starts below the fold, so it never jumps when a page fills in. */
+  min-height: 100vh;
   width: 100%;
   max-width: var(--page-width);
   margin: 0 auto;
@@ -327,6 +329,13 @@ summary.nav__link::after {
 
 .hero__feature {
   min-width: 0;
+}
+
+/* Room for the tallest painting and its label, held from the first paint. */
+@media (min-width: 981px) {
+  .hero__feature {
+    min-height: calc(min(52vh, 30rem) + 13rem);
+  }
 }
 
 .hero--compact,
@@ -591,6 +600,10 @@ button.feature__frame {
 @media (min-width: 901px) {
   .filters .filters__toggle {
     display: none;
+  }
+
+  .results:not(.results--solo) > .results__main {
+    grid-column: 2;
   }
 }
 
