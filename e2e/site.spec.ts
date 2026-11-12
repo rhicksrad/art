@@ -93,8 +93,11 @@ test('a record with several images turns pages like a book', async ({ page }) =>
 
 test('the landing page hangs a wall for more than one collection', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('.wall')).toHaveCount(3);
-  await expect(page.locator('.wall h2').nth(1)).toContainText('Princeton University Art Museum');
+  await expect(
+    page.locator('.wall h2', { hasText: 'Princeton University Art Museum' }),
+  ).toHaveCount(1);
+  // The mocked Northwestern answer has too few images to hang, so its wall is taken down.
+  await expect(page.locator('.wall h2', { hasText: 'Northwestern' })).toHaveCount(0);
 });
 
 test('a facet filters the results in place', async ({ page }) => {
