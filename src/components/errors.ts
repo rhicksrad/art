@@ -5,7 +5,7 @@ export const describeError = (error: unknown): string => {
   if (error instanceof HttpError) {
     if (error.status === 0) return 'Worker unreachable';
     const upstreamError = error.diagnostic?.error;
-    return upstreamError ? `HTTP ${error.status} · ${upstreamError}` : `HTTP ${error.status}`;
+    return upstreamError ? `HTTP ${error.status}: ${upstreamError}` : `HTTP ${error.status}`;
   }
   return error instanceof Error ? error.message : String(error);
 };

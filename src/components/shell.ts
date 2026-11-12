@@ -22,7 +22,7 @@ const sourcesMenu = (route: string): HTMLElement => {
       h(
         'div',
         { class: 'menu__group' },
-        h('p', { class: 'eyebrow' }, group),
+        h('p', { class: 'menu__heading' }, group),
         ...SOURCES.filter((source) => source.group === group).map((source) =>
           h(
             'a',

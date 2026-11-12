@@ -258,16 +258,6 @@ export const SOURCES: SourceDefinition[] = [
     layout: 'gallery',
     endpoint: '/princeton-art/search',
     upstream: 'data.artmuseum.princeton.edu',
-    countNoun: 'objects',
-    count: async () =>
-      princetonTotal(
-        await fetchJSON('/princeton-art/search', {
-          q: '*',
-          type: 'artobjects',
-          size: 1,
-          ttl: 86400,
-        }),
-      ),
     search: async (request) => {
       const { q, page, size, signal } = request;
       const { data, url } = await call<unknown>(

@@ -7,14 +7,23 @@ export type CardOptions = {
   showSource?: boolean;
 };
 
-const byline = (item: ItemCard): string => [item.sub, item.date].filter(Boolean).join(' · ');
-
-const sourceBadge = (item: ItemCard): HTMLElement =>
-  h(
-    'span',
-    { class: 'badge', title: sourceByKey(item.source).label },
-    sourceByKey(item.source).short,
+/**
+ * A museum object label: maker, title, date, then where it is held.
+ * Each fact gets its own line, the way a wall label sets them.
+ */
+const label = (item: ItemCard, showSource?: boolean): HTMLElement => {
+  const held = [item.kind, showSource ? sourceByKey(item.source).label : undefined]
+    .filter(Boolean)
+    .join(', ');
+  return h(
+    'div',
+    { class: 'label' },
+    item.sub ? h('p', { class: 'label__maker' }, item.sub) : null,
+    h('h3', { class: 'label__title' }, item.title),
+    item.date ? h('p', { class: 'label__date' }, item.date) : null,
+    held ? h('p', { class: 'label__held' }, held) : null,
   );
+};
 
 /** Swap a failed image for a quiet placeholder instead of a broken-image icon. */
 const media = (item: ItemCard): HTMLElement => {
@@ -52,22 +61,11 @@ export const galleryCard = (item: ItemCard, { onOpen, showSource }: CardOptions)
     {
       type: 'button',
       class: `card${hasImage ? '' : ' card--text'}`,
-      'aria-label': `${item.title} — open details`,
+      'aria-label': `Open details for ${item.title}`,
     },
     hasImage ? media(item) : null,
-    h(
-      'div',
-      { class: 'card__body' },
-      h(
-        'div',
-        { class: 'card__meta' },
-        showSource ? sourceBadge(item) : null,
-        item.kind ? h('span', { class: 'card__kind' }, item.kind) : null,
-      ),
-      h('h3', { class: 'card__title' }, item.title),
-      byline(item) ? h('p', { class: 'card__byline' }, byline(item)) : null,
-      !hasImage && item.description ? h('p', { class: 'card__excerpt' }, item.description) : null,
-    ),
+    label(item, showSource),
+    !hasImage && item.description ? h('p', { class: 'card__excerpt' }, item.description) : null,
   );
   button.addEventListener('click', () => onOpen(item));
   return button;
@@ -76,12 +74,11 @@ export const galleryCard = (item: ItemCard, { onOpen, showSource }: CardOptions)
 export const listRow = (item: ItemCard, { onOpen, showSource }: CardOptions): HTMLElement => {
   const button = h(
     'button',
-    { type: 'button', class: 'row', 'aria-label': `${item.title} — open details` },
+    { type: 'button', class: 'row', 'aria-label': `Open details for ${item.title}` },
     h(
       'div',
       { class: 'row__main' },
-      h('h3', { class: 'row__title' }, item.title),
-      byline(item) ? h('p', { class: 'row__byline' }, byline(item)) : null,
+      label(item, showSource),
       item.description ? h('p', { class: 'row__excerpt' }, item.description) : null,
       item.tags && item.tags.length > 0
         ? h(
@@ -90,12 +87,6 @@ export const listRow = (item: ItemCard, { onOpen, showSource }: CardOptions): HT
             ...item.tags.slice(0, 5).map((tag) => h('span', { class: 'tag' }, tag)),
           )
         : null,
-    ),
-    h(
-      'div',
-      { class: 'row__aside' },
-      showSource ? sourceBadge(item) : null,
-      item.kind ? h('span', { class: 'card__kind' }, item.kind) : null,
     ),
   );
   button.addEventListener('click', () => onOpen(item));
@@ -109,7 +100,7 @@ export const skeletonCards = (count: number, layout: 'gallery' | 'list'): HTMLEl
           'div',
           { class: 'card card--skeleton', 'aria-hidden': 'true' },
           h('div', { class: 'card__media' }),
-          h('div', { class: 'card__body' }, h('span'), h('span')),
+          h('div', { class: 'label' }, h('span'), h('span')),
         )
       : h(
           'div',

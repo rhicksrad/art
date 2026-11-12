@@ -217,7 +217,7 @@ const runProbe = async (probe: Probe): Promise<ProbeResult> => {
 };
 
 const mount = (el: HTMLElement): void => {
-  document.title = 'Worker status · Art API Explorer';
+  document.title = 'Worker status | Art API Explorer';
   const summary = h('p', { class: 'status-line', 'aria-live': 'polite' });
   const worker = h('dl', { class: 'facts facts--compact' });
   const tbody = h('tbody');
@@ -327,7 +327,6 @@ const mount = (el: HTMLElement): void => {
       h(
         'header',
         { class: 'page-head' },
-        h('p', { class: 'eyebrow' }, 'Diagnostics'),
         h('h1', null, 'Worker status'),
         h(
           'p',

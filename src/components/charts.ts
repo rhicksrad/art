@@ -71,7 +71,7 @@ export const histogram = (
         style: `height:${bin.count === 0 ? 0 : Math.max(4, (bin.count / max) * 100)}%`,
       }),
     );
-    withTip(column, `${bin.label} · ${plural(bin.count, noun)}`);
+    withTip(column, `${bin.label}: ${plural(bin.count, noun)}`);
     if (onSelect) column.addEventListener('click', () => onSelect(bin));
     columns.append(column);
   }
@@ -120,7 +120,7 @@ export const barList = (
         type: 'button',
         class: `barlist__row${active ? ' is-active' : ''}`,
         'aria-pressed': onSelect ? String(active) : undefined,
-        title: `${entry.label} · ${plural(entry.count, noun)}`,
+        title: `${entry.label}: ${plural(entry.count, noun)}`,
       },
       h('span', { class: 'barlist__label' }, entry.label),
       h('span', { class: 'barlist__value' }, entry.count.toLocaleString('en-US')),
@@ -161,7 +161,7 @@ export const paletteStrip = (
   for (const color of colors) {
     const share = (color.percent / total) * 100;
     const style = `flex-grow:${Math.max(share, 1.5)};background:${color.hex}`;
-    const name = `${color.hue ? `${color.hue} · ` : ''}${color.hex} · ${share.toFixed(0)}%`;
+    const name = `${color.hue ? `${color.hue} ` : ''}${color.hex}, ${share.toFixed(0)}%`;
     const swatch = hrefFor
       ? h('a', {
           class: 'palette__swatch',
@@ -170,7 +170,7 @@ export const paletteStrip = (
           'aria-label': `Find works using ${color.hue ?? color.hex}`,
         })
       : h('span', { class: 'palette__swatch', style, tabindex: '0' });
-    withTip(swatch, hrefFor ? `${name} · find more` : name);
+    withTip(swatch, hrefFor ? `${name}. Find works with this colour` : name);
     strip.append(swatch);
   }
   return strip;
