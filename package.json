@@ -14,9 +14,12 @@
     "check:routes": "node scripts/validate-routes.mjs",
     "smoke:pages": "node scripts/smoke-pages.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:live": "LIVE=1 playwright test e2e/live.spec.ts --project=desktop"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
