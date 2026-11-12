@@ -11,8 +11,34 @@
     {
       "@type": "sc:Sequence",
       "canvases": [
-        { "@type": "sc:Canvas", "label": "Image 1", "images": [{ "resource": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001/full/full/0/default.jpg", "service": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001" } } }] },
-        { "@type": "sc:Canvas", "label": "Image 2", "images": [{ "resource": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002/full/full/0/default.jpg", "service": { "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002" } } }] }
+        {
+          "@type": "sc:Canvas",
+          "label": "Image 1",
+          "images": [
+            {
+              "resource": {
+                "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001/full/full/0/default.jpg",
+                "service": {
+                  "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0001"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "@type": "sc:Canvas",
+          "label": "Image 2",
+          "images": [
+            {
+              "resource": {
+                "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002/full/full/0/default.jpg",
+                "service": {
+                  "@id": "https://stacks.stanford.edu/image/iiif/bb112zx3193%2Fbb112zx3193_00_0002"
+                }
+              }
+            }
+          ]
+        }
       ]
     }
   ]

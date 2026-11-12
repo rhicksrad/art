@@ -241,6 +241,24 @@ describe('IIIF and HTRC', () => {
 
   it('maps HTRC metadata and validates volume ids', () => {
     expectCard(htrcCard('mdp.1', { metadata: { title: 'A title', pubDate: '1901' } }), 'HTRC');
+    const v3 = htrcCard('mdp.2', {
+      code: 200,
+      data: {
+        htid: 'mdp.2',
+        metadata: {
+          title: 'Infinite series',
+          pubDate: 1908,
+          contributor: { type: 'Person', name: 'Bromwich, Thomas' },
+          publisher: { name: 'Macmillan' },
+          genre: ['http://id.loc.gov/vocabulary/marcgt/doc'],
+        },
+      },
+    });
+    expect(v3.title).toBe('Infinite series');
+    expect(v3.sub).toBe('Bromwich, Thomas');
+    expect(v3.year).toBe(1908);
+    expect(v3.tags).toBeUndefined();
+    expect(v3.fields?.find((field) => field.label === 'Publisher')?.value).toBe('Macmillan');
     expect(looksLikeHtid('mdp.39015025315527')).toBe(true);
     expect(looksLikeHtid('monet')).toBe(false);
   });

@@ -25,9 +25,9 @@ const UPSTREAMS = {
   stanfordPurl: 'https://purl.stanford.edu',
   stanfordEmbed: 'https://embed.stanford.edu',
   hathiCatalog: 'https://catalog.hathitrust.org',
-  htrc: 'https://analytics.hathitrust.org',
+  htrc: 'https://data.htrc.illinois.edu',
   leipzigIiif: 'https://iiif.ub.uni-leipzig.de',
-  bernIiif: 'https://iiif.ub.unibe.ch',
+  bernIiif: 'https://www.e-rara.ch',
 };
 
 /** Query parameters whose values are credentials and must never be echoed back. */

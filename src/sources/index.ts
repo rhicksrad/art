@@ -439,16 +439,17 @@ export const SOURCES: SourceDefinition[] = [
     short: 'Bern',
     group: 'Libraries & archives',
     page: '/bern.html',
-    blurb: 'Read IIIF manifests and collections published by Universitätsbibliothek Bern.',
+    blurb:
+      'Rare books digitised by Universitätsbibliothek Bern, read as IIIF manifests from e-rara.',
     holds: 'IIIF manifests',
     mode: 'identifier',
-    placeholder: 'A manifest path or URL from iiif.ub.unibe.ch',
-    samples: [],
-    autoSample: false,
+    placeholder: '/i3f/v20/2273935/manifest',
+    samples: ['/i3f/v20/2273935/manifest'],
+    autoSample: true,
     layout: 'gallery',
     endpoint: '/bern-iiif/{path}',
-    upstream: 'iiif.ub.unibe.ch',
-    ...iiifSource('BernIIIF', '/bern-iiif', 'iiif.ub.unibe.ch'),
+    upstream: 'www.e-rara.ch',
+    ...iiifSource('BernIIIF', '/bern-iiif', 'www.e-rara.ch'),
   },
   {
     key: 'arXiv',
@@ -550,22 +551,23 @@ export const SOURCES: SourceDefinition[] = [
     short: 'HTRC',
     group: 'Research',
     page: '/htrc.html',
-    blurb: 'Volume-level metadata from HTRC Analytics, looked up by HathiTrust volume id.',
+    blurb:
+      'Extracted Features metadata from the HathiTrust Research Center, looked up by volume id.',
     holds: 'Volume metadata',
     mode: 'identifier',
     placeholder: 'mdp.39015025315527',
     samples: ['mdp.39015025315527'],
-    autoSample: false,
+    autoSample: true,
     layout: 'list',
-    endpoint: '/htrc/api/metadata/volume/{htid}',
-    upstream: 'analytics.hathitrust.org',
+    endpoint: '/htrc/ef-api/volumes/{htid}/metadata',
+    upstream: 'data.htrc.illinois.edu',
     accepts: (q) =>
       looksLikeHtid(q) ? null : 'Enter a HathiTrust volume id such as mdp.39015025315527.',
     search: async ({ q, signal }) => {
       const id = q.trim();
       if (!looksLikeHtid(id)) return single([], []);
       const { data, url } = await call<unknown>(
-        `/htrc/api/metadata/volume/${encodeURIComponent(id)}`,
+        `/htrc/ef-api/volumes/${encodeURIComponent(id)}/metadata`,
         undefined,
         signal,
       );

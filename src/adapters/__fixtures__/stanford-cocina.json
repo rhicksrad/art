@@ -4,14 +4,40 @@
   "externalIdentifier": "druid:bb112zx3193",
   "label": "Bugatti Type 51A. Road & Track Salon January 1957",
   "version": 7,
-  "access": { "view": "world", "download": "none", "useAndReproductionStatement": "Property rights reside with the repository." },
+  "access": {
+    "view": "world",
+    "download": "none",
+    "useAndReproductionStatement": "Property rights reside with the repository."
+  },
   "description": {
     "title": [{ "value": "Bugatti Type 51A. Road & Track Salon January 1957" }],
-    "contributor": [{ "name": [{ "value": "Chesebrough, Jerry" }], "role": [{ "value": "photographer" }] }],
-    "event": [{ "date": [{ "structuredValue": [{ "value": "1957", "type": "start" }, { "value": "1961", "type": "end" }], "qualifier": "approximate" }] }],
+    "contributor": [
+      { "name": [{ "value": "Chesebrough, Jerry" }], "role": [{ "value": "photographer" }] }
+    ],
+    "event": [
+      {
+        "date": [
+          {
+            "structuredValue": [
+              { "value": "1957", "type": "start" },
+              { "value": "1961", "type": "end" }
+            ],
+            "qualifier": "approximate"
+          }
+        ]
+      }
+    ],
     "form": [{ "value": "Photographic prints" }, { "value": "image/tiff" }],
-    "note": [{ "value": "Black and white photographic prints of the Bugatti Type 51A.", "type": "abstract" }],
-    "subject": [{ "value": "Automobiles" }, { "structuredValue": [{ "value": "Bugatti automobile" }, { "value": "History" }] }],
+    "note": [
+      {
+        "value": "Black and white photographic prints of the Bugatti Type 51A.",
+        "type": "abstract"
+      }
+    ],
+    "subject": [
+      { "value": "Automobiles" },
+      { "structuredValue": [{ "value": "Bugatti automobile" }, { "value": "History" }] }
+    ],
     "purl": "https://purl.stanford.edu/bb112zx3193"
   },
   "structural": { "isMemberOf": ["druid:mr163sv5231"] }
