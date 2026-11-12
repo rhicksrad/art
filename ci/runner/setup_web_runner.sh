@@ -9,6 +9,7 @@
 # Re-runnable: an already-registered runner is left alone, the files around it are refreshed.
 #
 #   bash ci/runner/setup_web_runner.sh [owner/repo]
+#   RUNNER_TOKEN=<registration token> bash ci/runner/setup_web_runner.sh   # without gh here
 set -euo pipefail
 
 REPO=${1:-rhicksrad/art}
@@ -26,6 +27,10 @@ fi
 sudo loginctl enable-linger "$RUSER"
 # The runner user must not be able to read Ryan's home (gh token, SSH keys, clones).
 sudo chmod o-rwx "$HOME"
+# WSL: Windows drives are mounted for every user; keep the runner off them.
+if grep -qi microsoft /proc/version 2>/dev/null; then
+  echo "WSL detected: remember the Windows-side keeper (Pharaoh tools/ci/setup_wsl_runner.ps1) so WSL stays up."
+fi
 RHOME=$(getent passwd "$RUSER" | cut -d: -f6)
 RUID=$(id -u "$RUSER")
 BASE=$RHOME/actions-runners
@@ -40,8 +45,9 @@ if command -v npx >/dev/null 2>&1; then
 fi
 
 # Registration token comes from Ryan's gh login, before anything runs as ghrunner.
-TOKEN=""
-if [ ! -f "$DIR/.runner" ]; then
+# RUNNER_TOKEN overrides it (e.g. fetched on the Windows side for a WSL runner).
+TOKEN=${RUNNER_TOKEN:-}
+if [ ! -f "$DIR/.runner" ] && [ -z "$TOKEN" ]; then
   TOKEN=$(gh api -X POST "repos/$REPO/actions/runners/registration-token" --jq .token)
 fi
 
