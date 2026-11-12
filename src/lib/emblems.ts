@@ -6,7 +6,6 @@ import error from '../assets/emblem-error.webp';
 import harvard from '../assets/emblem-harvard.webp';
 import hathi from '../assets/emblem-hathi.webp';
 import htrc from '../assets/emblem-htrc.webp';
-import leipzig from '../assets/emblem-leipzig.webp';
 import northwestern from '../assets/emblem-northwestern.webp';
 import princeton from '../assets/emblem-princeton.webp';
 import stanford from '../assets/emblem-stanford.webp';
@@ -26,7 +25,6 @@ const SOURCE_EMBLEMS: Record<SourceKey, string> = {
   UBC: ubc,
   Stanford: stanford,
   HathiCatalog: hathi,
-  LeipzigIIIF: leipzig,
   BernIIIF: bern,
   arXiv: arxiv,
   Dataverse: dataverse,

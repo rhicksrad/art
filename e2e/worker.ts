@@ -114,7 +114,7 @@ export const mockWorker = async (context: BrowserContext): Promise<void> => {
       ),
     ),
   );
-  await context.route(/\/(htrc|leipzig-iiif|bern-iiif)\//, (route) =>
+  await context.route(/\/(htrc|bern-iiif)\//, (route) =>
     json(
       route,
       { upstream: 'https://example.org/', status: 404, statusText: 'Not Found', sample: '' },

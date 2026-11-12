@@ -28,7 +28,6 @@ const workerProxyRoutes = [
   '/stanford-embed',
   '/hathi-catalog',
   '/htrc',
-  '/leipzig-iiif',
   '/bern-iiif',
   '/ubc',
   '/ubc-iiif',

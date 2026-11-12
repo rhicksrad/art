@@ -78,13 +78,6 @@ export const routeRegistry = [
     navVisible: true,
   },
   {
-    path: '/leipzig.html',
-    htmlShell: 'leipzig',
-    moduleKey: './pages/leipzig',
-    navLabel: 'Leipzig IIIF',
-    navVisible: true,
-  },
-  {
     path: '/bern.html',
     htmlShell: 'bern',
     moduleKey: './pages/bern',

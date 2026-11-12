@@ -8,7 +8,6 @@ export type SourceKey =
   | 'Stanford'
   | 'HathiCatalog'
   | 'HTRC'
-  | 'LeipzigIIIF'
   | 'BernIIIF';
 
 export type ColorSwatch = {

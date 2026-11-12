@@ -12,14 +12,14 @@
 //   DATAVERSE_BASE="https://dataverse.harvard.edu"
 //   ALLOWED_ORIGINS="*"
 
-const VERSION = '2026-11-12.upstream-timeout';
+const VERSION = '2026-11-12.ubc-keyless-search';
 const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const UPSTREAMS = {
   harvardArt: 'https://api.harvardartmuseums.org',
   princetonArt: 'https://data.artmuseum.princeton.edu',
   ubcRest: 'https://oc-index.library.ubc.ca',
-  ubcOai: 'https://oce-index.library.ubc.ca/oai',
+  ubcOai: 'https://oc-index.library.ubc.ca/oai',
   ubcIiif: 'https://iiif.library.ubc.ca',
   arxiv: 'https://export.arxiv.org',
   northwesternDC: 'https://api.dc.library.northwestern.edu',
@@ -27,7 +27,6 @@ const UPSTREAMS = {
   stanfordEmbed: 'https://embed.stanford.edu',
   hathiCatalog: 'https://catalog.hathitrust.org',
   htrc: 'https://data.htrc.illinois.edu',
-  leipzigIiif: 'https://iiif.ub.uni-leipzig.de',
   bernIiif: 'https://www.e-rara.ch',
 };
 
@@ -48,7 +47,6 @@ const DIRECT_ROUTES = [
   ['/stanford-embed', UPSTREAMS.stanfordEmbed, 'application/json'],
   ['/hathi-catalog', UPSTREAMS.hathiCatalog, 'application/json'],
   ['/htrc', UPSTREAMS.htrc, 'application/json'],
-  ['/leipzig-iiif', UPSTREAMS.leipzigIiif, IIIF_ACCEPT],
   ['/bern-iiif', UPSTREAMS.bernIiif, IIIF_ACCEPT],
 ];
 
@@ -162,26 +160,17 @@ async function ubcRestProxy(req, env) {
   const up = rewriteBase(new URL(req.url), UPSTREAMS.ubcRest, '/ubc');
   const json = () => new Headers({ Accept: 'application/json' });
 
-  // Search at /search/8.5 is a JSON POST upstream. The key goes in the query only: sending it
-  // as a header as well makes UBC answer 401.
+  // Search at /search/8.5 is public and must be a plain GET with no key: UBC answers 500 to a
+  // POST, and to a GET that carries a `key` parameter, whatever its value (checked 2026-11-12).
   if (/^\/search\/8\.5(?:\/)?$/i.test(up.pathname)) {
-    const body = {};
-    for (const k of ['q', 'index', 'size', 'from', 'sort', 'term', 'terms']) {
-      if (up.searchParams.has(k)) {
-        const vals = up.searchParams.getAll(k);
-        body[k] = vals.length > 1 ? vals : vals[0];
-      }
+    if (up.searchParams.has('limit') && !up.searchParams.has('size')) {
+      up.searchParams.set('size', up.searchParams.get('limit'));
     }
-    if (!body.size && up.searchParams.has('limit')) body.size = up.searchParams.get('limit');
-    up.searchParams.delete('limit');
-    up.searchParams.set('key', env.UBC_OC_API_KEY);
-    stripReserved(up);
-    const headers = json();
-    headers.set('Content-Type', 'application/json');
+    const allowed = new Set(['q', 'size', 'from', 'index', 'sort', 'term', 'terms']);
+    for (const k of [...up.searchParams.keys()]) if (!allowed.has(k)) up.searchParams.delete(k);
     return forwardBuffered(req, env, up, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      overrideHeaders: headers,
+      method: 'GET',
+      overrideHeaders: json(),
       accept: 'application/json',
     });
   }
@@ -210,11 +199,11 @@ async function ubcOaiProxy(req, env) {
   const up = new URL(UPSTREAMS.ubcOai);
   up.search = new URL(req.url).search;
   stripReserved(up);
-  up.searchParams.set('key', env.UBC_OC_API_KEY);
+  // The OAI feed lives on the main index host and reads the key from an `api_key` header.
   const accept = 'application/xml,text/xml;q=0.9,*/*;q=0.1';
   return forwardBuffered(req, env, up, {
     method: 'GET',
-    overrideHeaders: new Headers({ Accept: accept }),
+    overrideHeaders: new Headers({ Accept: accept, api_key: env.UBC_OC_API_KEY }),
     accept,
   });
 }
@@ -500,7 +489,6 @@ function diag(env, url) {
       '/stanford-embed/*',
       '/hathi-catalog/*',
       '/htrc/*',
-      '/leipzig-iiif/*',
       '/bern-iiif/*',
     ],
     keys: {

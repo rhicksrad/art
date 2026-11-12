@@ -158,7 +158,7 @@ const iiifPath = (input: string, host: string): string | null => {
 };
 
 const iiifSource = (
-  key: 'LeipzigIIIF' | 'BernIIIF',
+  key: 'BernIIIF',
   prefix: string,
   host: string,
 ): Pick<SourceDefinition, 'accepts' | 'search'> => ({
@@ -413,24 +413,6 @@ export const SOURCES: SourceDefinition[] = [
       );
       return single(hathiCards(data), [url]);
     },
-  },
-  {
-    key: 'LeipzigIIIF',
-    slug: 'leipzig',
-    label: 'Leipzig University Library IIIF',
-    short: 'Leipzig',
-    group: 'Libraries & archives',
-    page: '/leipzig.html',
-    blurb: 'Read IIIF manifests and collections published by Universitätsbibliothek Leipzig.',
-    holds: 'IIIF manifests',
-    mode: 'identifier',
-    placeholder: '/0000000001/manifest.json',
-    samples: ['/0000000001/manifest.json'],
-    autoSample: false,
-    layout: 'gallery',
-    endpoint: '/leipzig-iiif/{path}',
-    upstream: 'iiif.ub.uni-leipzig.de',
-    ...iiifSource('LeipzigIIIF', '/leipzig-iiif', 'iiif.ub.uni-leipzig.de'),
   },
   {
     key: 'BernIIIF',

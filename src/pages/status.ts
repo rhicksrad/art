@@ -108,11 +108,6 @@ const PROBES: Probe[] = [
       count((json(body).items as unknown[] | undefined)?.length, 'digitised copies of OCLC 424023'),
   },
   {
-    name: 'Leipzig IIIF manifest',
-    path: '/leipzig-iiif/0000000001/manifest.json',
-    check: (body) => contains(body, 'sc:Manifest', 'IIIF manifest returned'),
-  },
-  {
     name: 'Bern rare books (e-rara IIIF)',
     path: '/bern-iiif/i3f/v20/2273935/manifest',
     check: (body) => contains(body, 'sc:Manifest', 'IIIF manifest returned'),
