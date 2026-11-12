@@ -16,4 +16,6 @@ if (missingFiles.length > 0) {
   process.exit(1);
 }
 
-console.log(`Post-build smoke check passed (${activeHtmlEntries.length} HTML files found in dist/).`);
+console.log(
+  `Post-build smoke check passed (${activeHtmlEntries.length} HTML files found in dist/).`,
+);

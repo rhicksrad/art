@@ -12,7 +12,8 @@
 //   DATAVERSE_BASE="https://dataverse.harvard.edu"
 //   ALLOWED_ORIGINS="*"
 
-const VERSION = '2026-11-12.scrub-success-bodies';
+const VERSION = '2026-11-12.upstream-timeout';
+const UPSTREAM_TIMEOUT_MS = 10_000;
 
 const UPSTREAMS = {
   harvardArt: 'https://api.harvardartmuseums.org',
@@ -292,6 +293,8 @@ async function forwardBuffered(req, env, up, opts = {}) {
       redirect: 'follow',
       cf: { cacheTtlByStatus: { '200-299': 0, 404: 0, '500-599': 0 } },
       body: opts.body || undefined,
+      // A dead upstream should fail in seconds, not hold the page for Cloudflare's own limit.
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
 
     const ct = res.headers.get('content-type') || '';
@@ -324,10 +327,16 @@ async function forwardBuffered(req, env, up, opts = {}) {
       },
     );
   } catch (e) {
-    return jserr(502, 'Upstream fetch failed', undefined, {
-      url: redactUrl(up),
-      detail: redactText(String(e), env),
-    });
+    const timedOut = e && (e.name === 'TimeoutError' || e.name === 'AbortError');
+    return jserr(
+      timedOut ? 504 : 502,
+      timedOut ? 'Upstream timed out' : 'Upstream fetch failed',
+      undefined,
+      {
+        url: redactUrl(up),
+        detail: redactText(String(e), env),
+      },
+    );
   }
 }
 
