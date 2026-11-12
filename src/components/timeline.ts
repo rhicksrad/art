@@ -45,7 +45,7 @@ export const timeline = (
 
     const stack = h('div', { class: 'timeline__stack' });
     for (const item of members) {
-      const label = `${item.title}${item.date ? `, ${item.date}` : ''}${showSource ? ` — ${sourceByKey(item.source).short}` : ''}`;
+      const label = `${item.title}${item.date ? `, ${item.date}` : ''}${showSource ? ` (${sourceByKey(item.source).short})` : ''}`;
       const button = h('button', {
         type: 'button',
         class: `timeline__item${item.img ? '' : ' timeline__item--text'}`,

@@ -164,7 +164,7 @@ const render = (): void => {
     h(
       'div',
       { class: 'detail__bar' },
-      h('a', { class: 'badge badge--link', href: pageHref(source.page) }, source.label),
+      h('a', { class: 'detail__source', href: pageHref(source.page) }, source.label),
       h(
         'div',
         { class: 'detail__nav' },
@@ -183,17 +183,23 @@ const render = (): void => {
       h(
         'div',
         { class: 'detail__info' },
-        item.kind ? h('p', { class: 'eyebrow' }, item.kind) : null,
+        item.kind ? h('p', { class: 'detail__kind' }, item.kind) : null,
         h('h2', { class: 'detail__title' }, item.title),
         item.sub || item.date
-          ? h('p', { class: 'detail__byline' }, [item.sub, item.date].filter(Boolean).join(' · '))
+          ? h(
+              'p',
+              { class: 'detail__byline' },
+              item.sub ? h('strong', null, item.sub) : null,
+              item.sub && item.date ? ', ' : null,
+              item.date ?? null,
+            )
           : null,
         item.description ? h('p', { class: 'detail__description' }, item.description) : null,
         item.colors && item.colors.length > 0
           ? h(
               'div',
               { class: 'detail__palette' },
-              h('p', { class: 'eyebrow' }, 'Colours in this work'),
+              h('h3', null, 'Colours in this work'),
               paletteStrip(
                 item.colors,
                 item.source === 'Harvard'

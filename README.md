@@ -16,17 +16,17 @@ Built with Vite, strict TypeScript and vanilla DOM. All requests go through one 
 
 ## Architecture
 
-| Path | Role |
-| --- | --- |
-| `src/lib/routeRegistry.mjs` | Single list of pages. Vite inputs, navigation, and the route checks all read it. |
-| `src/main.ts` | Builds the shell and mounts the page module for the current HTML entry. |
-| `src/sources/index.ts` | The source registry. Each entry describes one API: labels, sample queries, controls, and a `search()` that returns normalised items plus the Worker requests it made. |
-| `src/adapters/*` | Turn each API's response into the shared `ItemCard` shape (`src/lib/types.ts`). Covered by unit tests against recorded response shapes in `src/adapters/__fixtures__` (tests only, never shipped). |
-| `src/pages/explorer.ts` | The generic per-source explorer. `src/pages/<source>.ts` are one-line mounts of it. |
-| `src/pages/home.ts`, `status.ts`, `ubcOai.ts` | Home and unified search, the status page, the OAI console. |
-| `src/components/*` | Shell, cards, masonry, timeline, charts, results with facets, detail dialog, error panel. |
-| `src/styles/*` | Design tokens (light and dark), base, layout, components. |
-| `src/lib/http.ts` | `workerUrl`, `fetchJSON`, `fetchText` and a typed `HttpError` carrying the upstream diagnostic. |
+| Path                                          | Role                                                                                                                                                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/routeRegistry.mjs`                   | Single list of pages. Vite inputs, navigation, and the route checks all read it.                                                                                                                   |
+| `src/main.ts`                                 | Builds the shell and mounts the page module for the current HTML entry.                                                                                                                            |
+| `src/sources/index.ts`                        | The source registry. Each entry describes one API: labels, sample queries, controls, and a `search()` that returns normalised items plus the Worker requests it made.                              |
+| `src/adapters/*`                              | Turn each API's response into the shared `ItemCard` shape (`src/lib/types.ts`). Covered by unit tests against recorded response shapes in `src/adapters/__fixtures__` (tests only, never shipped). |
+| `src/pages/explorer.ts`                       | The generic per-source explorer. `src/pages/<source>.ts` are one-line mounts of it.                                                                                                                |
+| `src/pages/home.ts`, `status.ts`, `ubcOai.ts` | Home and unified search, the status page, the OAI console.                                                                                                                                         |
+| `src/components/*`                            | Shell, cards, masonry, timeline, charts, results with facets, detail dialog, error panel.                                                                                                          |
+| `src/styles/*`                                | Design tokens (light and dark), base, layout, components. The direction they follow is written down in `DESIGN.md`.                                                                                |
+| `src/lib/http.ts`                             | `workerUrl`, `fetchJSON`, `fetchText` and a typed `HttpError` carrying the upstream diagnostic.                                                                                                    |
 
 To add an API: add a Worker route, write an adapter, add an entry to `SOURCES`, and add a page to the route registry with a matching HTML shell and `src/pages/<slug>.ts`.
 

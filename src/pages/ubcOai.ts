@@ -59,12 +59,16 @@ const renderRecord = (record: Element): HTMLElement => {
     h(
       'div',
       { class: 'row__main' },
-      h('h3', { class: 'row__title' }, dc('title') ?? text(header, 'identifier') ?? 'Record'),
       h(
-        'p',
-        { class: 'row__byline' },
-        [dc('creator'), dc('date')].filter(Boolean).join(' · ') ||
-          (deleted ? 'Deleted record' : ''),
+        'div',
+        { class: 'label' },
+        h('h3', { class: 'label__title' }, dc('title') ?? text(header, 'identifier') ?? 'Record'),
+        h(
+          'p',
+          { class: 'label__maker' },
+          [dc('creator'), dc('date')].filter(Boolean).join(', ') ||
+            (deleted ? 'Deleted record' : ''),
+        ),
       ),
       facts([
         ['Identifier', text(header, 'identifier')],
@@ -84,7 +88,7 @@ const renderRecord = (record: Element): HTMLElement => {
 };
 
 const mount = (el: HTMLElement): void => {
-  document.title = 'OAI-PMH harvester · Art API Explorer';
+  document.title = 'OAI-PMH harvester | Art API Explorer';
   const params = new URLSearchParams(window.location.search);
   let controller: AbortController | null = null;
 
@@ -272,7 +276,6 @@ const mount = (el: HTMLElement): void => {
       h(
         'header',
         { class: 'page-head' },
-        h('p', { class: 'eyebrow' }, 'Libraries & archives · Harvesting'),
         h('h1', null, 'UBC OAI-PMH harvester'),
         h(
           'p',

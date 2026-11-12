@@ -136,7 +136,7 @@ const featureFigure = (): HTMLElement => {
       });
       const frame = h(
         'button',
-        { type: 'button', class: 'feature__frame', 'aria-label': `${item.title} — open details` },
+        { type: 'button', class: 'feature__frame', 'aria-label': `Open details for ${item.title}` },
         img,
       );
       frame.addEventListener('click', () => openDetail(item, items));
@@ -147,17 +147,28 @@ const featureFigure = (): HTMLElement => {
         h(
           'figcaption',
           { class: 'feature__caption' },
-          h('p', { class: 'eyebrow' }, 'On the wall today · Harvard Art Museums'),
-          h('p', { class: 'feature__title' }, item.title),
-          h('p', { class: 'muted' }, [item.sub, item.date].filter(Boolean).join(' · ')),
+          h(
+            'div',
+            { class: 'label label--wall' },
+            item.sub ? h('p', { class: 'label__maker' }, item.sub) : null,
+            h('p', { class: 'label__title' }, item.title),
+            item.date ? h('p', { class: 'label__date' }, item.date) : null,
+            h('p', { class: 'label__held' }, 'Harvard Art Museums, today’s painting'),
+          ),
           item.colors
-            ? paletteStrip(item.colors, (color) => pageHref('/harvard.html', { color: color.hex }))
-            : null,
-          accent
             ? h(
-                'p',
-                { class: 'feature__note' },
-                'This page takes its accent colour from this painting’s palette, live from the API. Pick a colour to find works that share it.',
+                'div',
+                { class: 'feature__palette' },
+                paletteStrip(item.colors, (color) =>
+                  pageHref('/harvard.html', { color: color.hex }),
+                ),
+                h(
+                  'p',
+                  { class: 'feature__note' },
+                  accent
+                    ? 'Harvard’s API returns the colours in each work. Today this site’s accent colour is taken from this one. Pick a swatch to find other works that use it.'
+                    : 'Harvard’s API returns the colours in each work. Pick a swatch to find other works that use it.',
+                ),
               )
             : null,
         ),
@@ -188,13 +199,8 @@ const todaysWall = (): HTMLElement => {
     h(
       'header',
       { class: 'section-head' },
-      h('h2', null, 'Also hanging today'),
-      h(
-        'a',
-        { href: pageHref('/harvard.html'), class: 'more-link' },
-        'Explore Harvard Art Museums',
-        icon('arrow', 15),
-      ),
+      h('h2', null, 'More of today’s paintings'),
+      h('a', { href: pageHref('/harvard.html'), class: 'more-link' }, 'Search Harvard Art Museums'),
     ),
     strip,
   );
@@ -228,14 +234,15 @@ const todaysWall = (): HTMLElement => {
             {
               type: 'button',
               class: 'filmstrip__item',
-              'aria-label': `${item.title} — open details`,
+              'aria-label': `Open details for ${item.title}`,
             },
             img,
             h(
               'span',
-              { class: 'filmstrip__caption' },
-              h('strong', null, item.title),
-              h('span', null, [item.sub, item.date].filter(Boolean).join(' · ')),
+              { class: 'label' },
+              item.sub ? h('span', { class: 'label__maker' }, item.sub) : null,
+              h('span', { class: 'label__title' }, item.title),
+              item.date ? h('span', { class: 'label__date' }, item.date) : null,
             ),
           );
           img.addEventListener('error', () => button.remove());
@@ -249,69 +256,61 @@ const todaysWall = (): HTMLElement => {
   return section;
 };
 
-const statStrip = (): HTMLElement =>
-  h(
-    'dl',
-    { class: 'stats' },
-    ...[
-      [String(SOURCES.length), 'free public APIs'],
-      ['1', 'Cloudflare Worker in front of them'],
-      ['0', 'API keys in your browser'],
-      ['0', 'rows of sample data'],
-    ].map(([value, label]) =>
-      h('div', { class: 'stats__item' }, h('dt', null, label), h('dd', null, value)),
-    ),
-  );
-
+/** The floor directory: every source, what it holds, how big it is right now, and its route. */
 const sourceDirectory = (): HTMLElement => {
-  const section = h(
+  const body = h('tbody');
+  for (const group of SOURCE_GROUPS) {
+    body.append(
+      h('tr', { class: 'directory__group' }, h('th', { colspan: '4', scope: 'colgroup' }, group)),
+    );
+    for (const source of SOURCES.filter((entry) => entry.group === group)) {
+      const live = h('td', { class: 'directory__size' });
+      // Live collection size, straight from the API. Stays blank if the source is down.
+      source
+        .count?.()
+        .then((total) => {
+          if (total) live.textContent = `${formatCount(total)} ${source.countNoun ?? 'records'}`;
+        })
+        .catch(() => undefined);
+      body.append(
+        h(
+          'tr',
+          null,
+          h('th', { scope: 'row' }, h('a', { href: pageHref(source.page) }, source.label)),
+          h('td', { class: 'directory__blurb' }, source.blurb),
+          live,
+          h('td', { class: 'directory__endpoint' }, h('code', null, source.endpoint)),
+        ),
+      );
+    }
+  }
+  return h(
     'section',
     { class: 'directory' },
     h(
       'header',
       { class: 'section-head' },
-      h('h2', null, 'Every collection has its own explorer'),
+      h('h2', null, 'The collections'),
+      h('a', { href: pageHref('/debug.html'), class: 'more-link' }, 'Check which are up right now'),
+    ),
+    h(
+      'table',
+      { class: 'directory__table' },
       h(
-        'a',
-        { href: pageHref('/debug.html'), class: 'more-link' },
-        'Live status of every API',
-        icon('arrow', 15),
+        'thead',
+        null,
+        h(
+          'tr',
+          null,
+          h('th', { scope: 'col' }, 'Source'),
+          h('th', { scope: 'col' }, 'What you can search'),
+          h('th', { scope: 'col' }, 'Size today'),
+          h('th', { scope: 'col' }, 'Worker route'),
+        ),
       ),
+      body,
     ),
   );
-  for (const group of SOURCE_GROUPS) {
-    section.append(
-      h('h3', { class: 'eyebrow directory__group' }, group),
-      h(
-        'div',
-        { class: 'directory__grid' },
-        ...SOURCES.filter((source) => source.group === group).map((source) => {
-          const live = h('span', { class: 'tile__live' });
-          // Live collection size, straight from the API. Stays blank if the source is down.
-          source
-            .count?.()
-            .then((total) => {
-              if (total)
-                live.replaceChildren(
-                  h('strong', null, formatCount(total)),
-                  ` ${source.countNoun ?? 'records'} right now`,
-                );
-            })
-            .catch(() => undefined);
-          return h(
-            'a',
-            { href: pageHref(source.page), class: 'tile' },
-            h('span', { class: 'tile__holds' }, source.holds),
-            h('span', { class: 'tile__title' }, source.label),
-            h('span', { class: 'tile__blurb' }, source.blurb),
-            live,
-            h('code', { class: 'tile__endpoint' }, source.endpoint),
-          );
-        }),
-      ),
-    );
-  }
-  return section;
 };
 
 /* --------------------------------- Page ----------------------------------- */
@@ -324,7 +323,7 @@ const mount = (el: HTMLElement): void => {
     type: 'search',
     name: 'q',
     class: 'searchbar__input',
-    placeholder: 'A subject, a maker, a medium — or paste an identifier',
+    placeholder: 'Subject, maker, medium, or an identifier',
     'aria-label': 'Search every source',
     autocomplete: 'off',
     value: state.q,
@@ -393,13 +392,17 @@ const mount = (el: HTMLElement): void => {
     h(
       'div',
       { class: 'hero__copy' },
-      h('p', { class: 'eyebrow' }, 'Built entirely on free public APIs'),
-      h('h1', null, 'One search across university museums, libraries and research archives.'),
+      h('h1', null, `Search ${SOURCES.length} open collections`),
+      h(
+        'p',
+        { class: 'lede' },
+        'University museums, libraries and research archives publish their catalogues through free public APIs. This site queries them live, side by side.',
+      ),
       form,
       h(
         'p',
         { class: 'hero__note muted' },
-        `${IDENTIFIER_SOURCES.map((s) => s.short).join(', ')} join in automatically when you paste one of their identifiers.`,
+        'Paste a Stanford PURL, an OCLC or ISBN number, a HathiTrust volume id or an IIIF path and that source answers instead.',
       ),
     ),
     feature,
@@ -441,7 +444,7 @@ const mount = (el: HTMLElement): void => {
       'Try',
       SAMPLE_QUERIES.filter((query) => !recent.includes(query)),
     );
-    body.replaceChildren(quick, statStrip(), todaysWall(), sourceDirectory());
+    body.replaceChildren(quick, todaysWall(), sourceDirectory());
   };
 
   /* ------------------------------ Results view ----------------------------- */
@@ -451,7 +454,7 @@ const mount = (el: HTMLElement): void => {
     controller = new AbortController();
     const { signal } = controller;
     const q = state.q;
-    document.title = `${q} · Art API Explorer`;
+    document.title = `${q} | Art API Explorer`;
     hero.classList.add('hero--compact');
     rememberSearch(q);
 
@@ -512,7 +515,7 @@ const mount = (el: HTMLElement): void => {
             title:
               outcome.state === 'loading'
                 ? source.label
-                : `${source.label} · ${'ms' in outcome ? `${outcome.ms} ms` : ''}`,
+                : `${source.label}${'ms' in outcome ? `, answered in ${outcome.ms} ms` : ''}`,
           },
           h('span', { class: 'rail__dot', 'aria-hidden': 'true' }),
           h('span', { class: 'rail__name' }, source.short),
@@ -527,7 +530,7 @@ const mount = (el: HTMLElement): void => {
 
       summary.textContent =
         done < running.length
-          ? `Searching ${running.length} sources for “${q}” · ${done} answered`
+          ? `Searching ${running.length} sources for “${q}”. ${done} answered so far.`
           : `${formatCount(totalLoaded)} results for “${q}” from ${running.length - failed.length} of ${running.length} sources`;
 
       clear(failures);
@@ -564,8 +567,7 @@ const mount = (el: HTMLElement): void => {
           h(
             'a',
             { href: pageHref(source.page, { q }), class: 'more-link' },
-            'Open the full explorer',
-            icon('arrow', 15),
+            `Search only ${source.label}`,
           ),
         );
       }

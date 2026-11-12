@@ -34,7 +34,7 @@ const writeState = (source: SourceDefinition, state: State, push: boolean): void
 
 /** One explorer serves every source: search box, source-specific controls, charts, paging. */
 export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void => {
-  document.title = `${source.label} · Art API Explorer`;
+  document.title = `${source.label} | Art API Explorer`;
   let state = readState(source);
   let items: ItemCard[] = [];
   let page = 1;
@@ -156,7 +156,6 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
       h(
         'header',
         { class: 'page-head' },
-        h('p', { class: 'eyebrow' }, `${source.group} · ${source.holds}`),
         h('h1', null, source.label),
         h('p', { class: 'lede' }, source.blurb),
         h(
@@ -252,9 +251,9 @@ export const mountExplorer = (el: HTMLElement, source: SourceDefinition): void =
         results.element.hidden = true;
         status.textContent = `No results for ${label}.`;
       } else if (result.total !== undefined && result.total > items.length) {
-        status.textContent = `${formatCount(result.total)} results for ${label} · ${formatCount(items.length)} loaded${sampled ? ' · sample search' : ''}`;
+        status.textContent = `${sampled ? 'Sample search: ' : ''}${formatCount(result.total)} results for ${label}, ${formatCount(items.length)} loaded`;
       } else {
-        status.textContent = `${formatCount(items.length)} result${items.length === 1 ? '' : 's'} for ${label}${sampled ? ' · sample search' : ''}`;
+        status.textContent = `${sampled ? 'Sample search: ' : ''}${formatCount(items.length)} result${items.length === 1 ? '' : 's'} for ${label}`;
       }
       more.hidden = !result.hasMore;
       more.disabled = false;
