@@ -6,6 +6,8 @@ import { activeHtmlEntries } from './src/lib/routeRegistry.mjs';
 
 const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
 const isCI = !!process.env.CI;
+// Set DEPLOY_TARGET=cloudflare so `vite preview` and the browser tests serve from the root too.
+const forCloudflare = process.env.DEPLOY_TARGET === 'cloudflare';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
@@ -59,7 +61,7 @@ const proxyConfig = workerProxyRoutes.reduce(
 // `--mode cloudflare` builds for the Worker's static assets: served from the root, with the API
 // on the same origin under /api (see .env.cloudflare and worker/wrangler.toml).
 export default defineConfig(({ mode }) => ({
-  base: mode !== 'cloudflare' && isCI && repo ? `/${repo}/` : '/',
+  base: mode !== 'cloudflare' && !forCloudflare && isCI && repo ? `/${repo}/` : '/',
   build: {
     rollupOptions: {
       input: rollupInput,
